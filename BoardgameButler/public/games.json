@@ -1,0 +1,12 @@
+[
+  { "title": "Catan", "players": "3-4", "duration": "60-120", "complexity": "Medium" },
+  { "title": "Ticket to Ride", "players": "2-5", "duration": "45-90", "complexity": "Easy" },
+  { "title": "Pandemic", "players": "2-4", "duration": "45-75", "complexity": "Medium" },
+  { "title": "Terraforming Mars", "players": "1-5", "duration": "120-180", "complexity": "Hard" },
+  { "title": "Azul", "players": "2-4", "duration": "30-45", "complexity": "Easy" },
+  { "title": "Wingspan", "players": "1-5", "duration": "40-70", "complexity": "Medium" },
+  { "title": "Gloomhaven", "players": "1-4", "duration": "60-120", "complexity": "Hard" },
+  { "title": "7 Wonders", "players": "2-7", "duration": "30-45", "complexity": "Medium" },
+  { "title": "Codenames", "players": "2-8", "duration": "15-30", "complexity": "Easy" },
+  { "title": "Scythe", "players": "1-5", "duration": "90-150", "complexity": "Hard" }
+]

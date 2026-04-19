@@ -1,0 +1,110 @@
+<div class="min-h-screen bg-gray-950 flex flex-col items-center justify-center px-4 py-12">
+
+  <div class="w-full max-w-lg">
+    <div class="mb-8">
+      <a routerLink="/" class="text-amber-400 hover:text-amber-300 text-sm font-medium transition-colors">
+        &larr; Back to Butler
+      </a>
+      <h1 class="mt-4 text-3xl font-bold text-white tracking-tight">Add a Game</h1>
+      <p class="mt-1 text-gray-400">Add a game to your collection.</p>
+    </div>
+
+    <form [formGroup]="form" (ngSubmit)="submit()" class="flex flex-col gap-5">
+
+      <div class="flex flex-col gap-1.5">
+        <label for="title" class="text-sm font-medium text-gray-300">Title <span class="text-amber-400">*</span></label>
+        <input
+          id="title"
+          type="text"
+          formControlName="title"
+          placeholder="e.g. Catan"
+          class="px-4 py-2.5 rounded-lg bg-gray-800 border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 transition-colors"
+        />
+        @if (form.controls.title.touched && form.controls.title.errors?.['required']) {
+          <p class="text-red-400 text-xs">Title is required.</p>
+        }
+      </div>
+
+      <div class="flex flex-col gap-1.5">
+        <label for="players" class="text-sm font-medium text-gray-300">Players <span class="text-amber-400">*</span></label>
+        <input
+          id="players"
+          type="text"
+          formControlName="players"
+          placeholder="e.g. 2-4"
+          class="px-4 py-2.5 rounded-lg bg-gray-800 border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 transition-colors"
+        />
+        @if (form.controls.players.touched && form.controls.players.errors?.['required']) {
+          <p class="text-red-400 text-xs">Player count is required.</p>
+        }
+      </div>
+
+      <div class="flex flex-col gap-1.5">
+        <label for="duration" class="text-sm font-medium text-gray-300">Duration (minutes) <span class="text-amber-400">*</span></label>
+        <input
+          id="duration"
+          type="text"
+          formControlName="duration"
+          placeholder="e.g. 60-120"
+          class="px-4 py-2.5 rounded-lg bg-gray-800 border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 transition-colors"
+        />
+        @if (form.controls.duration.touched && form.controls.duration.errors?.['required']) {
+          <p class="text-red-400 text-xs">Duration is required.</p>
+        }
+      </div>
+
+      <div class="flex flex-col gap-1.5">
+        <label for="complexity" class="text-sm font-medium text-gray-300">Complexity <span class="text-amber-400">*</span></label>
+        <select
+          id="complexity"
+          formControlName="complexity"
+          class="px-4 py-2.5 rounded-lg bg-gray-800 border border-gray-700 text-white focus:outline-none focus:border-amber-500 transition-colors"
+        >
+          <option value="Easy">Easy</option>
+          <option value="Medium">Medium</option>
+          <option value="Hard">Hard</option>
+        </select>
+      </div>
+
+      <div class="flex flex-col gap-1.5">
+        <label for="rating" class="text-sm font-medium text-gray-300">
+          Your Rating <span class="text-amber-400">*</span>
+          @if (form.controls.rating.value) {
+            <span class="ml-2 text-amber-400 font-bold">{{ form.controls.rating.value }} / 10</span>
+          }
+        </label>
+        <input
+          id="rating"
+          type="range"
+          formControlName="rating"
+          min="1"
+          max="10"
+          step="1"
+          class="w-full accent-amber-500"
+        />
+        <div class="flex justify-between text-xs text-gray-500">
+          <span>1</span>
+          <span>5</span>
+          <span>10</span>
+        </div>
+        @if (form.controls.rating.touched && form.controls.rating.errors?.['required']) {
+          <p class="text-red-400 text-xs">Rating is required.</p>
+        }
+      </div>
+
+      @if (error()) {
+        <p class="text-red-400 text-sm bg-red-950/50 border border-red-800 rounded-lg px-4 py-3">{{ error() }}</p>
+      }
+
+      <button
+        type="submit"
+        [disabled]="form.invalid || submitting()"
+        class="mt-2 px-6 py-3 bg-amber-500 hover:bg-amber-400 active:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-base rounded-xl shadow-lg transition-colors duration-200 cursor-pointer"
+      >
+        {{ submitting() ? 'Saving...' : 'Add to Collection' }}
+      </button>
+
+    </form>
+  </div>
+
+</div>

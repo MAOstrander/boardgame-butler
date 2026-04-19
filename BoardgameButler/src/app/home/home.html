@@ -41,6 +41,9 @@
           <span class="px-3 py-1 rounded-full bg-white/20 text-sm">{{ game.players }} players</span>
           <span class="px-3 py-1 rounded-full bg-white/20 text-sm">{{ game.duration }} min</span>
           <span class="px-3 py-1 rounded-full bg-white/20 text-sm">{{ game.complexity }}</span>
+          @if (game.rating) {
+            <span class="px-3 py-1 rounded-full bg-white/20 text-sm">{{ game.rating }}/10</span>
+          }
         </div>
       </div>
     }
@@ -58,5 +61,3 @@
 
   </div>
 </main>
-
-<router-outlet />

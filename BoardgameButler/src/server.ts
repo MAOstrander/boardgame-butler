@@ -6,23 +6,30 @@ import {
 } from '@angular/ssr/node';
 import express from 'express';
 import { join } from 'node:path';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
 const browserDistFolder = join(import.meta.dirname, '../browser');
+
+// In production the file lands in the browser dist folder after ng build.
+// During ng serve Vite serves assets from memory so the dist copy doesn't
+// exist on disk — fall back to the source public/ directory instead.
+const gamesFilePath = existsSync(join(browserDistFolder, 'games.json'))
+  ? join(browserDistFolder, 'games.json')
+  : join(process.cwd(), 'public', 'games.json');
 
 const app = express();
 const angularApp = new AngularNodeAppEngine();
 
-/**
- * Example Express Rest API endpoints can be defined here.
- * Uncomment and define endpoints as necessary.
- *
- * Example:
- * ```ts
- * app.get('/api/{*splat}', (req, res) => {
- *   // Handle API request
- * });
- * ```
- */
+app.post('/api/games', express.json(), (req, res) => {
+  try {
+    const games = JSON.parse(readFileSync(gamesFilePath, 'utf-8'));
+    games.push(req.body);
+    writeFileSync(gamesFilePath, JSON.stringify(games, null, 2), 'utf-8');
+    res.status(201).json({ success: true });
+  } catch {
+    res.status(500).json({ error: 'Failed to save game.' });
+  }
+});
 
 /**
  * Serve static files from /browser

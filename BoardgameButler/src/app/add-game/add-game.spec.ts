@@ -3,7 +3,7 @@ import { Router, provideRouter } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { AddGame } from './add-game';
-import { query, queryAll, setInputValue, settle, text } from '../../testing/helpers';
+import { SAMPLE_GAMES, query, queryAll, savedGames, seedStorage, setInputValue, settle, text } from '../../testing/helpers';
 
 describe('AddGame', () => {
   let fixture: ComponentFixture<AddGame>;
@@ -11,6 +11,9 @@ describe('AddGame', () => {
   let router: Router;
 
   beforeEach(async () => {
+    localStorage.clear();
+    seedStorage(SAMPLE_GAMES);
+
     await TestBed.configureTestingModule({
       imports: [AddGame],
       providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
@@ -24,7 +27,11 @@ describe('AddGame', () => {
     await settle(fixture);
   });
 
-  afterEach(() => http.verify());
+  afterEach(() => {
+    http.verify();
+    localStorage.clear();
+    vi.restoreAllMocks();
+  });
 
   const submitButton = () => query<HTMLButtonElement>(fixture, 'button[type="submit"]');
 
@@ -68,49 +75,43 @@ describe('AddGame', () => {
     expect(submitButton().disabled).toBe(false);
   });
 
-  it('posts the game to /api/games and navigates home on success', async () => {
+  it('saves the game to the collection and navigates home', async () => {
     await fillValidForm();
     submitButton().click();
     await settle(fixture);
 
-    expect(submitButton().textContent).toContain('Saving...');
-    expect(submitButton().disabled).toBe(true);
-
-    const req = http.expectOne('/api/games');
-    expect(req.request.method).toBe('POST');
-    expect(req.request.body).toEqual({
+    const saved = savedGames()!;
+    expect(saved.length).toBe(SAMPLE_GAMES.length + 1);
+    expect(saved[saved.length - 1]).toEqual({
       title: 'Wingspan',
       players: '1-5',
       duration: '40-70',
       complexity: 'Medium',
       rating: 8,
     });
-
-    req.flush({ success: true }, { status: 201, statusText: 'Created' });
-    await settle(fixture);
-
     expect(router.navigate).toHaveBeenCalledWith(['/']);
   });
 
-  it('shows an error and re-enables the form when saving fails', async () => {
+  it('shows an error and stays on the page when the device refuses to save', async () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('quota', 'QuotaExceededError');
+    });
+
     await fillValidForm();
     submitButton().click();
     await settle(fixture);
 
-    http.expectOne('/api/games').flush({ error: 'nope' }, { status: 500, statusText: 'Server Error' });
-    await settle(fixture);
-
-    expect(text(fixture)).toContain('Failed to save game. Please try again.');
-    expect(submitButton().disabled).toBe(false);
-    expect(submitButton().textContent).toContain('Add to Collection');
+    expect(text(fixture)).toContain('Could not save your collection to this device.');
     expect(router.navigate).not.toHaveBeenCalled();
   });
 
-  it('does not submit while the form is invalid', async () => {
+  it('does not save while the form is invalid', async () => {
     submitButton().click();
     query<HTMLFormElement>(fixture, 'form').dispatchEvent(new Event('submit'));
     await settle(fixture);
-    http.expectNone('/api/games');
+
+    expect(savedGames()).toEqual(SAMPLE_GAMES);
+    expect(router.navigate).not.toHaveBeenCalled();
   });
 
   it('links back home and to the collection and manage pages', () => {

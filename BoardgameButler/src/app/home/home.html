@@ -48,8 +48,10 @@
       </div>
     }
 
-    @if (games().length === 0) {
+    @if (!ready()) {
       <p class="text-white/40 text-sm">Loading game library...</p>
+    } @else if (games().length === 0) {
+      <p class="text-white/40 text-sm">Your collection is empty — add a game to get started.</p>
     }
 
     <div class="flex gap-6 mt-4">

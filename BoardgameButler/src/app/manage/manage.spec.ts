@@ -3,13 +3,27 @@ import { provideRouter } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { Manage } from './manage';
-import { SAMPLE_GAMES, cellText, findByText, query, queryAll, selectFile, settle, text } from '../../testing/helpers';
+import {
+  SAMPLE_GAMES,
+  cellText,
+  findByText,
+  query,
+  queryAll,
+  savedGames,
+  seedStorage,
+  selectFile,
+  settle,
+  text,
+} from '../../testing/helpers';
 
 describe('Manage', () => {
   let fixture: ComponentFixture<Manage>;
   let http: HttpTestingController;
 
   beforeEach(async () => {
+    localStorage.clear();
+    seedStorage(SAMPLE_GAMES);
+
     await TestBed.configureTestingModule({
       imports: [Manage],
       providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
@@ -20,7 +34,11 @@ describe('Manage', () => {
     await settle(fixture);
   });
 
-  afterEach(() => http.verify());
+  afterEach(() => {
+    http.verify();
+    localStorage.clear();
+    vi.restoreAllMocks();
+  });
 
   const fileInput = () => query<HTMLInputElement>(fixture, 'input[type="file"]');
 
@@ -34,8 +52,38 @@ describe('Manage', () => {
   }
 
   describe('export', () => {
-    it('offers a download button', () => {
-      expect(findByText(fixture, 'button', 'Download games.json')).toBeTruthy();
+    it('shows how many games will be exported', () => {
+      expect(text(fixture)).toContain('(4 games)');
+    });
+
+    it('downloads the collection as games.json', () => {
+      const createObjectURL = vi.fn((_blob: Blob) => 'blob:games');
+      const revokeObjectURL = vi.fn();
+      Object.assign(URL, { createObjectURL, revokeObjectURL });
+      const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+      findByText<HTMLButtonElement>(fixture, 'button', 'Download games.json').click();
+
+      expect(createObjectURL).toHaveBeenCalledTimes(1);
+      const blob = createObjectURL.mock.calls[0][0];
+      expect(blob.type).toBe('application/json');
+
+      expect(click).toHaveBeenCalledTimes(1);
+      const anchor = click.mock.instances[0] as HTMLAnchorElement;
+      expect(anchor.download).toBe('games.json');
+      expect(anchor.href).toBe('blob:games');
+      expect(revokeObjectURL).toHaveBeenCalledWith('blob:games');
+    });
+
+    it('exports the current collection, pretty-printed', async () => {
+      const createObjectURL = vi.fn((_blob: Blob) => 'blob:games');
+      Object.assign(URL, { createObjectURL, revokeObjectURL: vi.fn() });
+      vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+      findByText<HTMLButtonElement>(fixture, 'button', 'Download games.json').click();
+
+      const blob = createObjectURL.mock.calls[0][0];
+      expect(await blob.text()).toBe(JSON.stringify(SAMPLE_GAMES, null, 2));
     });
   });
 
@@ -52,19 +100,18 @@ describe('Manage', () => {
     });
 
     it('previews the games in a valid file before importing', async () => {
-      await chooseFile(JSON.stringify(SAMPLE_GAMES));
+      const incoming = [SAMPLE_GAMES[1], SAMPLE_GAMES[2]];
+      await chooseFile(JSON.stringify(incoming));
 
       expect(text(fixture)).toContain('Ready to import');
-      expect(text(fixture)).toContain('4 games');
-      const rows = queryAll(fixture, 'li').map(cellText);
-      expect(rows).toEqual([
-        'Catan 3-4 players · Medium',
+      expect(text(fixture)).toContain('2 games');
+      expect(queryAll(fixture, 'li').map(cellText)).toEqual([
         'Azul 2-4 players · Easy',
         'Gloomhaven 1-4 players · Hard',
-        'Terraforming Mars 1-5 players · Hard',
       ]);
-      // The drop-zone is hidden while a preview is showing.
+      // The drop-zone is hidden while a preview is showing, and nothing is saved yet.
       expect(fixture.nativeElement.querySelector('input[type="file"]')).toBeNull();
+      expect(savedGames()).toEqual(SAMPLE_GAMES);
     });
 
     it('uses singular wording for a single game', async () => {
@@ -72,47 +119,40 @@ describe('Manage', () => {
       expect(text(fixture)).toContain('1 game:');
     });
 
-    it('cancelling the preview restores the drop-zone without calling the API', async () => {
-      await chooseFile(JSON.stringify(SAMPLE_GAMES));
+    it('cancelling the preview restores the drop-zone without changing the collection', async () => {
+      await chooseFile(JSON.stringify([SAMPLE_GAMES[0]]));
       findByText<HTMLButtonElement>(fixture, 'button', 'Cancel').click();
       await settle(fixture);
 
       expect(text(fixture)).not.toContain('Ready to import');
       expect(fileInput()).toBeTruthy();
-      http.expectNone('/api/games');
+      expect(savedGames()).toEqual(SAMPLE_GAMES);
     });
 
-    it('confirming replaces the collection via PUT /api/games', async () => {
-      await chooseFile(JSON.stringify(SAMPLE_GAMES));
-      const confirm = findByText<HTMLButtonElement>(fixture, 'button', 'Confirm Import');
-      confirm.click();
+    it('confirming replaces the saved collection', async () => {
+      const incoming = [SAMPLE_GAMES[1], SAMPLE_GAMES[2]];
+      await chooseFile(JSON.stringify(incoming));
+      findByText<HTMLButtonElement>(fixture, 'button', 'Confirm Import').click();
       await settle(fixture);
 
-      expect(confirm.textContent).toContain('Importing...');
-      expect(confirm.disabled).toBe(true);
-
-      const req = http.expectOne('/api/games');
-      expect(req.request.method).toBe('PUT');
-      expect(req.request.body).toEqual(SAMPLE_GAMES);
-      req.flush({ success: true, count: 4 });
-      await settle(fixture);
-
+      expect(savedGames()).toEqual(incoming);
       expect(text(fixture)).toContain('Collection imported successfully!');
+      expect(text(fixture)).toContain('(2 games)');
       expect(text(fixture)).not.toContain('Ready to import');
       expect(fileInput()).toBeTruthy();
     });
 
-    it('shows an error and keeps the preview when the import fails', async () => {
-      await chooseFile(JSON.stringify(SAMPLE_GAMES));
-      findByText<HTMLButtonElement>(fixture, 'button', 'Confirm Import').click();
-      await settle(fixture);
+    it('shows an error and keeps the preview when the device refuses to save', async () => {
+      await chooseFile(JSON.stringify([SAMPLE_GAMES[0]]));
+      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+        throw new DOMException('quota', 'QuotaExceededError');
+      });
 
-      http.expectOne('/api/games').flush({ error: 'nope' }, { status: 500, statusText: 'Server Error' });
+      findByText<HTMLButtonElement>(fixture, 'button', 'Confirm Import').click();
       await settle(fixture);
 
       expect(text(fixture)).toContain('Import failed. Please try again.');
       expect(text(fixture)).toContain('Ready to import');
-      expect(findByText<HTMLButtonElement>(fixture, 'button', 'Confirm Import').disabled).toBe(false);
     });
 
     it('clears a previous error when a new file is chosen', async () => {

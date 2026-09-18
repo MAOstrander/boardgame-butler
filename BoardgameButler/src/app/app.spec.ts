@@ -10,12 +10,16 @@ import { Home } from './home/home';
 import { AddGame } from './add-game/add-game';
 import { Manage } from './manage/manage';
 import { Collection } from './collection/collection';
+import { SAMPLE_GAMES, seedStorage } from '../testing/helpers';
 
 describe('App routing', () => {
   let harness: RouterTestingHarness;
   let http: HttpTestingController;
 
   beforeEach(async () => {
+    localStorage.clear();
+    seedStorage(SAMPLE_GAMES);
+
     await TestBed.configureTestingModule({
       imports: [App],
       providers: [provideRouter(routes), provideHttpClient(), provideHttpClientTesting()],
@@ -25,10 +29,10 @@ describe('App routing', () => {
     harness = await RouterTestingHarness.create();
   });
 
-  // Pages fire data requests on init; drain them so verify() doesn't complain.
   afterEach(() => {
-    http.match(() => true);
     http.verify();
+    localStorage.clear();
+    vi.restoreAllMocks();
   });
 
   it('creates the root component', () => {

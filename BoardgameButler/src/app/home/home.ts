@@ -1,19 +1,18 @@
-import { Component, signal, inject, OnInit, PLATFORM_ID } from '@angular/core';
-import { isPlatformBrowser } from '@angular/common';
+import { Component, signal, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { HttpClient } from '@angular/common/http';
 import { Game } from '../game';
+import { GameStore } from '../game-store';
 
 @Component({
   selector: 'app-home',
   imports: [RouterLink],
   templateUrl: './home.html',
 })
-export class Home implements OnInit {
-  private http = inject(HttpClient);
-  private platformId = inject(PLATFORM_ID);
+export class Home {
+  private store = inject(GameStore);
 
-  protected games = signal<Game[]>([]);
+  protected games = this.store.games;
+  protected ready = this.store.ready;
   protected selectedGame = signal<Game | null>(null);
 
   protected readonly features = [
@@ -25,14 +24,6 @@ export class Home implements OnInit {
     'Play statistics',
     'In-game utilities',
   ];
-
-  ngOnInit() {
-    if (isPlatformBrowser(this.platformId)) {
-      this.http.get<Game[]>('/games.json').subscribe(games => {
-        this.games.set(games);
-      });
-    }
-  }
 
   protected serveGame() {
     const list = this.games();

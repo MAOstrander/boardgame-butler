@@ -1,7 +1,7 @@
 import { Component, signal, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
 import { Game } from '../game';
+import { GameStore } from '../game-store';
 
 @Component({
   selector: 'app-manage',
@@ -9,11 +9,11 @@ import { Game } from '../game';
   templateUrl: './manage.html',
 })
 export class Manage {
-  private http = inject(HttpClient);
+  private store = inject(GameStore);
 
+  protected count = () => this.store.games().length;
   protected preview = signal<Game[] | null>(null);
   protected importError = signal<string | null>(null);
-  protected importing = signal(false);
   protected importSuccess = signal(false);
 
   protected onFileSelected(event: Event) {
@@ -43,22 +43,15 @@ export class Manage {
 
   protected confirmImport() {
     const games = this.preview();
-    if (!games || this.importing()) return;
+    if (!games) return;
 
-    this.importing.set(true);
-    this.importError.set(null);
-
-    this.http.put('/api/games', games).subscribe({
-      next: () => {
-        this.importing.set(false);
-        this.importSuccess.set(true);
-        this.preview.set(null);
-      },
-      error: () => {
-        this.importing.set(false);
-        this.importError.set('Import failed. Please try again.');
-      },
-    });
+    this.store.replaceAll(games);
+    if (this.store.error()) {
+      this.importError.set('Import failed. Please try again.');
+      return;
+    }
+    this.importSuccess.set(true);
+    this.preview.set(null);
   }
 
   protected cancelImport() {
@@ -67,6 +60,12 @@ export class Manage {
   }
 
   protected exportCollection() {
-    window.location.href = '/api/games/export';
+    const blob = new Blob([this.store.toJson()], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'games.json';
+    link.click();
+    URL.revokeObjectURL(url);
   }
 }

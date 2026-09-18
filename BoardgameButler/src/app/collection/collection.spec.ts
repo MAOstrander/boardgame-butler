@@ -4,13 +4,24 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { Collection } from './collection';
 import { Game } from '../game';
-import { SAMPLE_GAMES, cellText, findByText, query, queryAll, setInputValue, settle, text } from '../../testing/helpers';
+import { SAMPLE_GAMES, cellText, findByText, query, queryAll, seedStorage, setInputValue, settle, text } from '../../testing/helpers';
 
 describe('Collection', () => {
   let fixture: ComponentFixture<Collection>;
   let http: HttpTestingController;
 
-  beforeEach(async () => {
+  beforeEach(() => localStorage.clear());
+
+  afterEach(() => {
+    http.verify();
+    localStorage.clear();
+    vi.restoreAllMocks();
+  });
+
+  /** Create the page with `games` already saved on the device (or nothing, if `null`). */
+  async function load(games: Game[] | null = SAMPLE_GAMES) {
+    if (games) seedStorage(games);
+
     await TestBed.configureTestingModule({
       imports: [Collection],
       providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
@@ -18,13 +29,6 @@ describe('Collection', () => {
 
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(Collection);
-    await settle(fixture);
-  });
-
-  afterEach(() => http.verify());
-
-  async function load(games: Game[] = SAMPLE_GAMES) {
-    http.expectOne('/api/games').flush(games);
     await settle(fixture);
   }
 
@@ -36,13 +40,15 @@ describe('Collection', () => {
     await settle(fixture);
   }
 
-  it('fetches the collection from /api/games and shows a loading state first', async () => {
+  it('shows a loading state while the collection is being seeded on first run', async () => {
+    await load(null);
     expect(text(fixture)).toContain('Loading...');
-    const req = http.expectOne('/api/games');
-    expect(req.request.method).toBe('GET');
-    req.flush(SAMPLE_GAMES);
+    expect(fixture.nativeElement.querySelector('table')).toBeNull();
+
+    http.expectOne('/games.json').flush(SAMPLE_GAMES);
     await settle(fixture);
     expect(text(fixture)).not.toContain('Loading...');
+    expect(queryAll(fixture, 'tbody tr').length).toBe(4);
   });
 
   it('renders one row per game with the total count', async () => {
@@ -75,10 +81,11 @@ describe('Collection', () => {
     expect(fixture.nativeElement.querySelector('table')).toBeNull();
   });
 
-  it('shows an error when the request fails', async () => {
-    http.expectOne('/api/games').flush({ error: 'nope' }, { status: 500, statusText: 'Server Error' });
+  it('shows an error when the starter collection cannot be loaded', async () => {
+    await load(null);
+    http.expectOne('/games.json').flush('nope', { status: 500, statusText: 'Server Error' });
     await settle(fixture);
-    expect(text(fixture)).toContain('Failed to load your collection.');
+    expect(text(fixture)).toContain('Could not load the starter collection.');
     expect(fixture.nativeElement.querySelector('table')).toBeNull();
   });
 

@@ -11,13 +11,13 @@
         </a>
       </div>
       <h1 class="mt-4 text-3xl font-bold text-white tracking-tight">Manage Collection</h1>
-      <p class="mt-1 text-gray-400">Import or export your entire game library as a JSON file.</p>
+      <p class="mt-1 text-gray-400">Import or export your entire game library as a JSON file. Your collection is stored on this device.</p>
     </div>
 
     <!-- Export -->
     <section class="mb-8 p-6 rounded-2xl bg-gray-900 border border-gray-800">
       <h2 class="text-lg font-semibold text-white mb-1">Export Collection</h2>
-      <p class="text-gray-400 text-sm mb-4">Download your current game library as a <code class="text-amber-400">games.json</code> file.</p>
+      <p class="text-gray-400 text-sm mb-4">Download your current game library ({{ count() }} game{{ count() === 1 ? '' : 's' }}) as a <code class="text-amber-400">games.json</code> file. Use this to back up or move your collection to another device.</p>
       <button
         (click)="exportCollection()"
         class="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-white font-semibold rounded-xl shadow transition-colors duration-200 cursor-pointer"
@@ -30,7 +30,7 @@
     <section class="p-6 rounded-2xl bg-gray-900 border border-gray-800">
       <h2 class="text-lg font-semibold text-white mb-1">Import Collection</h2>
       <p class="text-gray-400 text-sm mb-4">
-        Upload a <code class="text-amber-400">games.json</code> file to replace your entire collection.
+        Upload a <code class="text-amber-400">games.json</code> file to replace the collection on this device.
         <span class="text-red-400 font-medium">This will overwrite all existing games.</span>
       </p>
 
@@ -74,15 +74,13 @@
           <div class="flex gap-3 mt-4">
             <button
               (click)="confirmImport()"
-              [disabled]="importing()"
-              class="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 active:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl shadow transition-colors duration-200 cursor-pointer"
+              class="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-white font-semibold rounded-xl shadow transition-colors duration-200 cursor-pointer"
             >
-              {{ importing() ? 'Importing...' : 'Confirm Import' }}
+              Confirm Import
             </button>
             <button
               (click)="cancelImport()"
-              [disabled]="importing()"
-              class="px-5 py-2.5 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-gray-300 font-semibold rounded-xl transition-colors duration-200 cursor-pointer"
+              class="px-5 py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold rounded-xl transition-colors duration-200 cursor-pointer"
             >
               Cancel
             </button>

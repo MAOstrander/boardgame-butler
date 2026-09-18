@@ -1,7 +1,8 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
-import { HttpClient } from '@angular/common/http';
 import { Router, RouterLink } from '@angular/router';
+import { Game } from '../game';
+import { GameStore } from '../game-store';
 
 @Component({
   selector: 'app-add-game',
@@ -10,13 +11,12 @@ import { Router, RouterLink } from '@angular/router';
 })
 export class AddGame {
   private fb = inject(FormBuilder);
-  private http = inject(HttpClient);
+  private store = inject(GameStore);
   private router = inject(Router);
 
-  protected submitting = signal(false);
-  protected error = signal<string | null>(null);
+  protected error = this.store.error;
 
-  protected form = this.fb.group({
+  protected form = this.fb.nonNullable.group({
     title: ['', Validators.required],
     players: ['', Validators.required],
     duration: ['', Validators.required],
@@ -28,16 +28,20 @@ export class AddGame {
   });
 
   protected submit() {
-    if (this.form.invalid || this.submitting()) return;
-    this.submitting.set(true);
-    this.error.set(null);
+    if (this.form.invalid) return;
 
-    this.http.post('/api/games', this.form.value).subscribe({
-      next: () => this.router.navigate(['/']),
-      error: () => {
-        this.error.set('Failed to save game. Please try again.');
-        this.submitting.set(false);
-      },
-    });
+    const value = this.form.getRawValue();
+    const game: Game = {
+      title: value.title,
+      players: value.players,
+      duration: value.duration,
+      complexity: value.complexity,
+      rating: value.rating ?? undefined,
+    };
+
+    this.store.add(game);
+    if (!this.store.error()) {
+      this.router.navigate(['/']);
+    }
   }
 }

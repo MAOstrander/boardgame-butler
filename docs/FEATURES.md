@@ -1,6 +1,6 @@
 # Boardgame Butler — Feature Documentation
 
-Boardgame Butler is a personal board game concierge: it keeps a small library of the games you own and helps you pick one to play. The app is a single-user Angular application with a thin Express backend that reads and writes a JSON file on disk.
+Boardgame Butler is a personal board game concierge: it keeps a small library of the games you own and helps you pick one to play. It is a single-user, installable **progressive web app** — the collection lives in the browser's storage on each device, so once installed it works fully offline with no server behind it.
 
 This document describes the features that exist today. Items shown as "planned" appear in the app's UI but are not yet implemented.
 
@@ -15,10 +15,9 @@ This document describes the features that exist today. Items shown as "planned" 
   - [Your Collection](#your-collection)
   - [Add a Game](#add-a-game)
   - [Manage Collection (import / export)](#manage-collection-import--export)
-- [HTTP API](#http-api)
 - [Data storage](#data-storage)
-- [Rendering modes (SSR / prerender)](#rendering-modes-ssr--prerender)
-- [Running the app](#running-the-app)
+- [Progressive web app (install & offline)](#progressive-web-app-install--offline)
+- [Running and deploying](#running-and-deploying)
 - [Planned features (not yet implemented)](#planned-features-not-yet-implemented)
 - [Roadmap](#roadmap)
 
@@ -28,10 +27,11 @@ This document describes the features that exist today. Items shown as "planned" 
 
 | Area | Technology |
 |---|---|
-| Frontend | Angular 21 (standalone components, signals, new control flow) |
+| Frontend | Angular 21 (standalone components, signals, new control flow, zoneless) |
 | Styling | Tailwind CSS 4 |
-| Backend | Express 5 via `@angular/ssr/node` |
-| Persistence | Flat JSON file (`public/games.json`) |
+| Backend | None — static files only |
+| Persistence | `localStorage` on each device, seeded from a bundled `games.json` |
+| Offline / install | `@angular/service-worker` + web app manifest |
 | Tests | Vitest + jsdom — functional component specs for every page (`npm test`) |
 
 There are four routes:
@@ -49,7 +49,7 @@ Every page links to the others through a small nav row under the back link.
 
 ## Game data model
 
-A game is a plain JSON object, defined once in `src/app/game.ts` and shared by every component:
+A game is a plain JSON object, defined once in `src/app/game.ts`:
 
 ```ts
 interface Game {
@@ -64,11 +64,11 @@ interface Game {
 Notes:
 
 - `players` and `duration` are **strings**, not numbers, so ranges like `"2-5"` or `"45-90"` are stored exactly as typed. Nothing parses them yet.
-- `complexity` is constrained to Easy / Medium / Hard by the Add Game form, but the API does not validate it.
+- `complexity` is constrained to Easy / Medium / Hard by the Add Game form, but imported files are not validated.
 - `rating` is required when adding a game through the UI, but the seed data and imported files may leave it out. The UI treats a missing rating as "no rating" and hides the badge.
 - There is no `id` field. Games are identified only by their position in the array (and by `title` in the import preview list).
 
-The seed collection in `public/games.json` contains 11 games (Catan, Ticket to Ride, Pandemic, Terraforming Mars, Azul, Wingspan, Gloomhaven, …).
+The starter collection in `public/games.json` contains 11 games (Catan, Ticket to Ride, Pandemic, Terraforming Mars, Azul, Wingspan, Gloomhaven, …). It is only used to seed a device that has never saved a collection — see [Data storage](#data-storage).
 
 ---
 
@@ -83,8 +83,8 @@ The landing page shows a full-bleed background image (`public/DiceButler.jpg`) w
 
 **What it does**
 
-1. On load (browser only — skipped during server rendering) it fetches `/games.json` and stores the result in a `games` signal.
-2. While the list is empty it shows *"Loading game library..."* and the main button is disabled.
+1. It reads the collection from the shared `GameStore` (see [Data storage](#data-storage)).
+2. Until the store is ready it shows *"Loading game library..."* and the main button is disabled. If the store is ready but empty it shows *"Your collection is empty — add a game to get started."* instead.
 3. Clicking **Serve me a game!** picks one game uniformly at random from the collection and displays it in a *"Tonight's pick"* card showing:
    - Title
    - `players` players
@@ -97,7 +97,6 @@ The landing page shows a full-bleed background image (`public/DiceButler.jpg`) w
 **Current limitations**
 
 - The pick is purely random. There is no filtering by player count, duration, or complexity yet, even though the tagline describes that.
-- The list is loaded from the static `/games.json` asset, so a game added via the API appears on the next full page load.
 
 ---
 
@@ -110,7 +109,7 @@ A read-only table of every game in the collection.
 
 **What it does**
 
-1. On load it fetches `GET /api/games` (the live file, not the cached static asset) and shows *Loading...* until it arrives.
+1. It reads the collection from the shared `GameStore` and shows *Loading...* only on a first run while the starter data is being seeded.
 2. The subtitle shows the total count, or *Showing N of M games* when a search is active.
 3. A **search box** filters rows by title (case-insensitive substring match). If nothing matches, the table shows *No games match "…"*.
 4. Every column header is a **sort toggle**. Clicking a header sorts ascending; clicking it again flips to descending. The active column is highlighted in amber with a ▲/▼ indicator. Default sort is title A→Z.
@@ -125,7 +124,7 @@ A read-only table of every game in the collection.
 
 5. Complexity is shown as a colour-coded pill (green / amber / red). Missing ratings render as `—`.
 6. If the collection is empty, an empty-state card links to **Add your first game**.
-7. If the request fails: *"Failed to load your collection."*
+7. If the store reports an error (e.g. the starter collection could not be fetched on first run) it is shown in a red banner.
 
 **Current limitations**
 
@@ -153,13 +152,13 @@ A reactive form for adding a single game.
 
 - Required-field errors appear beneath a field once it has been touched.
 - The rating slider shows the live value (`7 / 10`) next to its label once set.
-- The submit button is disabled while the form is invalid or a save is in flight; its label switches to *Saving...* during submission.
+- The submit button is disabled while the form is invalid.
 
 **Submit behaviour**
 
-- `POST /api/games` with the form value as the JSON body.
+- Appends the game to the `GameStore`, which writes it to `localStorage` immediately.
 - On success, navigates back to `/`.
-- On failure, shows *"Failed to save game. Please try again."* and re-enables the form.
+- If the browser refuses the write (e.g. storage quota exceeded or storage disabled), shows *"Could not save your collection to this device."* and stays on the page.
 
 **Current limitations**
 
@@ -174,24 +173,24 @@ A reactive form for adding a single game.
 **Route:** `/manage`
 **Files:** `src/app/manage/manage.ts`, `src/app/manage/manage.html`
 
-Bulk backup and restore of the whole collection.
+Bulk backup and restore of the whole collection. Because each device keeps its own collection, this is also how you move games between devices — export on one, import on the other.
 
 #### Export
 
-- **Download games.json** navigates the browser to `GET /api/games/export`.
-- The server responds with the current collection as an attachment named `games.json` (pretty-printed, 2-space indent).
+- The page shows how many games will be exported.
+- **Download games.json** builds a `Blob` of the current collection (pretty-printed, 2-space indent — the same format as the bundled `games.json`) and triggers a browser download named `games.json`. Nothing leaves the device.
 
 #### Import
 
-Importing **replaces the entire collection**; the page warns about this in red.
+Importing **replaces the entire collection on this device**; the page warns about this in red.
 
 1. Click the dashed drop-zone to choose a file (`.json` / `application/json` only).
 2. The file is read client-side with `FileReader` and parsed:
    - Invalid JSON → *"Could not parse file — make sure it is valid JSON."*
    - Valid JSON that is not an array → *"File must contain a JSON array of games."*
 3. A **preview** lists every game in the file (title, players, complexity) with a count, in a scrollable list.
-4. **Confirm Import** sends `PUT /api/games` with the parsed array. **Cancel** discards the preview.
-5. On success a green *"Collection imported successfully!"* banner appears and the drop-zone is shown again. On failure: *"Import failed. Please try again."*
+4. **Confirm Import** replaces the store's collection with the parsed array and persists it. **Cancel** discards the preview.
+5. On success a green *"Collection imported successfully!"* banner appears and the drop-zone is shown again. If the browser refuses the write: *"Import failed. Please try again."* and the preview is kept.
 
 **Current limitations**
 
@@ -201,109 +200,91 @@ Importing **replaces the entire collection**; the page warns about this in red.
 
 ---
 
-## HTTP API
-
-All endpoints are defined in `src/server.ts` and operate on a single JSON file (see [Data storage](#data-storage)). There is no authentication.
-
-### `GET /api/games`
-
-Return the full collection.
-
-- **Response:** `200`, JSON array of `Game` objects, read fresh from disk on every request.
-- **Errors:** `500 { "error": "Failed to load games." }`
-- Used by the Collection page. Unlike `/games.json` this is never cached by the browser.
-
-### `POST /api/games`
-
-Append one game to the collection.
-
-- **Body:** a single `Game` JSON object.
-- **Response:** `201 { "success": true }`
-- **Errors:** `500 { "error": "Failed to save game." }` if the file cannot be read or written.
-- The body is **not** validated; whatever is posted is appended verbatim.
-
-### `PUT /api/games`
-
-Replace the entire collection.
-
-- **Body:** a JSON array of `Game` objects.
-- **Response:** `200 { "success": true, "count": <number of games> }`
-- **Errors:**
-  - `400 { "error": "Body must be a JSON array of games." }` if the body is not an array.
-  - `500 { "error": "Failed to replace collection." }` on write failure.
-
-### `GET /api/games/export`
-
-Download the collection.
-
-- **Response:** `200`, `Content-Type: application/json`, `Content-Disposition: attachment; filename="games.json"`, body is the raw file contents.
-- **Errors:** `500 { "error": "Failed to export collection." }`
-
-### `GET /games.json`
-
-Not an API route — this is the static asset served from the browser dist / `public` folder. The Home page reads the collection from here.
-
----
-
 ## Data storage
 
-The collection lives in one file. The server chooses the path at startup:
+There is no backend. The collection is owned by `GameStore` (`src/app/game-store.ts`), an injectable service that every page shares:
 
-```
-dist/BoardgameButler/browser/games.json   (if it exists — production build)
-public/games.json                          (fallback — used by `ng serve`)
-```
-
-Rationale (from the comment in `server.ts`): during `ng serve`, Vite serves `public/` assets from memory and never writes the dist copy to disk, so the server falls back to the source file. In a production build the file is copied into the browser dist folder and edited there.
-
-Implications:
-
-- In development, adding or importing games **edits `public/games.json` in your working tree**, which shows up in `git status`.
-- In production, changes are made to the built copy and are lost on the next `ng build` unless you export first.
-- Writes are whole-file, synchronous, and unlocked; concurrent requests could race.
-
----
-
-## Rendering modes (SSR / prerender)
-
-Configured in `src/app/app.routes.server.ts`:
-
-| Route | Render mode |
+| Member | Purpose |
 |---|---|
-| `/collection` | Client-only |
-| `/add-game` | Client-only |
-| `/manage` | Client-only |
-| everything else (`**`, i.e. `/`) | Prerendered at build time |
+| `games` | Read-only signal of the current collection |
+| `ready` | `false` until the collection has been read from storage or seeded |
+| `error` | Last storage/seed error message, or `null` |
+| `add(game)` | Append one game and persist |
+| `replaceAll(games)` | Overwrite the collection and persist |
+| `toJson()` | Pretty-printed JSON, used by export |
 
-The Home page guards its HTTP call with `isPlatformBrowser`, so the prerendered HTML contains the splash page in its *"Loading game library..."* state and the collection is fetched after hydration. Client hydration with event replay is enabled in `app.config.ts`.
+**Where the data lives**
+
+- Everything is stored in `localStorage` under the key `boardgame-butler.games`, as a JSON array of `Game` objects.
+- Every write goes through `commit()`, which updates the in-memory signal first and then `localStorage`. If the write throws (quota exceeded, private mode with storage disabled, etc.) the in-memory change is kept and `error` is set so the page can tell the user.
+
+**First run**
+
+When the store is constructed and finds nothing saved (or something unparseable / not an array), it fetches the bundled `/games.json`, stores the result, and flips `ready`. The service worker caches `games.json` so this works even if the first launch after install happens offline. If the fetch fails, `ready` still becomes `true` with an empty collection and `error` set to *"Could not load the starter collection."*
+
+**Implications**
+
+- Each browser / device has its own independent collection. Use export → import on Manage to move it.
+- Clearing site data in the browser deletes the collection; the next launch re-seeds from the starter list.
+- Nothing is ever sent to a server.
 
 ---
 
-## Running the app
+## Progressive web app (install & offline)
+
+The app is installable on phones and desktops and works with no network once installed.
+
+| Piece | Where |
+|---|---|
+| Web app manifest | `public/manifest.webmanifest` — name *Boardgame Butler*, short name *Butler*, standalone display, amber theme colour, dark background, 72–512 px icons cropped from the Dice Butler artwork |
+| Service worker | Angular's `ngsw-worker.js`, registered in `app.config.ts` with `registerWhenStable:30000`; **enabled only in production builds** (`!isDevMode()`) |
+| Caching policy | `ngsw-config.json` — `index.html`, all JS/CSS, the manifest and `games.json` are prefetched on install; images and icons are cached lazily on first use |
+| Install meta | `src/index.html` — `theme-color`, description, and the Apple `apple-mobile-web-app-*` / `apple-touch-icon` tags for iOS home-screen installs |
+
+**Installing**
+
+- **Android / Chrome / Edge:** open the site, use the browser's *Install app* / *Add to Home screen* prompt.
+- **iOS Safari:** Share → *Add to Home Screen*.
+- **Desktop Chrome / Edge:** the install icon in the address bar.
+
+**Updates**
+
+The service worker checks `ngsw.json` on each launch. When a new build is deployed it is downloaded in the background and used on the next launch; the saved collection is unaffected because it lives in `localStorage`, not in the cache.
+
+**Requirements**
+
+Service workers need HTTPS (or `localhost`). `ng serve` does not register the worker, so to test install/offline behaviour run a production build and serve `dist/BoardgameButler/browser` over HTTPS or `localhost`. Step-by-step instructions for PC and phone, including a LAN HTTPS setup with mkcert, are in [MANUAL_TESTING.md](MANUAL_TESTING.md).
+
+---
+
+## Running and deploying
 
 From the `BoardgameButler/` directory:
 
 ```bash
 npm install
-npm start                          # ng serve — dev server with API routes, edits public/games.json
-npm run build                      # production build to dist/BoardgameButler
-npm run serve:ssr:BoardgameButler  # run the built Express server (port 4000 or $PORT)
-npm test                           # vitest
+npm start          # ng serve on http://localhost:4200 (no service worker in dev)
+npm run build      # production build → dist/BoardgameButler/browser
+npm test           # vitest
 ```
+
+The production build is a folder of static files. Host it on anything that serves static content over HTTPS (GitHub Pages, Netlify, Cloudflare Pages, an S3 bucket, nginx…). Two things to configure on the host:
+
+- **SPA fallback:** unknown paths like `/collection` must serve `index.html` so deep links and refreshes work. Most static hosts have a setting for this; on GitHub Pages the usual trick is copying `index.html` to `404.html`.
+- **Base path:** if the app is served from a sub-path (e.g. `https://user.github.io/boardgame-butler/`), build with `ng build --base-href /boardgame-butler/`.
 
 ### Tests
 
-Each page has a functional spec next to it (`*.spec.ts`) that drives the rendered DOM — typing into inputs, clicking buttons, choosing files — with HTTP stubbed via `HttpTestingController`. `src/app/app.spec.ts` covers routing. Shared helpers and sample data live in `src/testing/helpers.ts` (excluded from the production build).
+Each page has a functional spec next to it (`*.spec.ts`) that drives the rendered DOM — typing into inputs, clicking buttons, choosing files — and asserts against what ends up in `localStorage`. The first-run seed request is stubbed via `HttpTestingController`. `src/app/app.spec.ts` covers routing. Shared helpers and sample data live in `src/testing/helpers.ts` (excluded from the production build).
 
 | Spec | Covers |
 |---|---|
-| `home.spec.ts` | Library fetch (browser-only), loading/disabled state, random pick and re-roll, rating badge, nav links |
-| `collection.spec.ts` | Fetch/loading/empty/error states, row rendering, complexity pills, search, every sort column and direction |
-| `add-game.spec.ts` | Defaults, required-field errors, live rating label, POST payload, success navigation, failure recovery |
-| `manage.spec.ts` | Invalid/non-array file errors, preview list, cancel, PUT payload, success and failure states |
+| `game-store.spec.ts` | First-run seeding (incl. corrupt / non-array saved data), seed failure, load from storage, add / replaceAll persistence, `toJson`, storage write failure |
+| `home.spec.ts` | Loading state while seeding, ready from storage, empty-collection hint, random pick and re-roll, rating badge, nav links |
+| `collection.spec.ts` | Seeding/empty/error states, row rendering, complexity pills, search, every sort column and direction |
+| `add-game.spec.ts` | Defaults, required-field errors, live rating label, what gets saved, success navigation, storage-failure handling |
+| `manage.spec.ts` | Export count and download (Blob contents, filename), invalid/non-array file errors, preview, cancel, confirm persists, storage-failure handling |
 | `app.spec.ts` | Every route renders the right component and heading; link navigation between pages |
-
-The Express server listens on `PORT` (default `4000`) when run directly or under PM2.
 
 ---
 
@@ -323,8 +304,9 @@ The Home page advertises the following chips. Only the first four are fully back
 
 Technical gaps in what already exists:
 
-- Schema validation on the API
+- Schema validation of imported files (only "is an array" is checked)
 - Stable game IDs
+- No sync between devices — export/import is the only way to move a collection
 
 ---
 
@@ -363,7 +345,7 @@ The full candidate scope for the project, grouped by area. Nothing here has been
 ### Open questions
 
 - **MVP cut line.** The likely MVP is collection view/add/edit/delete plus dice, timers, and a filtered quick-setup chooser. The social / multiplayer layer (auth, scheduling, swapping, bot integration) would sit on the other side of that line.
-- **Single-user vs. backend.** The current architecture — a single JSON file written by a thin Express layer, no auth — is firmly single-user local software. Auth and bot hosting both imply a real server and database, which would be a significant change rather than an incremental one.
+- **Single-user vs. backend.** The current architecture — an installable PWA with the collection in browser storage and no server at all — is firmly single-user local software. Auth, cross-device sync and bot hosting all imply a real server and database, which would be a significant change rather than an incremental one.
 
 ### Likely next step
 

@@ -1,5 +1,16 @@
 import { ComponentFixture } from '@angular/core/testing';
 import { Game } from '../app/game';
+import { STORAGE_KEY } from '../app/game-store';
+
+/** Pre-populate the saved collection so GameStore starts ready without seeding. */
+export function seedStorage(games: Game[]): void {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(games));
+}
+
+export function savedGames(): Game[] | null {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  return raw == null ? null : JSON.parse(raw);
+}
 
 /** Run change detection and wait for the zoneless scheduler to settle. */
 export async function settle(fixture: ComponentFixture<unknown>): Promise<void> {

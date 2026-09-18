@@ -1,7 +1,7 @@
-import { Component, signal, computed, inject, OnInit } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { Component, signal, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Game } from '../game';
+import { GameStore } from '../game-store';
 
 type SortKey = 'title' | 'players' | 'duration' | 'complexity' | 'rating';
 
@@ -12,12 +12,12 @@ const COMPLEXITY_ORDER: Record<string, number> = { Easy: 0, Medium: 1, Hard: 2 }
   imports: [RouterLink],
   templateUrl: './collection.html',
 })
-export class Collection implements OnInit {
-  private http = inject(HttpClient);
+export class Collection {
+  private store = inject(GameStore);
 
-  protected games = signal<Game[]>([]);
-  protected loading = signal(true);
-  protected error = signal<string | null>(null);
+  protected games = this.store.games;
+  protected loading = computed(() => !this.store.ready());
+  protected error = this.store.error;
 
   protected readonly columns: { key: SortKey; label: string; align: string }[] = [
     { key: 'title', label: 'Title', align: 'text-left' },
@@ -42,19 +42,6 @@ export class Collection implements OnInit {
 
     return list.sort((a, b) => this.compare(a, b, key) * dir);
   });
-
-  ngOnInit() {
-    this.http.get<Game[]>('/api/games').subscribe({
-      next: games => {
-        this.games.set(games);
-        this.loading.set(false);
-      },
-      error: () => {
-        this.error.set('Failed to load your collection.');
-        this.loading.set(false);
-      },
-    });
-  }
 
   protected sortBy(key: SortKey) {
     if (this.sortKey() === key) {

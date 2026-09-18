@@ -9,29 +9,35 @@
         <a routerLink="/collection" class="text-gray-500 hover:text-amber-400 text-sm transition-colors">
           View collection
         </a>
+        <a routerLink="/players" class="text-gray-500 hover:text-amber-400 text-sm transition-colors">
+          Players
+        </a>
       </div>
       <h1 class="mt-4 text-3xl font-bold text-white tracking-tight">Manage Collection</h1>
-      <p class="mt-1 text-gray-400">Import or export your entire game library as a JSON file. Your collection is stored on this device.</p>
+      <p class="mt-1 text-gray-400">Back up or move your games and players as a JSON file. Everything is stored on this device.</p>
     </div>
 
     <!-- Export -->
     <section class="mb-8 p-6 rounded-2xl bg-gray-900 border border-gray-800">
-      <h2 class="text-lg font-semibold text-white mb-1">Export Collection</h2>
-      <p class="text-gray-400 text-sm mb-4">Download your current game library ({{ count() }} game{{ count() === 1 ? '' : 's' }}) as a <code class="text-amber-400">games.json</code> file. Use this to back up or move your collection to another device.</p>
+      <h2 class="text-lg font-semibold text-white mb-1">Export Backup</h2>
+      <p class="text-gray-400 text-sm mb-4">
+        Download your games ({{ gameCount() }} game{{ gameCount() === 1 ? '' : 's' }}) and players ({{ playerCount() }} player{{ playerCount() === 1 ? '' : 's' }})
+        as a <code class="text-amber-400">boardgame-butler.json</code> file. Use this to back up or move everything to another device.
+      </p>
       <button
         (click)="exportCollection()"
         class="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-white font-semibold rounded-xl shadow transition-colors duration-200 cursor-pointer"
       >
-        Download games.json
+        Download boardgame-butler.json
       </button>
     </section>
 
     <!-- Import -->
     <section class="p-6 rounded-2xl bg-gray-900 border border-gray-800">
-      <h2 class="text-lg font-semibold text-white mb-1">Import Collection</h2>
+      <h2 class="text-lg font-semibold text-white mb-1">Import Backup</h2>
       <p class="text-gray-400 text-sm mb-4">
-        Upload a <code class="text-amber-400">games.json</code> file to replace the collection on this device.
-        <span class="text-red-400 font-medium">This will overwrite all existing games.</span>
+        Upload a backup file to replace what's on this device. Older <code class="text-amber-400">games.json</code> files (a plain list of games) also work — they replace the games and leave your players alone.
+        <span class="text-red-400 font-medium">This will overwrite existing data.</span>
       </p>
 
       @if (!preview()) {
@@ -52,48 +58,82 @@
 
       @if (importSuccess()) {
         <p class="mt-4 text-green-400 text-sm bg-green-950/50 border border-green-800 rounded-lg px-4 py-3">
-          Collection imported successfully!
+          Backup imported successfully!
         </p>
       }
 
-      @if (preview(); as plan) {
-        <div class="mt-4">
-          <p class="text-gray-300 text-sm mb-3">
-            Ready to import <span class="text-amber-400 font-semibold">{{ plan.kept.length }} game{{ plan.kept.length === 1 ? '' : 's' }}</span>
-            @if (plan.skipped > 0) {
-              <span class="text-gray-500">({{ plan.skipped }} duplicate{{ plan.skipped === 1 ? '' : 's' }} will be skipped)</span>
-            }:
-          </p>
+      @if (preview(); as p) {
+        <div class="mt-4 flex flex-col gap-5">
 
-          @if (plan.skipped > 0) {
-            <p class="mb-3 text-amber-200/90 text-xs bg-amber-950/40 border border-amber-800 rounded-lg px-4 py-2.5">
-              The file lists some titles more than once. The first entry of each is kept; the rest are greyed out below and won't be imported.
+          <!-- Games -->
+          <div data-testid="games-preview">
+            <p class="text-gray-300 text-sm mb-3">
+              Ready to import <span class="text-amber-400 font-semibold">{{ p.games.kept.length }} game{{ p.games.kept.length === 1 ? '' : 's' }}</span>
+              @if (p.games.skipped > 0) {
+                <span class="text-gray-500">({{ p.games.skipped }} duplicate{{ p.games.skipped === 1 ? '' : 's' }} will be skipped)</span>
+              }:
             </p>
-          }
 
-          <ul class="max-h-64 overflow-y-auto rounded-xl border border-gray-700 divide-y divide-gray-800">
-            @for (row of plan.rows; track $index) {
-              <li
-                class="flex items-center justify-between gap-3 px-4 py-2.5 text-sm"
-                [class.opacity-50]="row.duplicateOf"
-                [attr.aria-label]="row.duplicateOf ? 'Skipped duplicate of ' + row.duplicateOf : null"
-              >
-                <span [class]="row.duplicateOf ? 'text-gray-400 line-through' : 'text-white font-medium'">{{ row.game.title }}</span>
-                @if (row.duplicateOf) {
-                  <span class="text-xs text-amber-300 text-right">
-                    skipped — duplicate of {{ row.duplicateOf }}
-                    @if (row.differences.length) {
-                      <span class="text-gray-500">· differs: {{ row.differences.join(', ') }}</span>
-                    }
-                  </span>
-                } @else {
-                  <span class="text-gray-500">{{ row.game.players }} players · {{ row.game.complexity }}</span>
-                }
-              </li>
+            @if (p.games.skipped > 0) {
+              <p class="mb-3 text-amber-200/90 text-xs bg-amber-950/40 border border-amber-800 rounded-lg px-4 py-2.5">
+                The file lists some titles more than once. The first entry of each is kept; the rest are greyed out below and won't be imported.
+              </p>
             }
-          </ul>
 
-          <div class="flex gap-3 mt-4">
+            <ul class="max-h-64 overflow-y-auto rounded-xl border border-gray-700 divide-y divide-gray-800">
+              @for (row of p.games.rows; track $index) {
+                <li
+                  class="flex items-center justify-between gap-3 px-4 py-2.5 text-sm"
+                  [class.opacity-50]="row.duplicateOf"
+                  [attr.aria-label]="row.duplicateOf ? 'Skipped duplicate of ' + row.duplicateOf : null"
+                >
+                  <span [class]="row.duplicateOf ? 'text-gray-400 line-through' : 'text-white font-medium'">{{ row.game.title }}</span>
+                  @if (row.duplicateOf) {
+                    <span class="text-xs text-amber-300 text-right">
+                      skipped — duplicate of {{ row.duplicateOf }}
+                      @if (row.differences.length) {
+                        <span class="text-gray-500">· differs: {{ row.differences.join(', ') }}</span>
+                      }
+                    </span>
+                  } @else {
+                    <span class="text-gray-500">{{ row.game.players }} players · {{ row.game.complexity }}</span>
+                  }
+                </li>
+              }
+            </ul>
+          </div>
+
+          <!-- Players -->
+          <div data-testid="players-preview">
+            @if (p.players; as players) {
+              <p class="text-gray-300 text-sm mb-3">
+                and <span class="text-amber-400 font-semibold">{{ players.kept.length }} player{{ players.kept.length === 1 ? '' : 's' }}</span>
+                @if (players.skipped > 0) {
+                  <span class="text-gray-500"> ({{ players.skipped }} duplicate{{ players.skipped === 1 ? '' : 's' }} will be skipped)</span>
+                }
+                @if (players.kept.length === 0) {
+                  <span class="text-gray-500"> — your current players will be removed</span>
+                }
+              </p>
+              @if (players.rows.length > 0) {
+                <ul class="flex flex-wrap gap-2">
+                  @for (row of players.rows; track $index) {
+                    <li
+                      class="px-3 py-1 rounded-full text-sm"
+                      [class]="row.duplicateOf ? 'bg-gray-800 text-gray-500 line-through' : 'bg-gray-800 text-white'"
+                      [attr.aria-label]="row.duplicateOf ? 'Skipped duplicate of ' + row.duplicateOf : null"
+                    >{{ row.player.name }}</li>
+                  }
+                </ul>
+              }
+            } @else {
+              <p class="text-gray-500 text-sm">
+                This is an older games-only file — your {{ playerCount() }} player{{ playerCount() === 1 ? '' : 's' }} will be kept.
+              </p>
+            }
+          </div>
+
+          <div class="flex gap-3">
             <button
               (click)="confirmImport()"
               class="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-white font-semibold rounded-xl shadow transition-colors duration-200 cursor-pointer"

@@ -1,6 +1,8 @@
 import { ComponentFixture } from '@angular/core/testing';
 import { Game } from '../app/game';
 import { STORAGE_KEY } from '../app/game-store';
+import { Player } from '../app/player';
+import { PLAYERS_STORAGE_KEY } from '../app/player-store';
 
 /** Pre-populate the saved collection so GameStore starts ready without seeding. */
 export function seedStorage(games: Game[]): void {
@@ -9,6 +11,15 @@ export function seedStorage(games: Game[]): void {
 
 export function savedGames(): Game[] | null {
   const raw = localStorage.getItem(STORAGE_KEY);
+  return raw == null ? null : JSON.parse(raw);
+}
+
+export function seedPlayers(players: Player[]): void {
+  localStorage.setItem(PLAYERS_STORAGE_KEY, JSON.stringify(players));
+}
+
+export function savedPlayers(): Player[] | null {
+  const raw = localStorage.getItem(PLAYERS_STORAGE_KEY);
   return raw == null ? null : JSON.parse(raw);
 }
 
@@ -77,4 +88,10 @@ export const SAMPLE_GAMES: Game[] = [
   { id: 'g-azul', title: 'Azul', players: '2-4', duration: '30-45', complexity: 'Easy', rating: 9 },
   { id: 'g-gloom', title: 'Gloomhaven', players: '1-4', duration: '60-120', complexity: 'Hard' },
   { id: 'g-tm', title: 'Terraforming Mars', players: '1-5', duration: '120-180', complexity: 'Hard', rating: 8 },
+];
+
+export const SAMPLE_PLAYERS: Player[] = [
+  { id: 'p-sam', name: 'Sam' },
+  { id: 'p-alex', name: 'Alex' },
+  { id: 'p-jo', name: 'Jo' },
 ];

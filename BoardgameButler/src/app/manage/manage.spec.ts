@@ -5,16 +5,20 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { Manage } from './manage';
 import {
   SAMPLE_GAMES,
+  SAMPLE_PLAYERS,
   cellText,
   findByText,
   query,
   queryAll,
   savedGames,
+  savedPlayers,
+  seedPlayers,
   seedStorage,
   selectFile,
   settle,
   text,
 } from '../../testing/helpers';
+import { buildExport } from '../export-format';
 
 describe('Manage', () => {
   let fixture: ComponentFixture<Manage>;
@@ -23,6 +27,7 @@ describe('Manage', () => {
   beforeEach(async () => {
     localStorage.clear();
     seedStorage(SAMPLE_GAMES);
+    seedPlayers(SAMPLE_PLAYERS);
 
     await TestBed.configureTestingModule({
       imports: [Manage],
@@ -47,22 +52,23 @@ describe('Manage', () => {
     selectFile(fileInput(), contents);
     await vi.waitFor(async () => {
       await settle(fixture);
-      expect(text(fixture)).toMatch(/Ready to import|Could not parse|must contain a JSON array/);
+      expect(text(fixture)).toMatch(/Ready to import|Could not parse|must contain a JSON array|entry must be a JSON array/);
     });
   }
 
   describe('export', () => {
-    it('shows how many games will be exported', () => {
+    it('shows how many games and players will be exported', () => {
       expect(text(fixture)).toContain('(4 games)');
+      expect(text(fixture)).toContain('(3 players)');
     });
 
-    it('downloads the collection as games.json', () => {
+    it('downloads the backup as boardgame-butler.json', () => {
       const createObjectURL = vi.fn((_blob: Blob) => 'blob:games');
       const revokeObjectURL = vi.fn();
       Object.assign(URL, { createObjectURL, revokeObjectURL });
       const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
 
-      findByText<HTMLButtonElement>(fixture, 'button', 'Download games.json').click();
+      findByText<HTMLButtonElement>(fixture, 'button', 'Download boardgame-butler.json').click();
 
       expect(createObjectURL).toHaveBeenCalledTimes(1);
       const blob = createObjectURL.mock.calls[0][0];
@@ -70,20 +76,27 @@ describe('Manage', () => {
 
       expect(click).toHaveBeenCalledTimes(1);
       const anchor = click.mock.instances[0] as HTMLAnchorElement;
-      expect(anchor.download).toBe('games.json');
+      expect(anchor.download).toBe('boardgame-butler.json');
       expect(anchor.href).toBe('blob:games');
       expect(revokeObjectURL).toHaveBeenCalledWith('blob:games');
     });
 
-    it('exports the current collection, pretty-printed', async () => {
+    it('exports games and players in the version-2 format, pretty-printed', async () => {
       const createObjectURL = vi.fn((_blob: Blob) => 'blob:games');
       Object.assign(URL, { createObjectURL, revokeObjectURL: vi.fn() });
       vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
 
-      findByText<HTMLButtonElement>(fixture, 'button', 'Download games.json').click();
+      findByText<HTMLButtonElement>(fixture, 'button', 'Download boardgame-butler.json').click();
 
       const blob = createObjectURL.mock.calls[0][0];
-      expect(await blob.text()).toBe(JSON.stringify(SAMPLE_GAMES, null, 2));
+      const file = JSON.parse(await blob.text());
+      expect(file).toEqual({
+        version: 2,
+        exportedAt: expect.any(String),
+        games: SAMPLE_GAMES,
+        players: SAMPLE_PLAYERS,
+      });
+      expect(await blob.text()).toContain('\n  "version": 2');
     });
   });
 
@@ -94,9 +107,14 @@ describe('Manage', () => {
       expect(text(fixture)).not.toContain('Ready to import');
     });
 
-    it('rejects JSON that is not an array', async () => {
+    it('rejects JSON that is neither a games array nor a backup', async () => {
       await chooseFile('{"title":"Catan"}');
-      expect(text(fixture)).toContain('File must contain a JSON array of games.');
+      expect(text(fixture)).toContain('File must contain a JSON array of games, or a backup exported by this app.');
+    });
+
+    it('rejects a backup whose games entry is not an array', async () => {
+      await chooseFile('{"version":2,"games":"nope"}');
+      expect(text(fixture)).toContain('The "games" entry must be a JSON array.');
     });
 
     it('previews the games in a valid file before importing', async () => {
@@ -129,17 +147,65 @@ describe('Manage', () => {
       expect(savedGames()).toEqual(SAMPLE_GAMES);
     });
 
-    it('confirming replaces the saved collection', async () => {
+    it('a games-only (v1) file replaces the games and keeps the players', async () => {
       const incoming = [SAMPLE_GAMES[1], SAMPLE_GAMES[2]];
       await chooseFile(JSON.stringify(incoming));
+      expect(text(fixture)).toContain('This is an older games-only file — your 3 players will be kept.');
+
       findByText<HTMLButtonElement>(fixture, 'button', 'Confirm Import').click();
       await settle(fixture);
 
       expect(savedGames()).toEqual(incoming);
-      expect(text(fixture)).toContain('Collection imported successfully!');
+      expect(savedPlayers()).toEqual(SAMPLE_PLAYERS);
+      expect(text(fixture)).toContain('Backup imported successfully!');
       expect(text(fixture)).toContain('(2 games)');
+      expect(text(fixture)).toContain('(3 players)');
       expect(text(fixture)).not.toContain('Ready to import');
       expect(fileInput()).toBeTruthy();
+    });
+
+    describe('a backup (v2) file', () => {
+      it('previews and imports both games and players', async () => {
+        const file = buildExport([SAMPLE_GAMES[0]], [{ id: 'p-new', name: 'Riley' }, { id: 'p-sam', name: 'Sam' }]);
+        await chooseFile(JSON.stringify(file));
+
+        expect(text(fixture)).toContain('Ready to import 1 game');
+        expect(text(fixture)).toContain('and 2 players');
+        const chips = queryAll(fixture, '[data-testid="players-preview"] li').map(li => li.textContent?.trim());
+        expect(chips).toEqual(['Riley', 'Sam']);
+
+        findByText<HTMLButtonElement>(fixture, 'button', 'Confirm Import').click();
+        await settle(fixture);
+
+        expect(savedGames()).toEqual([SAMPLE_GAMES[0]]);
+        expect(savedPlayers()).toEqual([{ id: 'p-new', name: 'Riley' }, { id: 'p-sam', name: 'Sam' }]);
+        expect(text(fixture)).toContain('(1 game)');
+        expect(text(fixture)).toContain('(2 players)');
+      });
+
+      it('skips duplicate player names, first wins', async () => {
+        const file = buildExport(SAMPLE_GAMES, [{ id: 'a', name: 'Sam' }, { id: 'b', name: ' SAM ' }, { id: 'c', name: 'Jo' }]);
+        await chooseFile(JSON.stringify(file));
+
+        expect(text(fixture).replace(/\s+/g, ' ')).toContain('and 2 players (1 duplicate will be skipped)');
+        const skipped = query(fixture, '[data-testid="players-preview"] li[aria-label="Skipped duplicate of Sam"]');
+        expect(skipped.className).toContain('line-through');
+
+        findByText<HTMLButtonElement>(fixture, 'button', 'Confirm Import').click();
+        await settle(fixture);
+        expect(savedPlayers()!.map(p => p.name)).toEqual(['Sam', 'Jo']);
+      });
+
+      it('warns when the file has no players and confirming removes the current ones', async () => {
+        const file = buildExport(SAMPLE_GAMES, []);
+        await chooseFile(JSON.stringify(file));
+        expect(text(fixture)).toContain('and 0 players');
+        expect(text(fixture)).toContain('your current players will be removed');
+
+        findByText<HTMLButtonElement>(fixture, 'button', 'Confirm Import').click();
+        await settle(fixture);
+        expect(savedPlayers()).toEqual([]);
+      });
     });
 
     it('shows an error and keeps the preview when the device refuses to save', async () => {
@@ -206,8 +272,8 @@ describe('Manage', () => {
     });
   });
 
-  it('links back home and to the collection page', () => {
+  it('links back home and to the collection and players pages', () => {
     const hrefs = queryAll<HTMLAnchorElement>(fixture, 'a').map(a => a.getAttribute('href'));
-    expect(hrefs).toEqual(expect.arrayContaining(['/', '/collection']));
+    expect(hrefs).toEqual(expect.arrayContaining(['/', '/collection', '/players']));
   });
 });

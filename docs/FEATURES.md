@@ -10,13 +10,16 @@ This document describes the features that exist today. Items shown as "planned" 
 
 - [Overview](#overview)
 - [Game data model](#game-data-model)
+- [Player data model](#player-data-model)
 - [Pages](#pages)
   - [Home — "Serve me a game!"](#home--serve-me-a-game)
   - [Your Collection](#your-collection)
   - [Add / Edit a Game](#add--edit-a-game)
   - [Manage Collection (import / export)](#manage-collection-import--export)
   - [Table Tools (dice & timers)](#table-tools-dice--timers)
+  - [Players](#players)
 - [Data storage](#data-storage)
+- [Backup file format](#backup-file-format)
 - [Progressive web app (install & offline)](#progressive-web-app-install--offline)
 - [Running and deploying](#running-and-deploying)
 - [Planned features (not yet implemented)](#planned-features-not-yet-implemented)
@@ -31,11 +34,11 @@ This document describes the features that exist today. Items shown as "planned" 
 | Frontend | Angular 21 (standalone components, signals, new control flow, zoneless) |
 | Styling | Tailwind CSS 4 |
 | Backend | None — static files only |
-| Persistence | `localStorage` on each device, seeded from a bundled `games.json` |
+| Persistence | `localStorage` on each device — games (seeded from a bundled `games.json`) and players under separate keys |
 | Offline / install | `@angular/service-worker` + web app manifest |
 | Tests | Vitest + jsdom — functional component specs for every page (`npm test`) |
 
-There are six routes:
+There are seven routes:
 
 | Route | Component | Purpose |
 |---|---|---|
@@ -43,8 +46,9 @@ There are six routes:
 | `/collection` | `Collection` | Searchable, sortable table of every game, with an Edit link per row |
 | `/add-game` | `GameForm` | Form to add one game to the collection |
 | `/edit-game/:id` | `GameForm` | The same form, pre-filled, to change or delete an existing game |
-| `/manage` | `Manage` | Export the collection or replace it by importing a JSON file |
+| `/manage` | `Manage` | Export games + players as a backup, or restore from one |
 | `/tools` | `Tools` | Dice roller, countdown timer and stopwatch for use at the table |
+| `/players` | `Players` | The people you play with — add, rename, remove |
 
 Every page links to the others through a small nav row under the back link.
 
@@ -81,6 +85,21 @@ The starter collection in `public/games.json` contains 11 games (Catan, Ticket t
 
 ---
 
+## Player data model
+
+```ts
+interface Player {
+  id: string;    // stable identifier, assigned by PlayerStore
+  name: string;  // trimmed; unique within a device ignoring case
+}
+```
+
+Players exist so that future play statistics can group by person without "Matt" and "matt" splitting into two people. A `RawPlayer` (optional `id`) is what arrives from a backup file. Names follow the same uniqueness rule as game titles — `normalizeKey()` in `src/app/normalize.ts`, shared by both stores and the import de-duplication.
+
+There are no players in the seed data; the list starts empty on a new device.
+
+---
+
 ## Pages
 
 ### Home — "Serve me a game!"
@@ -102,7 +121,7 @@ The landing page shows a full-bleed background image (`public/DiceButler.jpg`) w
    - `rating/10` (only if the game has a rating)
 4. Clicking the button again re-rolls. The same game can be picked twice in a row — there is no history or exclusion.
 5. **▾ Narrow it down** opens a filter panel (see below). **Serve me a match!** inside it picks at random from only the games that pass the filters, and the card is labelled *"Tonight's pick · from your matches"*. The main button always ignores the filters, so both options are available at once.
-6. Links at the bottom go to **📚 View collection**, **+ Add a game**, **⚙ Manage collection** and **🎲 Table tools**.
+6. Links at the bottom go to **📚 View collection**, **+ Add a game**, **⚙ Manage collection**, **🎲 Table tools** and **👥 Players**.
 
 **Filters**
 
@@ -207,30 +226,35 @@ One reactive form serves both jobs. Without an `:id` it adds a game; with one it
 **Route:** `/manage`
 **Files:** `src/app/manage/manage.ts`, `src/app/manage/manage.html`
 
-Bulk backup and restore of the whole collection. Because each device keeps its own collection, this is also how you move games between devices — export on one, import on the other.
+Backup and restore of everything on the device — games **and players**. Because each device keeps its own data, this is also how you move between devices — export on one, import on the other.
 
 #### Export
 
-- The page shows how many games will be exported.
-- **Download games.json** builds a `Blob` of the current collection (pretty-printed, 2-space indent — the same format as the bundled `games.json`) and triggers a browser download named `games.json`. Nothing leaves the device.
+- The page shows how many games and players will be exported.
+- **Download boardgame-butler.json** builds a `Blob` of the [backup file](#backup-file-format) (pretty-printed) and triggers a browser download. Nothing leaves the device.
 
 #### Import
 
-Importing **replaces the entire collection on this device**; the page warns about this in red.
+Importing **replaces what's on this device**; the page warns about this in red. Two file shapes are accepted:
+
+- A **backup** (`{ version: 2, games, players }`) replaces both games and players.
+- An **older games-only file** (a bare JSON array, as exported before players existed) replaces the games and **leaves the players alone** — the preview says so explicitly.
 
 1. Click the dashed drop-zone to choose a file (`.json` / `application/json` only).
-2. The file is read client-side with `FileReader` and parsed:
+2. The file is read client-side with `FileReader` and parsed (`parseImport()` in `src/app/export-format.ts`):
    - Invalid JSON → *"Could not parse file — make sure it is valid JSON."*
-   - Valid JSON that is not an array → *"File must contain a JSON array of games."*
+   - Neither an array nor an object with a `games` entry → *"File must contain a JSON array of games, or a backup exported by this app."*
+   - A backup whose `games` or `players` entry isn't an array → *"The "games" entry must be a JSON array."* (or `players`)
 3. A **preview** lists every game in the file (title, players, complexity) with a count, in a scrollable list.
 4. **Duplicate titles in the file** (same title ignoring case and whitespace) are handled *first wins*: the first entry is kept, later ones are greyed out and struck through with *skipped — duplicate of Catan*. If a skipped entry differs from the kept one, the differing fields are shown (*differs: rating 9*) so you can cancel and fix the file if "first wins" isn't what you want. The summary reads *Ready to import 10 games (2 duplicates will be skipped)* and an amber note explains the rule. The logic is the pure `planImport()` in `src/app/import-plan.ts`.
-5. **Confirm Import** replaces the store's collection with the kept games and persists it. **Cancel** discards the preview.
-6. On success a green *"Collection imported successfully!"* banner appears and the drop-zone is shown again. If the browser refuses the write: *"Import failed. Please try again."* and the preview is kept.
+5. Below the games, a **players line** shows what will happen to players: *"and 3 players"* with the names as chips (duplicates by name struck through, first wins, same as games), *"and 0 players — your current players will be removed"* for a backup with none, or *"This is an older games-only file — your N players will be kept."*
+6. **Confirm Import** replaces the games (and players, if the file has them) and persists. **Cancel** discards the preview.
+7. On success a green *"Backup imported successfully!"* banner appears and the drop-zone is shown again. If the browser refuses the write: *"Import failed. Please try again."* and the preview is kept.
 
 **Current limitations**
 
 - The preview only checks that the payload is an array; it does not validate that each item has the expected `Game` fields.
-- There is no merge option — import is always a full overwrite.
+- There is no merge option — import is always a full overwrite (per section: games, and players when present).
 - Duplicates are resolved by position only; there is no per-duplicate choice of which entry to keep.
 
 ---
@@ -272,6 +296,26 @@ Both timers derive elapsed time from `Date.now()` timestamps, not by counting ti
 
 ---
 
+### Players
+
+**Route:** `/players`
+**Files:** `src/app/players/players.ts`, `src/app/players/players.html`
+
+Manage the people you play with. Everything is inline on one page.
+
+- **Add a player** — a text box and **Add** button (Enter also submits). The name is trimmed. **Add** stays disabled while the box is empty or the name matches an existing player (*You already have a player called "sam".*).
+- The list is **alphabetical** with a count. Each row has **Rename** and **Remove**.
+- **Rename** swaps the row for an inline editor pre-filled with the name, with **Save** / **Cancel**. The player's own name is allowed; another player's is rejected with the same message.
+- **Remove** swaps the row for *Remove Alex?* with **Yes, remove** / **Keep**. Only one row can be editing or confirming at a time; starting one closes the other.
+- Empty state: *No players yet. Add the people you usually play with.*
+- Storage failures show *Could not save your players to this device.* and keep what was typed.
+
+**Current limitations**
+
+- No play history yet, so removing a player has no side effects to consider. Once plays exist, removal will need a policy (block, cascade, or keep with a name snapshot).
+
+---
+
 ## Data storage
 
 There is no backend. The collection is owned by `GameStore` (`src/app/game-store.ts`), an injectable service that every page shares:
@@ -289,11 +333,13 @@ There is no backend. The collection is owned by `GameStore` (`src/app/game-store
 | `replaceAll(games)` | Overwrite the collection and persist |
 | `toJson()` | Pretty-printed JSON, used by export |
 
-**Ids.** Everything entering the store — the saved collection, the seed file, an imported file — passes through `normalize()`, which keeps any `id` a game already has and generates one (`crypto.randomUUID()`) for games without one or with a duplicate. A collection saved before ids existed is upgraded and re-saved on the next launch.
+**Ids.** Everything entering either store — saved data, the seed file, an imported file — passes through `assignIds()` (`src/app/ids.ts`), which keeps any `id` an item already has and generates one (`crypto.randomUUID()`) for items without one or with a duplicate. Data saved before ids existed is upgraded and re-saved on the next launch.
+
+`PlayerStore` (`src/app/player-store.ts`) is the same shape for players: `players`, `error`, `find(id)`, `hasName(name, excludeId?)`, `add(name)`, `rename(id, name)`, `remove(id)`, `replaceAll(players)`. It has no `ready` flag because there is nothing to seed.
 
 **Where the data lives**
 
-- Everything is stored in `localStorage` under the key `boardgame-butler.games`, as a JSON array of `Game` objects.
+- Games are stored in `localStorage` under `boardgame-butler.games`, players under `boardgame-butler.players`, each as a JSON array. A games-only import therefore can't disturb players, and vice-versa.
 - Every write goes through `commit()`, which updates the in-memory signal first and then `localStorage`. If the write throws (quota exceeded, private mode with storage disabled, etc.) the in-memory change is kept and `error` is set so the page can tell the user.
 
 **First run**
@@ -305,6 +351,27 @@ When the store is constructed and finds nothing saved (or something unparseable 
 - Each browser / device has its own independent collection. Use export → import on Manage to move it.
 - Clearing site data in the browser deletes the collection; the next launch re-seeds from the starter list.
 - Nothing is ever sent to a server.
+
+---
+
+## Backup file format
+
+Defined in `src/app/export-format.ts`.
+
+**Version 2 (current)** — what Export produces:
+
+```json
+{
+  "version": 2,
+  "exportedAt": "2026-09-18T12:00:00.000Z",
+  "games": [ { "id": "…", "title": "Catan", "players": "3-4", "duration": "60-120", "complexity": "Medium", "rating": 7 } ],
+  "players": [ { "id": "…", "name": "Sam" } ]
+}
+```
+
+**Version 1** — a bare JSON array of games, as exported before players existed and as the bundled `games.json` is written. Import still accepts it; it carries no players, so importing one leaves the device's players untouched.
+
+`parseImport()` decides the version by shape (array ⇒ v1; object with a `games` array ⇒ v2), so a hand-written v2 file without a `version` field also works. Ids in the file are preserved on import; missing ones are generated. Future formats (a play log) should bump `version` and extend `parseImport()` rather than change the meaning of existing fields.
 
 ---
 
@@ -362,8 +429,11 @@ Each page has a functional spec next to it (`*.spec.ts`) that drives the rendere
 | `home.spec.ts` | Loading state while seeding, ready from storage, empty-collection hint, random pick and re-roll, rating badge, filter panel toggle, every filter's live count, no-match state, clear, filtered pick vs. whole-collection pick, nav links |
 | `collection.spec.ts` | Seeding/empty/error states, row rendering, complexity pills, search, every sort column and direction |
 | `game-form.spec.ts` | Add: defaults, required errors, live rating label, what gets saved (with id), trimming, duplicate-title rejection (case/whitespace, forced submit, clears on change), storage failure. Edit: pre-fill, save in place keeping id, own title allowed / other title rejected, rename, rating required for unrated, unknown id. Delete: hidden when adding, confirm step, keep, confirm removes and navigates, storage failure |
-| `import-plan.spec.ts` | First-wins de-duplication: case/whitespace matching, kept order, difference reporting (incl. missing rating), untitled rows |
-| `manage.spec.ts` | Export count and download (Blob contents, filename), invalid/non-array file errors, preview, duplicate rows greyed with reasons and only kept games imported, cancel, confirm persists, storage-failure handling |
+| `import-plan.spec.ts` | First-wins de-duplication for games: case/whitespace matching, kept order, difference reporting (incl. missing rating), untitled rows; and for players by name |
+| `player-store.spec.ts` | Empty start, load, id assignment for legacy data, corrupt data, add (trimmed, new id), rename, remove, replaceAll, `hasName`, storage failure |
+| `players.spec.ts` | Alphabetical list and count, empty state, add (disabled until typed, trimmed, Enter, duplicate rejected, storage error keeps input), rename (inline editor, save, own name allowed / other rejected, cancel), remove (confirm, keep, confirm removes, opening rename closes confirm), nav links |
+| `export-format.spec.ts` | `buildExport` shape and timestamp; `parseImport` for v1 arrays, v2 objects, missing players, bad `games`/`players` entries, and non-backup values |
+| `manage.spec.ts` | Export counts and download (v2 Blob contents, filename), invalid/unrecognised/bad-entry file errors, games preview with duplicates greyed and reasons, v1 file keeps players, v2 file previews and imports players (duplicates first-wins, empty list warns), cancel, confirm persists, storage-failure handling |
 | `dice.spec.ts` | Random-source mapping onto 1..sides, totals, count clamping, range check across all die types |
 | `timer.spec.ts` | `formatDuration`; Stopwatch start/pause/resume/reset, timestamp-based elapsed (throttled-tab case), `onTick`, `destroy`; Countdown remaining/finished, `onFinish` fires once, pause/resume, reset, `setDuration` |
 | `tools.spec.ts` | Dice type/count selection and clamping, roll rendering (total + individual dice), history; Countdown presets, custom minutes, running/pause/resume display with fake timers, time's-up alert once + reset, survives leaving and re-opening the page; Stopwatch count-up through the hour boundary; nav links |
@@ -431,4 +501,4 @@ The full candidate scope for the project, grouped by area. Nothing here has been
 
 ### Likely next step
 
-The MVP is complete. Next is **play statistics**, which needs groundwork before any charts: a separate play-log store (`Play { gameId, playedAt, players, winners, durationMinutes, funRating }`), players as entities with the same uniqueness rule titles use, a versioned export format (`{ version, games, players, plays }` with the current bare array still accepted on import), a decision on what happens to plays when a game is deleted (keep them with a title snapshot), and a fast "we played this" capture flow from the pick card and Collection rows. The stopwatch already provides the duration.
+The MVP is complete and two pieces of the play-statistics groundwork are in: **players as entities** and a **versioned backup format**. What remains before a stats page: a play-log store (`Play { gameId, playedAt, playerIds, winnerIds, durationMinutes, funRating }`) added to the backup as a version-3 section, a policy for plays whose game or player is deleted (keep them with a title/name snapshot), and a fast "we played this" capture flow from the pick card and Collection rows. The stopwatch already provides the duration.

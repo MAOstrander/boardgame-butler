@@ -1,5 +1,6 @@
 import { RawGame } from './game';
-import { normalizeTitle } from './game-store';
+import { RawPlayer } from './player';
+import { normalizeKey } from './normalize';
 
 export interface ImportRow {
   game: RawGame;
@@ -28,7 +29,7 @@ export function planImport(games: RawGame[]): ImportPlan {
   const kept: RawGame[] = [];
 
   for (const game of games) {
-    const key = normalizeTitle(String(game.title ?? ''));
+    const key = normalizeKey(String(game.title ?? ''));
     const first = firstByTitle.get(key);
 
     if (first) {
@@ -49,4 +50,37 @@ function differences(kept: RawGame, skipped: RawGame): string[] {
   return COMPARED_FIELDS.filter(f => (kept[f] ?? null) !== (skipped[f] ?? null)).map(f =>
     skipped[f] == null ? `no ${f}` : `${f} ${skipped[f]}`,
   );
+}
+
+export interface PlayerImportRow {
+  player: RawPlayer;
+  duplicateOf?: string;
+}
+
+export interface PlayerImportPlan {
+  rows: PlayerImportRow[];
+  kept: RawPlayer[];
+  skipped: number;
+}
+
+/** Same first-wins rule for players, keyed on name. */
+export function planPlayerImport(players: RawPlayer[]): PlayerImportPlan {
+  const firstByName = new Map<string, RawPlayer>();
+  const rows: PlayerImportRow[] = [];
+  const kept: RawPlayer[] = [];
+
+  for (const player of players) {
+    const key = normalizeKey(String(player.name ?? ''));
+    const first = firstByName.get(key);
+
+    if (first) {
+      rows.push({ player, duplicateOf: first.name });
+    } else {
+      firstByName.set(key, player);
+      rows.push({ player });
+      kept.push(player);
+    }
+  }
+
+  return { rows, kept, skipped: rows.length - kept.length };
 }

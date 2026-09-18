@@ -1,7 +1,16 @@
 import { Component, signal, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { GameStore } from '../game-store';
-import { ImportPlan, planImport } from '../import-plan';
+import { PlayerStore } from '../player-store';
+import { buildExport, parseImport } from '../export-format';
+import { ImportPlan, PlayerImportPlan, planImport, planPlayerImport } from '../import-plan';
+
+interface Preview {
+  version: 1 | 2;
+  games: ImportPlan;
+  /** null when the file has no players section (v1) — the device's players are kept. */
+  players: PlayerImportPlan | null;
+}
 
 @Component({
   selector: 'app-manage',
@@ -9,10 +18,12 @@ import { ImportPlan, planImport } from '../import-plan';
   templateUrl: './manage.html',
 })
 export class Manage {
-  private store = inject(GameStore);
+  private games = inject(GameStore);
+  private players = inject(PlayerStore);
 
-  protected count = () => this.store.games().length;
-  protected preview = signal<ImportPlan | null>(null);
+  protected gameCount = () => this.games.games().length;
+  protected playerCount = () => this.players.players().length;
+  protected preview = signal<Preview | null>(null);
   protected importError = signal<string | null>(null);
   protected importSuccess = signal(false);
 
@@ -27,26 +38,37 @@ export class Manage {
 
     const reader = new FileReader();
     reader.onload = () => {
+      let data: unknown;
       try {
-        const parsed = JSON.parse(reader.result as string);
-        if (!Array.isArray(parsed)) {
-          this.importError.set('File must contain a JSON array of games.');
-          return;
-        }
-        this.preview.set(planImport(parsed));
+        data = JSON.parse(reader.result as string);
       } catch {
         this.importError.set('Could not parse file — make sure it is valid JSON.');
+        return;
       }
+
+      const parsed = parseImport(data);
+      if ('error' in parsed) {
+        this.importError.set(parsed.error);
+        return;
+      }
+
+      this.preview.set({
+        version: parsed.version,
+        games: planImport(parsed.games),
+        players: parsed.players ? planPlayerImport(parsed.players) : null,
+      });
     };
     reader.readAsText(file);
   }
 
   protected confirmImport() {
-    const plan = this.preview();
-    if (!plan) return;
+    const preview = this.preview();
+    if (!preview) return;
 
-    this.store.replaceAll(plan.kept);
-    if (this.store.error()) {
+    this.games.replaceAll(preview.games.kept);
+    if (preview.players) this.players.replaceAll(preview.players.kept);
+
+    if (this.games.error() || this.players.error()) {
       this.importError.set('Import failed. Please try again.');
       return;
     }
@@ -60,11 +82,12 @@ export class Manage {
   }
 
   protected exportCollection() {
-    const blob = new Blob([this.store.toJson()], { type: 'application/json' });
+    const file = buildExport(this.games.games(), this.players.players());
+    const blob = new Blob([JSON.stringify(file, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'games.json';
+    link.download = 'boardgame-butler.json';
     link.click();
     URL.revokeObjectURL(url);
   }

@@ -9,6 +9,7 @@ import { GameForm } from './game-form/game-form';
 import { Manage } from './manage/manage';
 import { Collection } from './collection/collection';
 import { Tools } from './tools/tools';
+import { Players } from './players/players';
 import { SAMPLE_GAMES, seedStorage } from '../testing/helpers';
 
 describe('App routing', () => {
@@ -48,6 +49,7 @@ describe('App routing', () => {
     ['/edit-game/g-catan', GameForm, 'Edit Game'],
     ['/manage', Manage, 'Manage Collection'],
     ['/tools', Tools, 'Table Tools'],
+    ['/players', Players, 'Players'],
   ])('renders %s', async (url, component, heading) => {
     const instance = await harness.navigateByUrl(url, component);
     expect(instance).toBeInstanceOf(component);

@@ -1,5 +1,5 @@
 import { RawGame } from './game';
-import { planImport } from './import-plan';
+import { planImport, planPlayerImport } from './import-plan';
 
 const catan: RawGame = { title: 'Catan', players: '3-4', duration: '60-120', complexity: 'Medium', rating: 7 };
 const azul: RawGame = { title: 'Azul', players: '2-4', duration: '30-45', complexity: 'Easy', rating: 9 };
@@ -53,5 +53,20 @@ describe('planImport', () => {
     const plan = planImport([{ ...catan, title: undefined as unknown as string }, { ...azul, title: '' }]);
     expect(plan.kept.length).toBe(1);
     expect(plan.skipped).toBe(1);
+  });
+});
+
+describe('planPlayerImport', () => {
+  it('keeps the first of each name, ignoring case and whitespace', () => {
+    const plan = planPlayerImport([{ name: 'Sam' }, { name: 'Alex' }, { name: ' sam ' }, { name: 'ALEX' }]);
+
+    expect(plan.kept.map(p => p.name)).toEqual(['Sam', 'Alex']);
+    expect(plan.skipped).toBe(2);
+    expect(plan.rows[2]).toEqual({ player: { name: ' sam ' }, duplicateOf: 'Sam' });
+    expect(plan.rows[0].duplicateOf).toBeUndefined();
+  });
+
+  it('handles an empty list', () => {
+    expect(planPlayerImport([])).toEqual({ rows: [], kept: [], skipped: 0 });
   });
 });

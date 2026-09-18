@@ -112,6 +112,16 @@ Open http://localhost:4200. Work through the checklist in order — later steps 
 - [ ] Re-add Pandemic (`2-4`, `45-75`, `Medium`, any rating) so the counts below still line up.
 - [ ] Export now, open the file → every game has an `"id"` field. Import that file back → **Edit** links still work and a re-export gives the same ids.
 
+### Players
+
+- [ ] Home → **👥 Players** → empty state *No players yet.*
+- [ ] Type `  Sam ` → **Add** → row *Sam* (trimmed), box cleared, *1 player*. Add `Alex` and `Jo` with Enter → list reads Alex, Jo, Sam (alphabetical), *3 players*.
+- [ ] Type `sam` → red *You already have a player called "sam".*, **Add** disabled. Clear it.
+- [ ] **Rename** on Jo → inline box pre-filled. Type `alex` → duplicate error, **Save** disabled. Type `Jo` → allowed. Type `Joanna` → **Save** → list shows Joanna. **Rename** again → **Cancel** → unchanged.
+- [ ] **Remove** on Alex → *Remove Alex?* → **Keep** → still there. **Remove** → **Yes, remove** → gone, *2 players*.
+- [ ] While *Remove Sam?* is showing, click **Rename** on Joanna → the confirmation closes and the editor opens.
+- [ ] F5 → players persist.
+
 ### Table Tools
 
 - [ ] Home → **🎲 Table tools** → three cards: Dice, Countdown, Stopwatch.
@@ -125,19 +135,22 @@ Open http://localhost:4200. Work through the checklist in order — later steps 
 
 ### Manage — export
 
-- [ ] **Manage collection** → Export section says *(12 games)*.
-- [ ] Click **Download games.json** → browser downloads `games.json`. Open it: pretty-printed JSON array, 12 entries, each with an `"id"`, Cascadia last with `"rating": 8`.
+- [ ] **Manage collection** → Export section says *(12 games)* and *(2 players)*.
+- [ ] Click **Download boardgame-butler.json** → browser downloads `boardgame-butler.json`. Open it: an object with `"version": 2`, `"exportedAt"`, a `"games"` array of 12 (each with an `"id"`, Cascadia last with `"rating": 8`) and a `"players"` array of 2.
 
 ### Manage — import
 
-- [ ] Edit the downloaded file: delete a few games, change a title, save.
-- [ ] Click the drop-zone, choose the edited file → *Ready to import N games* with a preview list; the drop-zone disappears.
+- [ ] Edit the downloaded file: delete a few games, change a title, add a third player, save.
+- [ ] Click the drop-zone, choose the edited file → *Ready to import N games* with a preview list, then *and 3 players* with name chips; the drop-zone disappears.
 - [ ] Click **Cancel** → preview gone, drop-zone back, collection unchanged (check View collection).
 - [ ] Choose the file again → **Confirm Import** → green *Collection imported successfully!*; Export section count updates.
-- [ ] **View collection** shows exactly what was in the file.
+- [ ] **View collection** shows exactly what was in the file; **Players** shows the three from the file.
+- [ ] **Older format:** copy just the `"games"` array from the file into a new file (so it starts with `[`). Import it → preview ends with *This is an older games-only file — your 3 players will be kept.* Confirm → games replaced, players untouched.
+- [ ] Import a backup whose `"players"` is `[]` → *and 0 players — your current players will be removed*. Confirm → Players page is empty. Re-add a couple for later steps.
 - [ ] **Duplicates in a file:** open the exported file and paste a copy of the Catan entry at the end, changing its `"rating"` to `9` and its `"title"` to `"catan"`. Choose it → summary reads *Ready to import 12 games (1 duplicate will be skipped)*, an amber note explains first-wins, and the last row is greyed out and struck through: *skipped — duplicate of Catan · differs: rating 9*. **Confirm Import** → collection has 12 games, one Catan, with its original rating.
 - [ ] Create a text file containing `{ not json` → choose it → red *Could not parse file — make sure it is valid JSON.*
-- [ ] Create a file containing `{"title":"Catan"}` → *File must contain a JSON array of games.*
+- [ ] Create a file containing `{"title":"Catan"}` → *File must contain a JSON array of games, or a backup exported by this app.*
+- [ ] Create a file containing `{"games":"nope"}` → *The "games" entry must be a JSON array.*
 - [ ] Choose a valid file after an error → the error clears.
 - [ ] Import an empty array `[]` → Home shows *Your collection is empty — add a game to get started.* and the button is disabled; Collection shows the empty-state card with **Add your first game**.
 
@@ -210,8 +223,8 @@ Quickest way to try the UI on a real phone. Everything works except install-as-a
 - [ ] Run the Part 1 checklist. Pay attention to:
   - [ ] The rating **slider** is usable with a thumb.
   - [ ] The collection **table** — does it need horizontal scrolling? Note the narrowest width at which it's still readable.
-  - [ ] The **file picker** on Manage opens the OS file chooser; import a `games.json` you've shared to the phone (email it to yourself, AirDrop, etc.).
-  - [ ] **Export** downloads `games.json` to the phone's Downloads / Files.
+  - [ ] The **file picker** on Manage opens the OS file chooser; import a `boardgame-butler.json` backup you've shared to the phone (email it to yourself, AirDrop, etc.).
+  - [ ] **Export** downloads `boardgame-butler.json` to the phone's Downloads / Files.
 - [ ] Persistence: force-close the browser, reopen the address → collection intact.
 - [ ] **Table tools on a phone:** start a 1-minute countdown, lock the screen, unlock after it should have finished → display shows `0:00` and *Time's up!*. Android should have vibrated; iOS won't (no vibration API) but should beep if the phone isn't on silent.
 - [ ] Install prompt: Chrome on Android should **not** offer *Install app* here (insecure origin) — this is expected. iOS Safari → Share → *Add to Home Screen* still works and opens without browser chrome, but it's a shortcut, not an offline app.

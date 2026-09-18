@@ -1,6 +1,8 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Game, GameDetails, RawGame } from './game';
+import { assignIds, newId } from './ids';
+import { normalizeKey } from './normalize';
 
 export const STORAGE_KEY = 'boardgame-butler.games';
 
@@ -10,7 +12,7 @@ export const STORAGE_KEY = 'boardgame-butler.games';
  * bundled games.json, which the service worker also caches.
  *
  * Every game gets a stable `id`. Files and older saved collections may lack
- * one, so everything entering the store passes through `normalize()`.
+ * one, so everything entering the store passes through `assignIds()`.
  */
 @Injectable({ providedIn: 'root' })
 export class GameStore {
@@ -28,7 +30,7 @@ export class GameStore {
   constructor() {
     const saved = this.read();
     if (saved) {
-      this.commit(normalize(saved));
+      this.commit(assignIds(saved));
       this._ready.set(true);
     } else {
       this.seed();
@@ -41,8 +43,8 @@ export class GameStore {
 
   /** Case-insensitive, whitespace-trimmed title check. `excludeId` ignores that game (for edits). */
   hasTitle(title: string, excludeId?: string): boolean {
-    const wanted = normalizeTitle(title);
-    return this._games().some(g => g.id !== excludeId && normalizeTitle(g.title) === wanted);
+    const wanted = normalizeKey(title);
+    return this._games().some(g => g.id !== excludeId && normalizeKey(g.title) === wanted);
   }
 
   add(details: GameDetails): Game {
@@ -60,7 +62,7 @@ export class GameStore {
   }
 
   replaceAll(games: RawGame[]) {
-    this.commit(normalize(games));
+    this.commit(assignIds(games));
   }
 
   /** Serialised collection, formatted the same way games.json ships. */
@@ -92,7 +94,7 @@ export class GameStore {
   private seed() {
     this.http.get<RawGame[]>('/games.json').subscribe({
       next: games => {
-        this.commit(normalize(games));
+        this.commit(assignIds(games));
         this._ready.set(true);
       },
       error: () => {
@@ -101,25 +103,4 @@ export class GameStore {
       },
     });
   }
-}
-
-export function normalizeTitle(title: string): string {
-  return title.trim().toLowerCase();
-}
-
-/** Give every game a unique id, keeping existing ones where they don't collide. */
-function normalize(games: RawGame[]): Game[] {
-  const seen = new Set<string>();
-  return games.map(game => {
-    const id = game.id && !seen.has(game.id) ? game.id : newId();
-    seen.add(id);
-    return { ...game, id };
-  });
-}
-
-function newId(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
-  }
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }

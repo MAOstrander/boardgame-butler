@@ -259,9 +259,9 @@ describe('Home', () => {
     }
   });
 
-  it('links to the collection, add-game and manage pages', async () => {
+  it('links to the collection, add-game, manage and tools pages', async () => {
     await setup();
     const hrefs = queryAll<HTMLAnchorElement>(fixture, 'a').map(a => a.getAttribute('href'));
-    expect(hrefs).toEqual(expect.arrayContaining(['/collection', '/add-game', '/manage']));
+    expect(hrefs).toEqual(expect.arrayContaining(['/collection', '/add-game', '/manage', '/tools']));
   });
 });

@@ -15,6 +15,7 @@ This document describes the features that exist today. Items shown as "planned" 
   - [Your Collection](#your-collection)
   - [Add / Edit a Game](#add--edit-a-game)
   - [Manage Collection (import / export)](#manage-collection-import--export)
+  - [Table Tools (dice & timers)](#table-tools-dice--timers)
 - [Data storage](#data-storage)
 - [Progressive web app (install & offline)](#progressive-web-app-install--offline)
 - [Running and deploying](#running-and-deploying)
@@ -34,7 +35,7 @@ This document describes the features that exist today. Items shown as "planned" 
 | Offline / install | `@angular/service-worker` + web app manifest |
 | Tests | Vitest + jsdom — functional component specs for every page (`npm test`) |
 
-There are five routes:
+There are six routes:
 
 | Route | Component | Purpose |
 |---|---|---|
@@ -43,6 +44,7 @@ There are five routes:
 | `/add-game` | `GameForm` | Form to add one game to the collection |
 | `/edit-game/:id` | `GameForm` | The same form, pre-filled, to change or delete an existing game |
 | `/manage` | `Manage` | Export the collection or replace it by importing a JSON file |
+| `/tools` | `Tools` | Dice roller, countdown timer and stopwatch for use at the table |
 
 Every page links to the others through a small nav row under the back link.
 
@@ -100,7 +102,7 @@ The landing page shows a full-bleed background image (`public/DiceButler.jpg`) w
    - `rating/10` (only if the game has a rating)
 4. Clicking the button again re-rolls. The same game can be picked twice in a row — there is no history or exclusion.
 5. **▾ Narrow it down** opens a filter panel (see below). **Serve me a match!** inside it picks at random from only the games that pass the filters, and the card is labelled *"Tonight's pick · from your matches"*. The main button always ignores the filters, so both options are available at once.
-6. Links at the bottom go to **📚 View collection**, **+ Add a game**, and **⚙ Manage collection**.
+6. Links at the bottom go to **📚 View collection**, **+ Add a game**, **⚙ Manage collection** and **🎲 Table tools**.
 
 **Filters**
 
@@ -233,6 +235,43 @@ Importing **replaces the entire collection on this device**; the page warns abou
 
 ---
 
+### Table Tools (dice & timers)
+
+**Route:** `/tools`
+**Files:** `src/app/tools/tools.ts`, `src/app/tools/tools.html`, with logic in `src/app/dice.ts`, `src/app/timer.ts` and `src/app/timer-service.ts`
+
+Three cards for use during a game. Nothing here touches the collection.
+
+#### Dice
+
+- Pick a die type — **d4, d6, d8, d10, d12, d20, d100** — and a count from 1 to 10 with a −/+ stepper.
+- **Roll NdX** shows the total in large type and, for more than one die, each individual result.
+- The last five rolls are listed under *Recent rolls* (newest first).
+- `rollDice(sides, count, random?)` in `dice.ts` is pure; the random source is injectable so tests are deterministic.
+
+#### Countdown
+
+- Presets **1, 2, 5, 10, 15, 30 min**, or a **Custom** minutes box (decimals allowed, e.g. `2.5`).
+- **Start / Pause / Resume / Reset**. Presets and the custom box are disabled while running.
+- At zero the display turns red and pulses, *Time's up!* is announced (`role="alert"`), and the device **vibrates** and **beeps** where the platform allows (`navigator.vibrate`, Web Audio). Both are best-effort and silently skipped if unavailable — iOS Safari doesn't support vibration, and audio requires that the user has interacted with the page, which pressing Start satisfies.
+- **Reset** rewinds to the chosen duration so the same timer can be run again.
+
+#### Stopwatch
+
+- **Start / Pause / Resume / Reset**; displays `m:ss`, switching to `h:mm:ss` past an hour. Intended for finding out how long a game really took (future play statistics will want this number).
+
+#### How the timers keep time
+
+Both timers derive elapsed time from `Date.now()` timestamps, not by counting ticks — the 250 ms interval only refreshes the display. That keeps them accurate when a phone throttles background JavaScript or the screen locks. They live in the root-scoped `TimerService`, so a running timer keeps going while you visit other pages; the Tools page calls `refresh()` on open to catch the display up. `Countdown` fires `onFinish` exactly once (guarded against the re-entrant tick that `pause()` triggers).
+
+**Current limitations**
+
+- One countdown and one stopwatch — no per-player turn clock yet.
+- Timers are in memory only; closing the app entirely loses them.
+- No custom dice expressions (e.g. `2d6+3`) or per-die exploding/rerolls.
+
+---
+
 ## Data storage
 
 There is no backend. The collection is owned by `GameStore` (`src/app/game-store.ts`), an injectable service that every page shares:
@@ -325,6 +364,9 @@ Each page has a functional spec next to it (`*.spec.ts`) that drives the rendere
 | `game-form.spec.ts` | Add: defaults, required errors, live rating label, what gets saved (with id), trimming, duplicate-title rejection (case/whitespace, forced submit, clears on change), storage failure. Edit: pre-fill, save in place keeping id, own title allowed / other title rejected, rename, rating required for unrated, unknown id. Delete: hidden when adding, confirm step, keep, confirm removes and navigates, storage failure |
 | `import-plan.spec.ts` | First-wins de-duplication: case/whitespace matching, kept order, difference reporting (incl. missing rating), untitled rows |
 | `manage.spec.ts` | Export count and download (Blob contents, filename), invalid/non-array file errors, preview, duplicate rows greyed with reasons and only kept games imported, cancel, confirm persists, storage-failure handling |
+| `dice.spec.ts` | Random-source mapping onto 1..sides, totals, count clamping, range check across all die types |
+| `timer.spec.ts` | `formatDuration`; Stopwatch start/pause/resume/reset, timestamp-based elapsed (throttled-tab case), `onTick`, `destroy`; Countdown remaining/finished, `onFinish` fires once, pause/resume, reset, `setDuration` |
+| `tools.spec.ts` | Dice type/count selection and clamping, roll rendering (total + individual dice), history; Countdown presets, custom minutes, running/pause/resume display with fake timers, time's-up alert once + reset, survives leaving and re-opening the page; Stopwatch count-up through the hour boundary; nav links |
 | `app.spec.ts` | Every route renders the right component and heading using the real `appConfig` providers; the `:id` parameter reaches the edit form; link navigation between pages |
 
 ---
@@ -341,7 +383,7 @@ The Home page advertises the following chips. Only the first four are fully back
 | User ratings | ✅ 1–10 slider, shown on the pick card |
 | Quick-pick assistant | ✅ Random from the whole collection, or from games matching players / time / complexity / rating |
 | Play statistics | ❌ Not started |
-| In-game utilities | ❌ Not started |
+| In-game utilities | ✅ Dice, countdown, stopwatch on `/tools` |
 
 Technical gaps in what already exists:
 
@@ -369,8 +411,8 @@ The full candidate scope for the project, grouped by area. Nothing here has been
 |---|---|
 | Quick setup chooser (randomize / select a game) | ✅ Random pick from the whole collection or from a filtered subset |
 | Play statistics — players, winner, duration, fun rating | ❌ Not started; the `Game` model has no play-history fields |
-| Dice | ❌ Not started |
-| Timers | ❌ Not started |
+| Dice | ✅ `/tools` — d4–d100, up to 10 dice, history |
+| Timers | ✅ `/tools` — countdown with alert, stopwatch |
 
 ### Nice-to-haves / uncertain fit
 
@@ -384,9 +426,9 @@ The full candidate scope for the project, grouped by area. Nothing here has been
 
 ### Open questions
 
-- **MVP cut line.** The likely MVP is collection view/add/edit/delete plus dice and timers. Collection management and the filtered quick-setup chooser are done; dice and timers remain. The social / multiplayer layer (auth, scheduling, swapping, bot integration) would sit on the other side of that line.
+- **MVP cut line.** The likely MVP was collection view/add/edit/delete plus dice, timers and a filtered quick-setup chooser — all of which are now done. What remains on the "play assistance" side is play statistics. The social / multiplayer layer (auth, scheduling, swapping, bot integration) would sit on the other side of that line.
 - **Single-user vs. backend.** The current architecture — an installable PWA with the collection in browser storage and no server at all — is firmly single-user local software. Auth, cross-device sync and bot hosting all imply a real server and database, which would be a significant change rather than an incremental one.
 
 ### Likely next step
 
-Collection management is complete. The remaining MVP items are the **in-game utilities — dice and timers** — followed by **play statistics**, which will need new fields on the `Game` model (or a separate play-log) to record players, winner, duration and fun rating per session.
+The MVP is complete. Next is **play statistics**, which needs groundwork before any charts: a separate play-log store (`Play { gameId, playedAt, players, winners, durationMinutes, funRating }`), players as entities with the same uniqueness rule titles use, a versioned export format (`{ version, games, players, plays }` with the current bare array still accepted on import), a decision on what happens to plays when a game is deleted (keep them with a title snapshot), and a fast "we played this" capture flow from the pick card and Collection rows. The stopwatch already provides the duration.

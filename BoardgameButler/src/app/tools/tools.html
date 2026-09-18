@@ -1,0 +1,186 @@
+<div class="min-h-screen bg-gray-950 flex flex-col items-center px-4 py-12">
+  <div class="w-full max-w-2xl">
+
+    <div class="mb-8">
+      <div class="flex items-center gap-4">
+        <a routerLink="/" class="text-amber-400 hover:text-amber-300 text-sm font-medium transition-colors">
+          &larr; Back to Butler
+        </a>
+        <a routerLink="/collection" class="text-gray-500 hover:text-amber-400 text-sm transition-colors">
+          View collection
+        </a>
+      </div>
+      <h1 class="mt-4 text-3xl font-bold text-white tracking-tight">Table Tools</h1>
+      <p class="mt-1 text-gray-400">Dice and timers for the game in front of you.</p>
+    </div>
+
+    <div class="grid gap-6 md:grid-cols-2">
+
+      <!-- Dice -->
+      <section aria-labelledby="dice-heading" class="p-6 rounded-2xl bg-gray-900 border border-gray-800 flex flex-col gap-5 md:col-span-2">
+        <h2 id="dice-heading" class="text-lg font-semibold text-white">Dice</h2>
+
+        <div class="flex flex-wrap gap-2" role="group" aria-label="Die type">
+          @for (d of dieOptions; track d) {
+            <button
+              type="button"
+              (click)="selectDie(d)"
+              [attr.aria-pressed]="sides() === d"
+              class="px-4 py-2 rounded-lg border text-sm font-semibold transition-colors cursor-pointer"
+              [class]="sides() === d
+                ? 'bg-amber-500 border-amber-400 text-white'
+                : 'bg-gray-800 border-gray-700 text-gray-300 hover:border-amber-500'"
+            >
+              d{{ d }}
+            </button>
+          }
+        </div>
+
+        <div class="flex items-center gap-4">
+          <span class="text-sm text-gray-400">How many</span>
+          <div class="flex items-center rounded-lg border border-gray-700 overflow-hidden">
+            <button type="button" (click)="changeCount(-1)" [disabled]="count() === 1" aria-label="Fewer dice"
+              class="px-3 py-1.5 bg-gray-800 text-white hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">−</button>
+            <span class="px-4 py-1.5 bg-gray-950 text-white font-semibold tabular-nums min-w-[3ch] text-center" aria-live="polite">{{ count() }}</span>
+            <button type="button" (click)="changeCount(1)" [disabled]="count() === maxDice" aria-label="More dice"
+              class="px-3 py-1.5 bg-gray-800 text-white hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">+</button>
+          </div>
+          <button
+            type="button"
+            (click)="rollDice()"
+            class="ml-auto px-6 py-2.5 bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-white font-bold rounded-xl shadow transition-colors duration-200 cursor-pointer"
+          >
+            Roll {{ count() }}d{{ sides() }}
+          </button>
+        </div>
+
+        @if (roll(); as r) {
+          <div class="rounded-xl bg-gray-950 border border-gray-800 p-5 text-center" aria-live="polite">
+            <p class="text-xs uppercase tracking-widest text-gray-500 mb-1">{{ formatRoll(r) }}</p>
+            <p class="text-6xl font-bold text-amber-400 tabular-nums">{{ r.total }}</p>
+            @if (r.count > 1) {
+              <div class="mt-4 flex flex-wrap justify-center gap-2" aria-label="Individual dice">
+                @for (value of r.results; track $index) {
+                  <span class="w-10 h-10 flex items-center justify-center rounded-lg bg-gray-800 border border-gray-700 text-white font-semibold tabular-nums">{{ value }}</span>
+                }
+              </div>
+            }
+          </div>
+        }
+
+        @if (history().length > 1) {
+          <div>
+            <p class="text-xs uppercase tracking-widest text-gray-500 mb-2">Recent rolls</p>
+            <ul class="flex flex-wrap gap-2 text-sm">
+              @for (h of history(); track $index) {
+                <li class="px-3 py-1 rounded-full bg-gray-800 text-gray-300" [class.opacity-50]="$index === 0">
+                  {{ formatRoll(h) }} → <span class="text-white font-semibold">{{ h.total }}</span>
+                </li>
+              }
+            </ul>
+          </div>
+        }
+      </section>
+
+      <!-- Countdown -->
+      <section aria-labelledby="countdown-heading" class="p-6 rounded-2xl bg-gray-900 border border-gray-800 flex flex-col gap-5">
+        <h2 id="countdown-heading" class="text-lg font-semibold text-white">Countdown</h2>
+
+        <p
+          class="text-6xl font-bold tabular-nums text-center"
+          [class]="countdown.finished() ? 'text-red-400 animate-pulse' : 'text-white'"
+          aria-live="off"
+          data-testid="countdown-display"
+        >
+          {{ countdownDisplay() }}
+        </p>
+
+        @if (countdown.finished()) {
+          <p class="text-center text-red-300 font-semibold" role="alert">Time's up!</p>
+        }
+
+        <div class="flex flex-wrap gap-2" role="group" aria-label="Preset durations">
+          @for (m of presetMinutes; track m) {
+            <button
+              type="button"
+              (click)="setPreset(m)"
+              [disabled]="countdown.running()"
+              [attr.aria-pressed]="isPreset(m)"
+              class="px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              [class]="isPreset(m)
+                ? 'bg-amber-500 border-amber-400 text-white'
+                : 'bg-gray-800 border-gray-700 text-gray-300 hover:border-amber-500'"
+            >
+              {{ m }} min
+            </button>
+          }
+        </div>
+
+        <label class="flex items-center gap-3 text-sm text-gray-400">
+          Custom
+          <input
+            id="custom-minutes"
+            type="number"
+            min="0.5"
+            step="0.5"
+            placeholder="minutes"
+            [value]="customMinutes()"
+            (input)="onCustomMinutes($event)"
+            [disabled]="countdown.running()"
+            class="w-28 px-3 py-1.5 rounded-lg bg-gray-800 border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 disabled:opacity-40"
+          />
+        </label>
+
+        <div class="flex gap-3">
+          @if (countdown.running()) {
+            <button type="button" (click)="countdown.pause()"
+              class="flex-1 px-4 py-2.5 bg-gray-800 hover:bg-gray-700 text-white font-semibold rounded-xl transition-colors cursor-pointer">
+              Pause
+            </button>
+          } @else {
+            <button type="button" (click)="countdown.start()"
+              [disabled]="countdown.durationMs() === 0 || countdown.finished()"
+              class="flex-1 px-4 py-2.5 bg-amber-500 hover:bg-amber-400 active:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl shadow transition-colors cursor-pointer">
+              {{ countdown.remainingMs() < countdown.durationMs() && !countdown.finished() ? 'Resume' : 'Start' }}
+            </button>
+          }
+          <button type="button" (click)="countdown.reset()"
+            [disabled]="countdown.durationMs() === 0"
+            class="px-4 py-2.5 bg-gray-800 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed text-gray-300 font-semibold rounded-xl transition-colors cursor-pointer">
+            Reset
+          </button>
+        </div>
+      </section>
+
+      <!-- Stopwatch -->
+      <section aria-labelledby="stopwatch-heading" class="p-6 rounded-2xl bg-gray-900 border border-gray-800 flex flex-col gap-5">
+        <h2 id="stopwatch-heading" class="text-lg font-semibold text-white">Stopwatch</h2>
+        <p class="text-sm text-gray-400 -mt-3">How long is this game actually taking?</p>
+
+        <p class="text-6xl font-bold tabular-nums text-center text-white" data-testid="stopwatch-display">
+          {{ stopwatchDisplay() }}
+        </p>
+
+        <div class="flex gap-3 mt-auto">
+          @if (stopwatch.running()) {
+            <button type="button" (click)="stopwatch.pause()"
+              class="flex-1 px-4 py-2.5 bg-gray-800 hover:bg-gray-700 text-white font-semibold rounded-xl transition-colors cursor-pointer">
+              Pause
+            </button>
+          } @else {
+            <button type="button" (click)="stopwatch.start()"
+              class="flex-1 px-4 py-2.5 bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-white font-semibold rounded-xl shadow transition-colors cursor-pointer">
+              {{ stopwatch.elapsedMs() > 0 ? 'Resume' : 'Start' }}
+            </button>
+          }
+          <button type="button" (click)="stopwatch.reset()"
+            [disabled]="stopwatch.elapsedMs() === 0"
+            class="px-4 py-2.5 bg-gray-800 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed text-gray-300 font-semibold rounded-xl transition-colors cursor-pointer">
+            Reset
+          </button>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>

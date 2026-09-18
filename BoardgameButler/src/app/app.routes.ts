@@ -3,6 +3,7 @@ import { Home } from './home/home';
 import { GameForm } from './game-form/game-form';
 import { Manage } from './manage/manage';
 import { Collection } from './collection/collection';
+import { Tools } from './tools/tools';
 
 export const routes: Routes = [
   { path: '', component: Home },
@@ -10,4 +11,5 @@ export const routes: Routes = [
   { path: 'edit-game/:id', component: GameForm },
   { path: 'manage', component: Manage },
   { path: 'collection', component: Collection },
+  { path: 'tools', component: Tools },
 ];

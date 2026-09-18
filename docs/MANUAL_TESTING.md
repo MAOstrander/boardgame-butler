@@ -112,6 +112,17 @@ Open http://localhost:4200. Work through the checklist in order — later steps 
 - [ ] Re-add Pandemic (`2-4`, `45-75`, `Medium`, any rating) so the counts below still line up.
 - [ ] Export now, open the file → every game has an `"id"` field. Import that file back → **Edit** links still work and a re-export gives the same ids.
 
+### Table Tools
+
+- [ ] Home → **🎲 Table tools** → three cards: Dice, Countdown, Stopwatch.
+- [ ] **Dice:** d6 is highlighted; button reads **Roll 1d6**. Click **Roll** several times → a large number 1–6, no individual dice shown; *Recent rolls* appears after the second roll and never exceeds five entries.
+- [ ] Click **d20**, then **+** twice → **Roll 3d20**. Roll → total plus three individual dice, each 1–20, summing to the total. **−** at 1 and **+** at 10 are disabled.
+- [ ] **Countdown:** display `0:00`, **Start** and **Reset** disabled. Click **1 min** → `1:00`, preset highlighted. **Start** → counts down; presets and the Custom box are disabled; button reads **Pause**. **Pause** → stops; **Resume** → continues.
+- [ ] Let it reach `0:00` → display turns red and pulses, *Time's up!* appears, and on a device that supports it you get a short beep / vibration. **Reset** → back to `1:00`, message gone.
+- [ ] Type `0.5` in **Custom** → `0:30`, preset highlight cleared.
+- [ ] Start a **2 min** countdown, navigate to **View collection**, wait ~10 s, come back → the countdown has kept going and shows the correct remaining time.
+- [ ] **Stopwatch:** **Start** → counts up; **Pause** holds; **Resume** continues; **Reset** (only enabled when stopped with time on it) → `0:00`.
+
 ### Manage — export
 
 - [ ] **Manage collection** → Export section says *(12 games)*.
@@ -202,6 +213,7 @@ Quickest way to try the UI on a real phone. Everything works except install-as-a
   - [ ] The **file picker** on Manage opens the OS file chooser; import a `games.json` you've shared to the phone (email it to yourself, AirDrop, etc.).
   - [ ] **Export** downloads `games.json` to the phone's Downloads / Files.
 - [ ] Persistence: force-close the browser, reopen the address → collection intact.
+- [ ] **Table tools on a phone:** start a 1-minute countdown, lock the screen, unlock after it should have finished → display shows `0:00` and *Time's up!*. Android should have vibrated; iOS won't (no vibration API) but should beep if the phone isn't on silent.
 - [ ] Install prompt: Chrome on Android should **not** offer *Install app* here (insecure origin) — this is expected. iOS Safari → Share → *Add to Home Screen* still works and opens without browser chrome, but it's a shortcut, not an offline app.
 - [ ] Prove there's no offline support: turn on Airplane mode, open the shortcut → it fails to load. Turn Airplane mode off.
 

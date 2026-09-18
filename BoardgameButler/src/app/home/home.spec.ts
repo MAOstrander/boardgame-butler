@@ -259,10 +259,10 @@ describe('Home', () => {
     }
   });
 
-  it('links to the collection, add-game, manage, tools, players and history pages', async () => {
+  it('links to every other page', async () => {
     await setup();
     const hrefs = queryAll<HTMLAnchorElement>(fixture, 'a').map(a => a.getAttribute('href'));
-    expect(hrefs).toEqual(expect.arrayContaining(['/collection', '/add-game', '/manage', '/tools', '/players', '/history']));
+    expect(hrefs).toEqual(expect.arrayContaining(['/collection', '/add-game', '/manage', '/tools', '/players', '/history', '/stats']));
   });
 
   it('the pick card offers to log a play of that game', async () => {

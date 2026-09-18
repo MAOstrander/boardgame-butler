@@ -4,6 +4,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { PlayForm } from './play-form';
 import { TimerService } from '../timer-service';
+import { Play } from '../play';
 import {
   SAMPLE_GAMES,
   SAMPLE_PLAYERS,
@@ -25,11 +26,14 @@ describe('PlayForm', () => {
   let http: HttpTestingController;
   let router: Router;
 
-  async function setup(inputs: { id?: string; game?: string } = {}, opts: { players?: boolean; games?: boolean } = {}) {
+  async function setup(
+    inputs: { id?: string; game?: string } = {},
+    opts: { players?: boolean; games?: boolean; plays?: Play[] } = {},
+  ) {
     localStorage.clear();
     seedStorage(opts.games === false ? [] : SAMPLE_GAMES);
     seedPlayers(opts.players === false ? [] : SAMPLE_PLAYERS);
-    seedPlays(SAMPLE_PLAYS);
+    seedPlays(opts.plays ?? SAMPLE_PLAYS);
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 8, 18, 20, 0)); // local time, 18 Sep 2026
 
@@ -154,6 +158,7 @@ describe('PlayForm', () => {
         gameTitle: 'Azul',
         playedAt: '2026-09-17',
         players: [{ id: 'p-sam', name: 'Sam' }, { id: 'p-alex', name: 'Alex' }],
+        playerCount: 2,
         winnerIds: ['p-alex'],
         durationMinutes: 42,
         funRating: 9,
@@ -176,6 +181,63 @@ describe('PlayForm', () => {
         playedAt: '2026-09-18',
         players: [],
         winnerIds: [],
+      });
+    });
+
+    describe('head-count', () => {
+      const countInput = () => query<HTMLInputElement>(fixture, '#player-count');
+
+      it('defaults to the number of selected players and says so', async () => {
+        await setup({ game: 'g-azul' });
+        expect(countInput().placeholder).toBe('e.g. 4');
+
+        chip('Who played', 'Sam').click();
+        chip('Who played', 'Jo').click();
+        await settle(fixture);
+        expect(countInput().placeholder).toBe('2');
+        expect(text(fixture)).toContain('Will be saved as 2 — the players picked above.');
+      });
+
+      it('can be raised above the selected players, for people not in the list', async () => {
+        await setup({ game: 'g-azul' });
+        chip('Who played', 'Sam').click();
+        await settle(fixture);
+        setInputValue(countInput(), '4');
+        await settle(fixture);
+
+        submitButton().click();
+        await settle(fixture);
+        expect(savedPlays()![3]).toMatchObject({ players: [{ id: 'p-sam', name: 'Sam' }], playerCount: 4 });
+      });
+
+      it('can be set with no named players at all', async () => {
+        await setup({ game: 'g-azul' });
+        setInputValue(countInput(), '3');
+        await settle(fixture);
+        submitButton().click();
+        await settle(fixture);
+        expect(savedPlays()![3]).toMatchObject({ players: [], playerCount: 3 });
+      });
+
+      it('refuses fewer than the selected players, or zero', async () => {
+        await setup({ game: 'g-azul' });
+        chip('Who played', 'Sam').click();
+        chip('Who played', 'Jo').click();
+        await settle(fixture);
+
+        setInputValue(countInput(), '1');
+        await settle(fixture);
+        expect(text(fixture)).toContain('You picked 2 players above.');
+        expect(submitButton().disabled).toBe(true);
+
+        setInputValue(countInput(), '0');
+        await settle(fixture);
+        expect(text(fixture)).toContain('At least one person must have played.');
+        expect(submitButton().disabled).toBe(true);
+
+        setInputValue(countInput(), '');
+        await settle(fixture);
+        expect(submitButton().disabled).toBe(false);
       });
     });
 
@@ -231,6 +293,16 @@ describe('PlayForm', () => {
       expect(queryAll<HTMLAnchorElement>(fixture, 'a').some(a => a.textContent?.trim() === 'Cancel')).toBe(true);
     });
 
+    it('shows the head-count only when it exceeds the named players', async () => {
+      await setup({ id: 'pl-2' }); // 2 named, playerCount 2 in fixture → blank
+      expect(query<HTMLInputElement>(fixture, '#player-count').value).toBe('');
+
+      fixture.destroy();
+      TestBed.resetTestingModule();
+      await setup({ id: 'pl-2' }, { plays: [{ ...SAMPLE_PLAYS[1], playerCount: 5 }] });
+      expect(query<HTMLInputElement>(fixture, '#player-count').value).toBe('5');
+    });
+
     it('saves changes in place, keeping the id', async () => {
       await setup({ id: 'pl-2' });
       chip('Who won', 'Sam').click();
@@ -242,7 +314,7 @@ describe('PlayForm', () => {
 
       const saved = savedPlays()!;
       expect(saved.length).toBe(3);
-      expect(saved[1]).toEqual({ ...SAMPLE_PLAYS[1], winnerIds: ['p-jo'], durationMinutes: undefined });
+      expect(saved[1]).toEqual({ ...SAMPLE_PLAYS[1], winnerIds: ['p-jo'], durationMinutes: undefined, playerCount: 2 });
       expect(router.navigate).toHaveBeenCalledWith(['/history']);
     });
 

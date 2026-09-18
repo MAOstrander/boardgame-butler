@@ -62,6 +62,19 @@ describe('History', () => {
     expect(text(fixture)).toContain('no players recorded');
   });
 
+  it('shows the head-count when it exceeds the named players', async () => {
+    await setup([
+      { ...SAMPLE_PLAYS[1], id: 'a', playedAt: '2026-09-12', playerCount: 4 }, // 2 named, 4 played
+      { ...SAMPLE_PLAYS[1], id: 'b', playedAt: '2026-09-11', playerCount: 2 }, // matches the names → no chip
+      { ...SAMPLE_PLAYS[2], id: 'c', playedAt: '2026-09-10', players: [], winnerIds: [], playerCount: 3 },
+    ]);
+    const texts = cards().map(c => c.textContent?.replace(/\s+/g, ' ') ?? '');
+    expect(texts[0]).toContain('4 players');
+    expect(texts[1]).not.toContain('players');
+    expect(texts[2]).toContain('3 players');
+    expect(texts[2]).not.toContain('no players recorded');
+  });
+
   it('links each play to its edit form', async () => {
     await setup();
     const hrefs = queryAll<HTMLAnchorElement>(fixture, 'a[aria-label^="Edit play"]').map(a => a.getAttribute('href'));
@@ -94,9 +107,9 @@ describe('History', () => {
     });
   });
 
-  it('links back home and to the collection and players pages', async () => {
+  it('links back home and to the collection, players and stats pages', async () => {
     await setup();
     const hrefs = queryAll<HTMLAnchorElement>(fixture, 'a').map(a => a.getAttribute('href'));
-    expect(hrefs).toEqual(expect.arrayContaining(['/', '/collection', '/players']));
+    expect(hrefs).toEqual(expect.arrayContaining(['/', '/collection', '/players', '/stats']));
   });
 });

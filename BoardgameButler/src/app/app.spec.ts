@@ -11,6 +11,7 @@ import { Collection } from './collection/collection';
 import { Tools } from './tools/tools';
 import { Players } from './players/players';
 import { History } from './history/history';
+import { Stats } from './stats/stats';
 import { PlayForm } from './play-form/play-form';
 import { SAMPLE_GAMES, SAMPLE_PLAYS, seedPlays, seedStorage } from '../testing/helpers';
 
@@ -54,6 +55,7 @@ describe('App routing', () => {
     ['/tools', Tools, 'Table Tools'],
     ['/players', Players, 'Players'],
     ['/history', History, 'Play History'],
+    ['/stats', Stats, 'Statistics'],
     ['/log-play', PlayForm, 'Log a Play'],
     ['/log-play/pl-1', PlayForm, 'Edit Play'],
   ])('renders %s', async (url, component, heading) => {

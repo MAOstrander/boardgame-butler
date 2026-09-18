@@ -16,6 +16,11 @@ export interface Play {
   /** Calendar date, YYYY-MM-DD. */
   playedAt: string;
   players: PlayParticipant[];
+  /**
+   * How many people were at the table, including anyone not in the players
+   * list. Defaults to `players.length` when logging; never less than it.
+   */
+  playerCount?: number;
   /** Ids of the winners; empty for a loss (co-op) or when not recorded. */
   winnerIds: string[];
   durationMinutes?: number;

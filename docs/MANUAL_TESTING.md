@@ -126,13 +126,25 @@ Open http://localhost:4200. Work through the checklist in order — later steps 
 
 - [ ] Home → **Serve me a game!** → the pick card has **We played this →**. Click it → *Log a Play* with that game pre-selected and today's date.
 - [ ] **Who played:** chips for every player; tap Sam and Alex → a **Who won** row appears with just those two. Tap Alex there → 🏆 Alex. Un-tap Alex in *Who played* → the winners row loses Alex (or disappears if nobody's left).
-- [ ] Enter 75 minutes, drag *How fun* to 8 (label reads *8 / 10*; **clear** resets to *not rated*), type a note → **Log Play** → *Play History* shows one card: date, game, 🏆 winner, others, *75 min*, *fun 8/10*, note.
+- [ ] **How many played** shows placeholder `2` and *Will be saved as 2 — the players picked above.* Type `1` → *You picked 2 players above.* and **Log Play** is disabled; type `4` (two friends not in your list) → allowed. Leave it at 4.
+- [ ] Enter 75 minutes, drag *How fun* to 8 (label reads *8 / 10*; **clear** resets to *not rated*), type a note → **Log Play** → *Play History* shows one card: date, game, 🏆 winner, others, *4 players*, *75 min*, *fun 8/10*, note. (A play whose head-count equals the named players shows no *N players* chip.)
 - [ ] Table Tools → start the **Stopwatch**, wait a minute, pause. Back to **+ Log a play** → a **Use stopwatch (1 min)** button fills the duration.
 - [ ] Collection → **Log play** on a row → that game is pre-selected. Log it with no players and no extras → the card shows *no players recorded* and nothing else.
 - [ ] Log a third play dated yesterday → History lists newest date first; two plays on the same date show the most recently logged first.
 - [ ] **Edit** a play → everything pre-filled, **Save Changes** → card updates. **Delete** → *Delete this play of …?* → **Keep** keeps; **Yes, delete** removes and the count drops.
 - [ ] **Snapshots:** Players → **Remove** Alex. History still shows Alex's name on the old play. Edit that play → the chip reads *Alex (removed)* and is still selected. Collection → Edit the game you logged twice → **Delete this game** → the confirmation says *Its 2 logged plays will stay in your history.* Confirm → History still lists them; editing one offers *Catan (no longer in collection)*.
 - [ ] F5 → history persists.
+
+### Statistics
+
+- [ ] With no plays logged (fresh device, or after deleting them all) → **📊 Stats** shows *No plays logged yet* and a **Log your first play** button.
+- [ ] After the Play History steps above → four tiles: **Plays** (with *N in the last 30 days*), **Games played** as *played / total* with *N never played*, **Hours at the table** (e.g. `2.1`), **Most played**.
+- [ ] **Games** table: played games only, most plays first; a **Players** column with the average head-count — log the same game at two different table sizes with different durations and a breakdown like *3p ×1 · 60 min, 4p ×1 · 100 min* appears under the average; a game always played at one size shows just the number; last-played date; average time with *in range* / *+N min over* (red) / *N min under* (blue) against the listed duration; average fun. Games you never recorded a duration or rating for show `—`.
+- [ ] **Never played (N)** chips below the table; click one → *Log a Play* with that game pre-selected.
+- [ ] **Players** table: plays, wins, win rate (green at 50 %+), most played with ×count, last played. A player with no plays is dimmed with dashes.
+- [ ] Log a co-op play with two players and **no winner** → both players' *Plays* go up but *Win rate* is unchanged (the footnote explains why).
+- [ ] The game you deleted earlier still appears with *(no longer in collection)*; the removed player still appears with *(removed)*.
+- [ ] Log a play dated 40 days ago → **Plays** tile total goes up, *in the last 30 days* does not.
 
 ### Table Tools
 

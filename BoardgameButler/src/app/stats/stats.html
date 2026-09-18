@@ -1,0 +1,189 @@
+<div class="min-h-screen bg-gray-950 flex flex-col items-center px-4 py-12">
+  <div class="w-full max-w-4xl">
+
+    <div class="mb-8">
+      <div class="flex items-center gap-4">
+        <a routerLink="/" class="text-amber-400 hover:text-amber-300 text-sm font-medium transition-colors">
+          &larr; Back to Butler
+        </a>
+        <a routerLink="/history" class="text-gray-500 hover:text-amber-400 text-sm transition-colors">
+          History
+        </a>
+        <a routerLink="/collection" class="text-gray-500 hover:text-amber-400 text-sm transition-colors">
+          View collection
+        </a>
+      </div>
+      <h1 class="mt-4 text-3xl font-bold text-white tracking-tight">Statistics</h1>
+      <p class="mt-1 text-gray-400">What actually hits the table, and who keeps winning.</p>
+    </div>
+
+    @if (!hasPlays()) {
+      <div class="p-10 rounded-2xl bg-gray-900 border border-gray-800 text-center">
+        <p class="text-gray-400 mb-4">No plays logged yet — statistics appear once there's some history.</p>
+        <a
+          routerLink="/log-play"
+          class="inline-block px-5 py-2.5 bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-white font-semibold rounded-xl shadow transition-colors duration-200"
+        >
+          Log your first play
+        </a>
+      </div>
+    } @else {
+
+      <!-- Overview tiles -->
+      <section aria-label="Overview" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+        @let o = overview();
+        <div class="p-4 rounded-2xl bg-gray-900 border border-gray-800">
+          <p class="text-xs uppercase tracking-widest text-gray-500">Plays</p>
+          <p class="text-3xl font-bold text-white tabular-nums" data-testid="tile-plays">{{ o.totalPlays }}</p>
+          <p class="text-xs text-gray-500 mt-1">{{ o.playsLast30Days }} in the last 30 days</p>
+        </div>
+        <div class="p-4 rounded-2xl bg-gray-900 border border-gray-800">
+          <p class="text-xs uppercase tracking-widest text-gray-500">Games played</p>
+          <p class="text-3xl font-bold text-white tabular-nums" data-testid="tile-games">{{ o.gamesPlayed }}<span class="text-lg text-gray-500 font-normal"> / {{ collectionSize() }}</span></p>
+          <p class="text-xs text-gray-500 mt-1">{{ o.neverPlayed }} never played</p>
+        </div>
+        <div class="p-4 rounded-2xl bg-gray-900 border border-gray-800">
+          <p class="text-xs uppercase tracking-widest text-gray-500">Hours at the table</p>
+          <p class="text-3xl font-bold text-white tabular-nums" data-testid="tile-hours">{{ hours(o.totalMinutes) }}</p>
+          <p class="text-xs text-gray-500 mt-1">from recorded durations</p>
+        </div>
+        <div class="p-4 rounded-2xl bg-gray-900 border border-gray-800">
+          <p class="text-xs uppercase tracking-widest text-gray-500">Most played</p>
+          @if (o.mostPlayed; as m) {
+            <p class="text-xl font-bold text-amber-400 truncate" data-testid="tile-most">{{ m.title }}</p>
+            <p class="text-xs text-gray-500 mt-1">{{ m.plays }} play{{ m.plays === 1 ? '' : 's' }}</p>
+          }
+        </div>
+      </section>
+
+      <!-- Games -->
+      <section aria-labelledby="games-heading" class="mb-8">
+        <h2 id="games-heading" class="text-lg font-semibold text-white mb-3">Games</h2>
+        <div class="rounded-2xl bg-gray-900 border border-gray-800 overflow-hidden">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-800/60 text-gray-400 text-xs uppercase tracking-wider">
+              <tr>
+                <th class="px-4 py-3 text-left font-semibold">Game</th>
+                <th class="px-4 py-3 text-center font-semibold">Plays</th>
+                <th class="px-4 py-3 text-center font-semibold">Players</th>
+                <th class="px-4 py-3 text-center font-semibold">Last played</th>
+                <th class="px-4 py-3 text-center font-semibold">Avg time</th>
+                <th class="px-4 py-3 text-center font-semibold">Avg fun</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-800" data-testid="games-table">
+              @for (row of played(); track row.gameId) {
+                <tr>
+                  <td class="px-4 py-3 text-white font-medium">
+                    {{ row.title }}
+                    @if (!row.inCollection) {
+                      <span class="ml-1 text-xs text-gray-500 font-normal">(no longer in collection)</span>
+                    }
+                  </td>
+                  <td class="px-4 py-3 text-center text-white tabular-nums">{{ row.plays }}</td>
+                  <td class="px-4 py-3 text-center text-gray-300" data-testid="players-cell">
+                    @if (row.avgPlayers != null) {
+                      <span class="text-white tabular-nums">{{ row.avgPlayers }}</span>
+                      @if (row.byPlayers.length > 1) {
+                        <span class="block text-xs text-gray-500 whitespace-nowrap">
+                          @for (entry of row.byPlayers; track entry.players; let last = $last) {
+                            {{ breakdown(entry) }}@if (!last) {<span class="text-gray-700">, </span>}
+                          }
+                        </span>
+                      }
+                    } @else {
+                      <span class="text-gray-600">—</span>
+                    }
+                  </td>
+                  <td class="px-4 py-3 text-center text-gray-300">{{ shortDate(row.lastPlayed) }}</td>
+                  <td class="px-4 py-3 text-center text-gray-300">
+                    @if (row.avgMinutes != null) {
+                      {{ row.avgMinutes }} min
+                      @if (versusListed(row); as v) {
+                        <span class="block text-xs"
+                          [class]="v.tone === 'over' ? 'text-red-400' : v.tone === 'under' ? 'text-sky-400' : 'text-gray-500'">{{ v.label }}</span>
+                      }
+                    } @else {
+                      <span class="text-gray-600">—</span>
+                    }
+                  </td>
+                  <td class="px-4 py-3 text-center">
+                    @if (row.avgFun != null) {
+                      <span class="text-amber-400 font-semibold">{{ row.avgFun }}</span><span class="text-gray-500">/10</span>
+                    } @else {
+                      <span class="text-gray-600">—</span>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        @if (neverPlayed().length > 0) {
+          <div class="mt-4">
+            <p class="text-xs uppercase tracking-widest text-gray-500 mb-2">Never played ({{ neverPlayed().length }})</p>
+            <ul class="flex flex-wrap gap-2" data-testid="never-played">
+              @for (row of neverPlayed(); track row.gameId) {
+                <li>
+                  <a routerLink="/log-play" [queryParams]="{ game: row.gameId }"
+                    class="inline-block px-3 py-1 rounded-full bg-gray-800 border border-gray-700 text-gray-300 text-sm hover:border-amber-500 hover:text-amber-400 transition-colors">
+                    {{ row.title }}
+                  </a>
+                </li>
+              }
+            </ul>
+          </div>
+        }
+      </section>
+
+      <!-- Players -->
+      <section aria-labelledby="players-heading">
+        <h2 id="players-heading" class="text-lg font-semibold text-white mb-3">Players</h2>
+        @if (playerRows().length === 0) {
+          <p class="text-sm text-gray-500">No players recorded on any play yet. <a routerLink="/players" class="text-amber-400 hover:text-amber-300">Add players</a> and pick them when logging.</p>
+        } @else {
+          <div class="rounded-2xl bg-gray-900 border border-gray-800 overflow-hidden">
+            <table class="w-full text-sm">
+              <thead class="bg-gray-800/60 text-gray-400 text-xs uppercase tracking-wider">
+                <tr>
+                  <th class="px-4 py-3 text-left font-semibold">Player</th>
+                  <th class="px-4 py-3 text-center font-semibold">Plays</th>
+                  <th class="px-4 py-3 text-center font-semibold">Wins</th>
+                  <th class="px-4 py-3 text-center font-semibold">Win rate</th>
+                  <th class="px-4 py-3 text-left font-semibold">Most played</th>
+                  <th class="px-4 py-3 text-center font-semibold">Last played</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-800" data-testid="players-table">
+                @for (row of playerRows(); track row.playerId) {
+                  <tr [class.opacity-60]="row.plays === 0">
+                    <td class="px-4 py-3 text-white font-medium">
+                      {{ row.name }}
+                      @if (!row.current) {
+                        <span class="ml-1 text-xs text-gray-500 font-normal">(removed)</span>
+                      }
+                    </td>
+                    <td class="px-4 py-3 text-center text-white tabular-nums">{{ row.plays }}</td>
+                    <td class="px-4 py-3 text-center text-white tabular-nums">{{ row.wins }}</td>
+                    <td class="px-4 py-3 text-center tabular-nums" [class]="row.winRate != null && row.winRate >= 0.5 ? 'text-green-400' : 'text-gray-300'">{{ percent(row.winRate) }}</td>
+                    <td class="px-4 py-3 text-gray-300">
+                      @if (row.mostPlayed; as m) {
+                        {{ m.title }} <span class="text-gray-500">×{{ m.plays }}</span>
+                      } @else {
+                        <span class="text-gray-600">—</span>
+                      }
+                    </td>
+                    <td class="px-4 py-3 text-center text-gray-300">{{ shortDate(row.lastPlayed) }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <p class="mt-2 text-xs text-gray-500">Win rate counts only plays where a winner was recorded.</p>
+        }
+      </section>
+    }
+
+  </div>
+</div>

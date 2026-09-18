@@ -20,6 +20,7 @@ This document describes the features that exist today. Items shown as "planned" 
   - [Table Tools (dice & timers)](#table-tools-dice--timers)
   - [Players](#players)
   - [Play History & Log a Play](#play-history--log-a-play)
+  - [Statistics](#statistics)
 - [Data storage](#data-storage)
 - [Backup file format](#backup-file-format)
 - [Progressive web app (install & offline)](#progressive-web-app-install--offline)
@@ -40,7 +41,7 @@ This document describes the features that exist today. Items shown as "planned" 
 | Offline / install | `@angular/service-worker` + web app manifest |
 | Tests | Vitest + jsdom — functional component specs for every page (`npm test`) |
 
-There are ten routes:
+There are eleven routes:
 
 | Route | Component | Purpose |
 |---|---|---|
@@ -54,6 +55,7 @@ There are ten routes:
 | `/history` | `History` | Every logged play, newest first, with edit and delete |
 | `/log-play` | `PlayForm` | Log a play; `?game=<id>` pre-selects the game |
 | `/log-play/:id` | `PlayForm` | Edit a logged play |
+| `/stats` | `Stats` | Overview tiles, per-game and per-player statistics from the play log |
 
 Every page links to the others through a small nav row under the back link.
 
@@ -114,6 +116,7 @@ interface Play {
   gameTitle: string;                          // snapshot at logging time
   playedAt: string;                           // YYYY-MM-DD
   players: { id: string; name: string }[];    // snapshots at logging time
+  playerCount?: number;                       // people at the table, incl. anyone not in the list
   winnerIds: string[];                        // empty = loss (co-op) or not recorded
   durationMinutes?: number;
   funRating?: number;                         // 1–10, how fun *this session* was
@@ -149,7 +152,7 @@ The landing page shows a full-bleed background image (`public/DiceButler.jpg`) w
 4. Clicking the button again re-rolls. The same game can be picked twice in a row — there is no history or exclusion.
 5. **▾ Narrow it down** opens a filter panel (see below). **Serve me a match!** inside it picks at random from only the games that pass the filters, and the card is labelled *"Tonight's pick · from your matches"*. The main button always ignores the filters, so both options are available at once.
 6. The *Tonight's pick* card has a **We played this →** link to `/log-play?game=<id>`.
-7. Links at the bottom go to **📚 View collection**, **+ Add a game**, **⚙ Manage collection**, **🎲 Table tools**, **👥 Players** and **📖 History**.
+7. Links at the bottom go to **📚 View collection**, **+ Add a game**, **⚙ Manage collection**, **🎲 Table tools**, **👥 Players**, **📖 History** and **📊 Stats**.
 
 **Filters**
 
@@ -365,6 +368,7 @@ One form for logging and editing, like the game form. Reached from the pick card
 | Game | select, alphabetical | **required**; pre-selected from `?game=<id>`. Empty collection → link to Add a game |
 | Date | date input | **required**; defaults to today (local time) |
 | Who played | toggle chips of every player, alphabetical | no players → link to the Players page |
+| How many played | number, optional | defaults to the number of chips selected (the placeholder shows it, and a note says *Will be saved as N*); raise it when someone not in your Players list joined. Can't be lower than the chips selected or below 1 |
 | Who won | toggle chips of the *selected* players only | appears once someone is selected; deselecting a player also un-wins them; leave empty for a loss or draw |
 | How long | minutes | if the Table Tools **stopwatch** has time on it, a **Use stopwatch (N min)** button fills it in |
 | How fun was it? | 1–10 slider, optional | shows *not rated* until moved; **clear** unsets it |
@@ -375,7 +379,7 @@ One form for logging and editing, like the game form. Reached from the pick card
 #### Play History (`/history`)
 
 - Cards newest-first (by date, then most recently logged), with a count.
-- Each card: date, game title, winners as a green 🏆 chip, other players, duration, *fun N/10*, notes; **Edit** and **Delete** (inline confirm *Delete this play of Azul?* with **Yes, delete** / **Keep**).
+- Each card: date, game title, winners as a green 🏆 chip, other players, a *N players* chip when the head-count exceeds the named players, duration, *fun N/10*, notes; **Edit** and **Delete** (inline confirm *Delete this play of Azul?* with **Yes, delete** / **Keep**).
 - Empty state points at **+ Log a play**.
 
 #### `PlayStore`
@@ -393,9 +397,62 @@ Stored under `boardgame-butler.plays`.
 
 **Current limitations**
 
-- No statistics yet — this is the raw log. Per-game and per-player aggregates are the next step.
 - No filtering or search on the History page.
 - Logging is manual; nothing is recorded automatically from the quick-pick or timers.
+
+---
+
+### Statistics
+
+**Route:** `/stats`
+**Files:** `src/app/stats/stats.ts`, `src/app/stats/stats.html`, with all the arithmetic in `src/app/stats.ts`
+
+Everything is computed on the fly from the play log — nothing is stored. With no plays logged the page shows an empty state pointing at **Log your first play**.
+
+#### Overview tiles
+
+| Tile | Meaning |
+|---|---|
+| **Plays** | Total logged, with *N in the last 30 days* (inclusive of today; future-dated plays are ignored) |
+| **Games played** | Distinct games with a play, shown as *played / collection size*, with *N never played* |
+| **Hours at the table** | Sum of recorded durations; one decimal under 10 hours, whole hours above |
+| **Most played** | The game with the most plays (ties resolved alphabetically) |
+
+#### Games table
+
+One row per game that has been played, most plays first: **Plays**, **Players**, **Last played**, **Avg time** and **Avg fun**. Averages use only plays that recorded the value and are rounded to one decimal; `—` when none did.
+
+**Players** is the average head-count — each play's *How many played* if it was set, otherwise the number of named players; plays with neither are left out. When the head-count varied, a breakdown of **duration by head-count** appears beneath it, e.g. *3p ×2 · 70 min, 4p ×3 · 95 min* — how many plays at each table size and the average recorded time at that size. That's the quickest way to see whether a game's length really depends on how many are playing. A game always played at the same size shows just the number.
+
+Under the average time, a comparison with the game's listed duration range: *in range*, *+30 min over* (red) or *10 min under* (blue). Games with an open-ended listed range (`60+`) get no comparison.
+
+Games that have been deleted from the collection but still have plays appear with *(no longer in collection)*, using the most recent title snapshot.
+
+Below the table, **Never played (N)** lists collection games with no plays as chips that link straight to `/log-play?game=<id>`.
+
+#### Players table
+
+One row per player, most plays first: **Plays**, **Wins**, **Win rate**, **Most played** (with ×count) and **Last played**. Players with no plays are dimmed; removed players who still appear in plays are listed with *(removed)* using their latest name snapshot.
+
+**Win rate** is wins ÷ plays *that recorded a winner*, so co-op losses and unrecorded results don't drag it down; it's `—` when none of a player's plays recorded a winner, and shown in green at 50 % or above. The footnote on the page says as much.
+
+#### `stats.ts`
+
+Pure functions, all snapshot-aware:
+
+| Function | Returns |
+|---|---|
+| `overview(games, plays, today)` | The four tiles' numbers |
+| `gameRows(games, plays)` | One `GameRow` per collection game plus one per deleted game with plays, including `avgPlayers` and a `byPlayers` duration breakdown; sorted by plays desc, then title |
+| `headCount(play)` | Explicit `playerCount`, else named players; null when unknown |
+| `playerRows(players, plays)` | One `PlayerRow` per player plus one per removed player with plays; sorted by plays desc, then name |
+| `shiftDate(iso, days)`, `todayIso()` | Date helpers that avoid timezone drift |
+
+**Current limitations**
+
+- No time-range selection (e.g. "this year") — the 30-day figure is the only windowed number.
+- No head-to-head (player vs. player) breakdowns.
+- Tables are fixed-order; no sorting controls.
 
 ---
 
@@ -520,8 +577,10 @@ Each page has a functional spec next to it (`*.spec.ts`) that drives the rendere
 | `players.spec.ts` | Alphabetical list and count, empty state, add (disabled until typed, trimmed, Enter, duplicate rejected, storage error keeps input), rename (inline editor, save, own name allowed / other rejected, cancel), remove (confirm, keep, confirm removes, opening rename closes confirm), nav links |
 | `export-format.spec.ts` | `buildExport` shape and timestamp; `parseImport` for v1 arrays, v2 and v3 objects, missing players, bad `games`/`players`/`plays` entries, and non-backup values |
 | `play-store.spec.ts` | Empty start, load with id assignment, corrupt data, `recent` ordering, add/update/remove, `forGame`, `merge`/`countNew` (skips existing ids, treats id-less as new, no write when nothing is new), storage failure |
-| `play-form.spec.ts` | Log: defaults, alphabetical games with `?game` pre-select (unknown ignored), player chips and winners only for selected players, deselect un-wins, stopwatch shortcut, full and minimal saves with snapshots, clear rating, empty-players / empty-collection hints, storage error. Edit: pre-fill, save in place, deleted game and removed player stay selectable, unknown id |
-| `history.spec.ts` | Empty state, newest-first list and count, card contents (date, winners, others, duration, fun, notes), no-winner and no-players cases, edit links, delete confirm/keep/confirm |
+| `play-form.spec.ts` | Log: defaults, alphabetical games with `?game` pre-select (unknown ignored), player chips and winners only for selected players, deselect un-wins, head-count defaults / raised / no named players / refuses fewer than chips or zero, stopwatch shortcut, full and minimal saves with snapshots, clear rating, empty-players / empty-collection hints, storage error. Edit: pre-fill (head-count shown only when it exceeds the chips), save in place, deleted game and removed player stay selectable, unknown id |
+| `history.spec.ts` | Empty state, newest-first list and count, card contents (date, winners, others, duration, fun, notes), no-winner and no-players cases, head-count chip only when it exceeds named players, edit links, delete confirm/keep/confirm |
+| `stats.spec.ts` (`src/app/`) | `shiftDate` across month/leap boundaries; `overview` totals, 30-day window edges, tie-breaking, empty log; `gameRows` ordering, averages and rounding, nulls, deleted games with latest snapshot, open-ended ranges, `headCount` precedence, duration-by-head-count breakdown; `playerRows` ordering, win rate over decided plays only, most-played ties, players with no plays, removed players with latest snapshot |
+| `stats.spec.ts` (`src/app/stats/`) | Empty state, overview tiles, hours rounding, games table contents and over/under/in-range labels, players column with breakdown only when head-counts vary, dashes, never-played links, deleted-game label, players table contents, dimmed no-play rows, removed label, no-players hint, nav links |
 | `manage.spec.ts` | Export counts and download (v3 Blob contents, filename), invalid/unrecognised/bad-entry file errors, games preview with duplicates greyed and reasons, v1 file keeps players and plays, v2 file previews and imports players (duplicates first-wins, empty list warns) and keeps plays, v3 plays preview with new/already-here counts, merge adds only new plays, old backup can't delete newer plays, per-section checkboxes (default ticked, unticked sections untouched, Confirm disabled when none, only present sections offered), cancel, storage-failure handling |
 | `dice.spec.ts` | Random-source mapping onto 1..sides, totals, count clamping, range check across all die types |
 | `timer.spec.ts` | `formatDuration`; Stopwatch start/pause/resume/reset, timestamp-based elapsed (throttled-tab case), `onTick`, `destroy`; Countdown remaining/finished, `onFinish` fires once, pause/resume, reset, `setDuration` |
@@ -541,7 +600,7 @@ The Home page advertises the following chips. Only the first four are fully back
 | Complexity ratings | ✅ Easy / Medium / Hard |
 | User ratings | ✅ 1–10 slider, shown on the pick card |
 | Quick-pick assistant | ✅ Random from the whole collection, or from games matching players / time / complexity / rating |
-| Play statistics | ⚠️ Plays can be logged and reviewed; no aggregates yet |
+| Play statistics | ✅ Log plays, review history, per-game and per-player stats on `/stats` |
 | In-game utilities | ✅ Dice, countdown, stopwatch on `/tools` |
 
 Technical gaps in what already exists:
@@ -569,7 +628,7 @@ The full candidate scope for the project, grouped by area. Nothing here has been
 | Item | Status |
 |---|---|
 | Quick setup chooser (randomize / select a game) | ✅ Random pick from the whole collection or from a filtered subset |
-| Play statistics — players, winner, duration, fun rating | ⚠️ Logging and history done (`/log-play`, `/history`); per-game / per-player aggregates not yet |
+| Play statistics — players, winner, duration, fun rating | ✅ `/log-play`, `/history`, `/stats` |
 | Dice | ✅ `/tools` — d4–d100, up to 10 dice, history |
 | Timers | ✅ `/tools` — countdown with alert, stopwatch |
 
@@ -590,4 +649,9 @@ The full candidate scope for the project, grouped by area. Nothing here has been
 
 ### Likely next step
 
-All of the play-statistics groundwork is in: players as entities, a play log with snapshots (so deletions are safe), merge-on-import in the v3 backup, and capture from the pick card, Collection rows and History. What's left is the **stats page itself**: pure aggregation functions over `Play[]` (plays per game, last played, never-played games, win rate per player and per player-count, average duration vs. the game's listed range, fun trend) and a `/stats` page to show them. "Never played" would also make a good quick-pick filter.
+Every item in the MVP and the play-assistance group is done. Natural next steps, none of them prioritised:
+
+- A **"never played" filter** on the home-page quick-pick, now that the data exists.
+- **History filters** (by game, by player, by date range) and a per-game detail view.
+- **Backup nudges** — "last exported N days ago" on Manage, since history is now the most valuable data on the device.
+- Beyond that, the roadmap's *nice-to-have* group (auth, sync, sharing, scheduling) all imply a backend and remain a deliberate architectural decision rather than an incremental one.

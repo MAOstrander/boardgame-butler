@@ -7,6 +7,7 @@ import { Tools } from './tools/tools';
 import { Players } from './players/players';
 import { PlayForm } from './play-form/play-form';
 import { History } from './history/history';
+import { Stats } from './stats/stats';
 
 export const routes: Routes = [
   { path: '', component: Home },
@@ -17,6 +18,7 @@ export const routes: Routes = [
   { path: 'tools', component: Tools },
   { path: 'players', component: Players },
   { path: 'history', component: History },
+  { path: 'stats', component: Stats },
   { path: 'log-play', component: PlayForm },
   { path: 'log-play/:id', component: PlayForm },
 ];

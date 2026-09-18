@@ -88,6 +88,28 @@
         }
       </div>
 
+      <!-- Head-count -->
+      <div class="flex flex-col gap-1.5">
+        <label for="player-count" class="text-sm font-medium text-gray-300">
+          How many played
+          <span class="text-gray-500 font-normal">— counting anyone not listed above</span>
+        </label>
+        <input
+          id="player-count"
+          type="number"
+          min="1"
+          [placeholder]="selectedPlayers().length || 'e.g. 4'"
+          [value]="playerCountInput()"
+          (input)="onPlayerCount($event)"
+          class="w-32 px-4 py-2.5 rounded-lg bg-gray-800 border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 transition-colors"
+        />
+        @if (playerCountError(); as message) {
+          <p class="text-red-400 text-xs">{{ message }}</p>
+        } @else if (playerCountInput() === '' && selectedPlayers().length > 0) {
+          <p class="text-xs text-gray-500">Will be saved as {{ selectedPlayers().length }} — the players picked above.</p>
+        }
+      </div>
+
       <!-- Winners -->
       @if (selectedPlayers().length > 0) {
         <div class="flex flex-col gap-1.5">

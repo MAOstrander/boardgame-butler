@@ -64,6 +64,8 @@ export class PlayForm implements OnInit {
   protected gameId = signal('');
   protected playedAt = signal(today());
   protected participantIds = signal<string[]>([]);
+  /** Typed head-count; empty means "same as the selected players". */
+  protected playerCountInput = signal('');
   protected winnerIds = signal<string[]>([]);
   protected durationMinutes = signal('');
   protected funRating = signal<number | null>(null);
@@ -76,10 +78,25 @@ export class PlayForm implements OnInit {
       .filter((p): p is NonNullable<typeof p> => p != null);
   });
 
+  /** The head-count that will be saved: the typed number, else the selected players. */
+  protected playerCount = computed(() => {
+    const typed = parseInt(this.playerCountInput(), 10);
+    return Number.isNaN(typed) ? this.selectedPlayers().length : typed;
+  });
+  protected playerCountError = computed(() => {
+    const typed = parseInt(this.playerCountInput(), 10);
+    if (Number.isNaN(typed)) return null;
+    if (typed < 1) return 'At least one person must have played.';
+    const selected = this.selectedPlayers().length;
+    return typed < selected ? `You picked ${selected} players above.` : null;
+  });
+
   /** Minutes on the stopwatch, if it has been used — offered as a shortcut. */
   protected stopwatchMinutes = computed(() => Math.round(this.timers.stopwatch.elapsedMs() / 60_000));
 
-  protected valid = computed(() => this.gameId() !== '' && /^\d{4}-\d{2}-\d{2}$/.test(this.playedAt()));
+  protected valid = computed(
+    () => this.gameId() !== '' && /^\d{4}-\d{2}-\d{2}$/.test(this.playedAt()) && this.playerCountError() == null,
+  );
 
   ngOnInit() {
     this.timers.stopwatch.refresh();
@@ -100,6 +117,10 @@ export class PlayForm implements OnInit {
     this.gameId.set(play.gameId);
     this.playedAt.set(play.playedAt);
     this.participantIds.set(play.players.map(p => p.id));
+    // Only show a typed count when it says more than the chips do.
+    this.playerCountInput.set(
+      play.playerCount != null && play.playerCount !== play.players.length ? String(play.playerCount) : '',
+    );
     this.winnerIds.set(play.winnerIds);
     this.durationMinutes.set(play.durationMinutes != null ? String(play.durationMinutes) : '');
     this.funRating.set(play.funRating ?? null);
@@ -134,6 +155,10 @@ export class PlayForm implements OnInit {
 
   protected isWinner(id: string): boolean {
     return this.winnerIds().includes(id);
+  }
+
+  protected onPlayerCount(event: Event) {
+    this.playerCountInput.set((event.target as HTMLInputElement).value);
   }
 
   protected onDuration(event: Event) {
@@ -171,6 +196,7 @@ export class PlayForm implements OnInit {
       gameTitle,
       playedAt: this.playedAt(),
       players: this.selectedPlayers().map(p => ({ id: p.id, name: p.name })),
+      playerCount: this.playerCount() > 0 ? this.playerCount() : undefined,
       winnerIds: this.winnerIds().filter(id => this.participantIds().includes(id)),
       durationMinutes: Number.isNaN(duration) || duration <= 0 ? undefined : duration,
       funRating: this.funRating() ?? undefined,

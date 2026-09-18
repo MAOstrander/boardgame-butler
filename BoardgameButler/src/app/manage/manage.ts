@@ -1,14 +1,7 @@
 import { Component, signal, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
-
-interface Game {
-  title: string;
-  players: string;
-  duration: string;
-  complexity: string;
-  rating?: number;
-}
+import { Game } from '../game';
 
 @Component({
   selector: 'app-manage',

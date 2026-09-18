@@ -20,6 +20,15 @@ const gamesFilePath = existsSync(join(browserDistFolder, 'games.json'))
 const app = express();
 const angularApp = new AngularNodeAppEngine();
 
+app.get('/api/games', (_req, res) => {
+  try {
+    const games = JSON.parse(readFileSync(gamesFilePath, 'utf-8'));
+    res.json(games);
+  } catch {
+    res.status(500).json({ error: 'Failed to load games.' });
+  }
+});
+
 app.post('/api/games', express.json(), (req, res) => {
   try {
     const games = JSON.parse(readFileSync(gamesFilePath, 'utf-8'));

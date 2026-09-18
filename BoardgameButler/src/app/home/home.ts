@@ -2,14 +2,7 @@ import { Component, signal, inject, OnInit, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
-
-interface Game {
-  title: string;
-  players: string;
-  duration: string;
-  complexity: string;
-  rating?: number;
-}
+import { Game } from '../game';
 
 @Component({
   selector: 'app-home',

@@ -12,6 +12,7 @@ This document describes the features that exist today. Items shown as "planned" 
 - [Game data model](#game-data-model)
 - [Pages](#pages)
   - [Home — "Serve me a game!"](#home--serve-me-a-game)
+  - [Your Collection](#your-collection)
   - [Add a Game](#add-a-game)
   - [Manage Collection (import / export)](#manage-collection-import--export)
 - [HTTP API](#http-api)
@@ -19,6 +20,7 @@ This document describes the features that exist today. Items shown as "planned" 
 - [Rendering modes (SSR / prerender)](#rendering-modes-ssr--prerender)
 - [Running the app](#running-the-app)
 - [Planned features (not yet implemented)](#planned-features-not-yet-implemented)
+- [Roadmap](#roadmap)
 
 ---
 
@@ -30,23 +32,24 @@ This document describes the features that exist today. Items shown as "planned" 
 | Styling | Tailwind CSS 4 |
 | Backend | Express 5 via `@angular/ssr/node` |
 | Persistence | Flat JSON file (`public/games.json`) |
-| Tests | Vitest + jsdom (scaffolded, no feature tests yet) |
+| Tests | Vitest + jsdom — functional component specs for every page (`npm test`) |
 
-There are three routes:
+There are four routes:
 
 | Route | Component | Purpose |
 |---|---|---|
 | `/` | `Home` | Splash page and random game picker |
+| `/collection` | `Collection` | Searchable, sortable table of every game |
 | `/add-game` | `AddGame` | Form to add one game to the collection |
 | `/manage` | `Manage` | Export the collection or replace it by importing a JSON file |
 
-Every page links to the others (Home → Add / Manage; Add → Home / Manage; Manage → Home).
+Every page links to the others through a small nav row under the back link.
 
 ---
 
 ## Game data model
 
-A game is a plain JSON object:
+A game is a plain JSON object, defined once in `src/app/game.ts` and shared by every component:
 
 ```ts
 interface Game {
@@ -89,12 +92,45 @@ The landing page shows a full-bleed background image (`public/DiceButler.jpg`) w
    - `complexity`
    - `rating/10` (only if the game has a rating)
 4. Clicking the button again re-rolls. The same game can be picked twice in a row — there is no history or exclusion.
-5. Links at the bottom go to **+ Add a game** and **⚙ Manage collection**.
+5. Links at the bottom go to **📚 View collection**, **+ Add a game**, and **⚙ Manage collection**.
 
 **Current limitations**
 
 - The pick is purely random. There is no filtering by player count, duration, or complexity yet, even though the tagline describes that.
 - The list is loaded from the static `/games.json` asset, so a game added via the API appears on the next full page load.
+
+---
+
+### Your Collection
+
+**Route:** `/collection`
+**Files:** `src/app/collection/collection.ts`, `src/app/collection/collection.html`
+
+A read-only table of every game in the collection.
+
+**What it does**
+
+1. On load it fetches `GET /api/games` (the live file, not the cached static asset) and shows *Loading...* until it arrives.
+2. The subtitle shows the total count, or *Showing N of M games* when a search is active.
+3. A **search box** filters rows by title (case-insensitive substring match). If nothing matches, the table shows *No games match "…"*.
+4. Every column header is a **sort toggle**. Clicking a header sorts ascending; clicking it again flips to descending. The active column is highlighted in amber with a ▲/▼ indicator. Default sort is title A→Z.
+
+| Column | Sort behaviour |
+|---|---|
+| Title | Locale-aware alphabetical |
+| Players | By the leading number of the range (`"2-4"` → 2) |
+| Minutes | By the leading number of the range (`"60-120"` → 60) |
+| Complexity | Easy → Medium → Hard |
+| Rating | Numeric; unrated games always sort last in either direction |
+
+5. Complexity is shown as a colour-coded pill (green / amber / red). Missing ratings render as `—`.
+6. If the collection is empty, an empty-state card links to **Add your first game**.
+7. If the request fails: *"Failed to load your collection."*
+
+**Current limitations**
+
+- Read-only — no inline edit or delete yet (see [Roadmap](#roadmap)).
+- Values that don't start with a number (e.g. `"any"`) sort to the end of Players / Minutes.
 
 ---
 
@@ -169,6 +205,14 @@ Importing **replaces the entire collection**; the page warns about this in red.
 
 All endpoints are defined in `src/server.ts` and operate on a single JSON file (see [Data storage](#data-storage)). There is no authentication.
 
+### `GET /api/games`
+
+Return the full collection.
+
+- **Response:** `200`, JSON array of `Game` objects, read fresh from disk on every request.
+- **Errors:** `500 { "error": "Failed to load games." }`
+- Used by the Collection page. Unlike `/games.json` this is never cached by the browser.
+
 ### `POST /api/games`
 
 Append one game to the collection.
@@ -226,6 +270,7 @@ Configured in `src/app/app.routes.server.ts`:
 
 | Route | Render mode |
 |---|---|
+| `/collection` | Client-only |
 | `/add-game` | Client-only |
 | `/manage` | Client-only |
 | everything else (`**`, i.e. `/`) | Prerendered at build time |
@@ -246,6 +291,18 @@ npm run serve:ssr:BoardgameButler  # run the built Express server (port 4000 or 
 npm test                           # vitest
 ```
 
+### Tests
+
+Each page has a functional spec next to it (`*.spec.ts`) that drives the rendered DOM — typing into inputs, clicking buttons, choosing files — with HTTP stubbed via `HttpTestingController`. `src/app/app.spec.ts` covers routing. Shared helpers and sample data live in `src/testing/helpers.ts` (excluded from the production build).
+
+| Spec | Covers |
+|---|---|
+| `home.spec.ts` | Library fetch (browser-only), loading/disabled state, random pick and re-roll, rating badge, nav links |
+| `collection.spec.ts` | Fetch/loading/empty/error states, row rendering, complexity pills, search, every sort column and direction |
+| `add-game.spec.ts` | Defaults, required-field errors, live rating label, POST payload, success navigation, failure recovery |
+| `manage.spec.ts` | Invalid/non-array file errors, preview list, cancel, PUT payload, success and failure states |
+| `app.spec.ts` | Every route renders the right component and heading; link navigation between pages |
+
 The Express server listens on `PORT` (default `4000`) when run directly or under PM2.
 
 ---
@@ -256,7 +313,7 @@ The Home page advertises the following chips. Only the first four are fully back
 
 | Chip | Status |
 |---|---|
-| Track your collection | ✅ Add / import / export |
+| Track your collection | ✅ View / add / import / export |
 | Players & duration | ✅ Stored and displayed (free-text) |
 | Complexity ratings | ✅ Easy / Medium / Hard |
 | User ratings | ✅ 1–10 slider, shown on the pick card |
@@ -264,10 +321,50 @@ The Home page advertises the following chips. Only the first four are fully back
 | Play statistics | ❌ Not started |
 | In-game utilities | ❌ Not started |
 
-Other gaps worth noting for future work:
+Technical gaps in what already exists:
 
-- Edit / delete individual games
-- Filtering the quick-pick by player count, time available, or complexity
 - Schema validation on the API
 - Stable game IDs
-- Feature tests (only the default `app.spec.ts` scaffold exists)
+
+---
+
+## Roadmap
+
+The full candidate scope for the project, grouped by area. Nothing here has been prioritized against anything else yet — see [Open questions](#open-questions).
+
+### Collection management
+
+| Item | Status |
+|---|---|
+| View collection | ✅ `/collection` — searchable, sortable table |
+| Add entries | ✅ `/add-game` |
+| Update / delete entries | ❌ Not built |
+| Game file import / export | ✅ `/manage` |
+
+### Play assistance
+
+| Item | Status |
+|---|---|
+| Quick setup chooser (randomize / select a game) | ⚠️ Random pick only; no filtering by player count, time available, or complexity |
+| Play statistics — players, winner, duration, fun rating | ❌ Not started; the `Game` model has no play-history fields |
+| Dice | ❌ Not started |
+| Timers | ❌ Not started |
+
+### Nice-to-haves / uncertain fit
+
+| Item | Notes |
+|---|---|
+| 3D print guides | For game accessories or replacement pieces |
+| Other users & auth | Multi-user support |
+| Bot integration | A chat-bot front end; hosting unresearched |
+| Scheduling games | Coordinating play sessions |
+| Swapping / trading / borrowing | A social / lending layer |
+
+### Open questions
+
+- **MVP cut line.** The likely MVP is collection view/add/edit/delete plus dice, timers, and a filtered quick-setup chooser. The social / multiplayer layer (auth, scheduling, swapping, bot integration) would sit on the other side of that line.
+- **Single-user vs. backend.** The current architecture — a single JSON file written by a thin Express layer, no auth — is firmly single-user local software. Auth and bot hosting both imply a real server and database, which would be a significant change rather than an incremental one.
+
+### Likely next step
+
+With a collection view in place, the most obvious gap inside the MVP bucket is **edit and delete for individual games**: today you can add a game and bulk-replace the file, but you cannot change or remove a single entry. This will likely require stable game IDs (see technical gaps above).

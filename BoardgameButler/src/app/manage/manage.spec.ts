@@ -6,13 +6,16 @@ import { Manage } from './manage';
 import {
   SAMPLE_GAMES,
   SAMPLE_PLAYERS,
+  SAMPLE_PLAYS,
   cellText,
   findByText,
   query,
   queryAll,
   savedGames,
   savedPlayers,
+  savedPlays,
   seedPlayers,
+  seedPlays,
   seedStorage,
   selectFile,
   settle,
@@ -28,6 +31,7 @@ describe('Manage', () => {
     localStorage.clear();
     seedStorage(SAMPLE_GAMES);
     seedPlayers(SAMPLE_PLAYERS);
+    seedPlays(SAMPLE_PLAYS);
 
     await TestBed.configureTestingModule({
       imports: [Manage],
@@ -52,14 +56,15 @@ describe('Manage', () => {
     selectFile(fileInput(), contents);
     await vi.waitFor(async () => {
       await settle(fixture);
-      expect(text(fixture)).toMatch(/Ready to import|Could not parse|must contain a JSON array|entry must be a JSON array/);
+      expect(text(fixture)).toMatch(/Replace games with|Could not parse|must contain a JSON array|entry must be a JSON array/);
     });
   }
 
   describe('export', () => {
-    it('shows how many games and players will be exported', () => {
+    it('shows how many games, players and plays will be exported', () => {
       expect(text(fixture)).toContain('(4 games)');
       expect(text(fixture)).toContain('(3 players)');
+      expect(text(fixture)).toContain('(3 plays)');
     });
 
     it('downloads the backup as boardgame-butler.json', () => {
@@ -81,7 +86,7 @@ describe('Manage', () => {
       expect(revokeObjectURL).toHaveBeenCalledWith('blob:games');
     });
 
-    it('exports games and players in the version-2 format, pretty-printed', async () => {
+    it('exports games, players and plays in the version-3 format, pretty-printed', async () => {
       const createObjectURL = vi.fn((_blob: Blob) => 'blob:games');
       Object.assign(URL, { createObjectURL, revokeObjectURL: vi.fn() });
       vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
@@ -91,12 +96,13 @@ describe('Manage', () => {
       const blob = createObjectURL.mock.calls[0][0];
       const file = JSON.parse(await blob.text());
       expect(file).toEqual({
-        version: 2,
+        version: 3,
         exportedAt: expect.any(String),
         games: SAMPLE_GAMES,
         players: SAMPLE_PLAYERS,
+        plays: SAMPLE_PLAYS,
       });
-      expect(await blob.text()).toContain('\n  "version": 2');
+      expect(await blob.text()).toContain('\n  "version": 3');
     });
   });
 
@@ -104,7 +110,7 @@ describe('Manage', () => {
     it('rejects a file that is not valid JSON', async () => {
       await chooseFile('{ not json');
       expect(text(fixture)).toContain('Could not parse file — make sure it is valid JSON.');
-      expect(text(fixture)).not.toContain('Ready to import');
+      expect(text(fixture)).not.toContain('Replace games with');
     });
 
     it('rejects JSON that is neither a games array nor a backup', async () => {
@@ -121,7 +127,7 @@ describe('Manage', () => {
       const incoming = [SAMPLE_GAMES[1], SAMPLE_GAMES[2]];
       await chooseFile(JSON.stringify(incoming));
 
-      expect(text(fixture)).toContain('Ready to import');
+      expect(text(fixture)).toContain('Replace games with');
       expect(text(fixture)).toContain('2 games');
       expect(queryAll(fixture, 'li').map(cellText)).toEqual([
         'Azul 2-4 players · Easy',
@@ -134,7 +140,7 @@ describe('Manage', () => {
 
     it('uses singular wording for a single game', async () => {
       await chooseFile(JSON.stringify([SAMPLE_GAMES[0]]));
-      expect(text(fixture)).toContain('1 game:');
+      expect(text(fixture)).toContain('1 game');
     });
 
     it('cancelling the preview restores the drop-zone without changing the collection', async () => {
@@ -142,7 +148,7 @@ describe('Manage', () => {
       findByText<HTMLButtonElement>(fixture, 'button', 'Cancel').click();
       await settle(fixture);
 
-      expect(text(fixture)).not.toContain('Ready to import');
+      expect(text(fixture)).not.toContain('Replace games with');
       expect(fileInput()).toBeTruthy();
       expect(savedGames()).toEqual(SAMPLE_GAMES);
     });
@@ -151,26 +157,31 @@ describe('Manage', () => {
       const incoming = [SAMPLE_GAMES[1], SAMPLE_GAMES[2]];
       await chooseFile(JSON.stringify(incoming));
       expect(text(fixture)).toContain('This is an older games-only file — your 3 players will be kept.');
+      expect(text(fixture)).toContain('This file has no play history — your 3 logged plays will be kept.');
 
       findByText<HTMLButtonElement>(fixture, 'button', 'Confirm Import').click();
       await settle(fixture);
 
       expect(savedGames()).toEqual(incoming);
       expect(savedPlayers()).toEqual(SAMPLE_PLAYERS);
-      expect(text(fixture)).toContain('Backup imported successfully!');
+      expect(savedPlays()).toEqual(SAMPLE_PLAYS);
+      expect(text(fixture)).toContain('Imported 2 games.');
       expect(text(fixture)).toContain('(2 games)');
       expect(text(fixture)).toContain('(3 players)');
-      expect(text(fixture)).not.toContain('Ready to import');
+      expect(text(fixture)).not.toContain('Replace games with');
       expect(fileInput()).toBeTruthy();
     });
 
     describe('a backup (v2) file', () => {
+      /** A version-2 backup: games and players, no plays section. */
+      const v2File = (games: unknown[], players: unknown[]) => ({ version: 2, games, players });
+
       it('previews and imports both games and players', async () => {
-        const file = buildExport([SAMPLE_GAMES[0]], [{ id: 'p-new', name: 'Riley' }, { id: 'p-sam', name: 'Sam' }]);
+        const file = v2File([SAMPLE_GAMES[0]], [{ id: 'p-new', name: 'Riley' }, { id: 'p-sam', name: 'Sam' }]);
         await chooseFile(JSON.stringify(file));
 
-        expect(text(fixture)).toContain('Ready to import 1 game');
-        expect(text(fixture)).toContain('and 2 players');
+        expect(text(fixture)).toContain('Replace games with 1 game');
+        expect(text(fixture)).toContain('Replace players with 2 players');
         const chips = queryAll(fixture, '[data-testid="players-preview"] li').map(li => li.textContent?.trim());
         expect(chips).toEqual(['Riley', 'Sam']);
 
@@ -179,15 +190,17 @@ describe('Manage', () => {
 
         expect(savedGames()).toEqual([SAMPLE_GAMES[0]]);
         expect(savedPlayers()).toEqual([{ id: 'p-new', name: 'Riley' }, { id: 'p-sam', name: 'Sam' }]);
+        expect(savedPlays()).toEqual(SAMPLE_PLAYS); // v2 file: history untouched
+        expect(text(fixture)).toContain('Imported 1 game, 2 players.');
         expect(text(fixture)).toContain('(1 game)');
         expect(text(fixture)).toContain('(2 players)');
       });
 
       it('skips duplicate player names, first wins', async () => {
-        const file = buildExport(SAMPLE_GAMES, [{ id: 'a', name: 'Sam' }, { id: 'b', name: ' SAM ' }, { id: 'c', name: 'Jo' }]);
+        const file = v2File(SAMPLE_GAMES, [{ id: 'a', name: 'Sam' }, { id: 'b', name: ' SAM ' }, { id: 'c', name: 'Jo' }]);
         await chooseFile(JSON.stringify(file));
 
-        expect(text(fixture).replace(/\s+/g, ' ')).toContain('and 2 players (1 duplicate will be skipped)');
+        expect(text(fixture).replace(/\s+/g, ' ')).toContain('Replace players with 2 players (1 duplicate will be skipped)');
         const skipped = query(fixture, '[data-testid="players-preview"] li[aria-label="Skipped duplicate of Sam"]');
         expect(skipped.className).toContain('line-through');
 
@@ -197,9 +210,9 @@ describe('Manage', () => {
       });
 
       it('warns when the file has no players and confirming removes the current ones', async () => {
-        const file = buildExport(SAMPLE_GAMES, []);
+        const file = v2File(SAMPLE_GAMES, []);
         await chooseFile(JSON.stringify(file));
-        expect(text(fixture)).toContain('and 0 players');
+        expect(text(fixture)).toContain('Replace players with 0 players');
         expect(text(fixture)).toContain('your current players will be removed');
 
         findByText<HTMLButtonElement>(fixture, 'button', 'Confirm Import').click();
@@ -218,7 +231,7 @@ describe('Manage', () => {
       await settle(fixture);
 
       expect(text(fixture)).toContain('Import failed. Please try again.');
-      expect(text(fixture)).toContain('Ready to import');
+      expect(text(fixture)).toContain('Replace games with');
     });
 
     describe('duplicate titles in the file', () => {
@@ -233,7 +246,7 @@ describe('Manage', () => {
       it('shows how many will be skipped and why', async () => {
         await chooseFile(JSON.stringify(file));
 
-        expect(text(fixture)).toContain('Ready to import 3 games');
+        expect(text(fixture)).toContain('Replace games with 3 games');
         expect(text(fixture)).toContain('(2 duplicates will be skipped)');
         expect(text(fixture)).toContain('The file lists some titles more than once.');
 
@@ -262,18 +275,96 @@ describe('Manage', () => {
       });
     });
 
+    describe('plays in a v3 backup', () => {
+      const newPlay = { ...SAMPLE_PLAYS[0], id: 'pl-new', playedAt: '2026-09-15' };
+
+      it('previews a merge with new / already-here counts', async () => {
+        const file = buildExport(SAMPLE_GAMES, SAMPLE_PLAYERS, [SAMPLE_PLAYS[0], newPlay, { ...SAMPLE_PLAYS[1], funRating: 1 }]);
+        await chooseFile(JSON.stringify(file));
+
+        expect(text(fixture).replace(/\s+/g, ' ')).toContain('Merge 3 plays into your history — 1 new, 2 already here');
+      });
+
+      it('confirming adds only the new plays and leaves existing ones untouched', async () => {
+        const file = buildExport(SAMPLE_GAMES, SAMPLE_PLAYERS, [SAMPLE_PLAYS[0], newPlay, { ...SAMPLE_PLAYS[1], funRating: 1 }]);
+        await chooseFile(JSON.stringify(file));
+        findByText<HTMLButtonElement>(fixture, 'button', 'Confirm Import').click();
+        await settle(fixture);
+
+        const plays = savedPlays()!;
+        expect(plays.map(p => p.id)).toEqual(['pl-1', 'pl-2', 'pl-3', 'pl-new']);
+        expect(plays[1].funRating).toBe(SAMPLE_PLAYS[1].funRating);
+        expect(text(fixture)).toContain('Imported 4 games, 3 players, 1 new play.');
+        expect(text(fixture)).toContain('(4 plays)');
+      });
+
+      it('an old backup cannot delete newer plays', async () => {
+        const file = buildExport(SAMPLE_GAMES, SAMPLE_PLAYERS, [SAMPLE_PLAYS[0]]);
+        await chooseFile(JSON.stringify(file));
+        expect(text(fixture).replace(/\s+/g, ' ')).toContain('Merge 1 play into your history — 0 new, 1 already here');
+
+        findByText<HTMLButtonElement>(fixture, 'button', 'Confirm Import').click();
+        await settle(fixture);
+        expect(savedPlays()).toEqual(SAMPLE_PLAYS);
+        expect(text(fixture)).toContain('0 new plays');
+      });
+    });
+
+    describe('choosing which sections to apply', () => {
+      const file = () => buildExport([SAMPLE_GAMES[0]], [{ id: 'p-new', name: 'Riley' }], [{ ...SAMPLE_PLAYS[0], id: 'pl-new' }]);
+      const box = (id: string) => query<HTMLInputElement>(fixture, `#${id}`);
+
+      it('starts with every present section ticked', async () => {
+        await chooseFile(JSON.stringify(file()));
+        expect(box('apply-games').checked).toBe(true);
+        expect(box('apply-players').checked).toBe(true);
+        expect(box('apply-plays').checked).toBe(true);
+      });
+
+      it('unticked sections are left alone', async () => {
+        await chooseFile(JSON.stringify(file()));
+        box('apply-games').click();
+        box('apply-plays').click();
+        await settle(fixture);
+
+        findByText<HTMLButtonElement>(fixture, 'button', 'Confirm Import').click();
+        await settle(fixture);
+
+        expect(savedGames()).toEqual(SAMPLE_GAMES);
+        expect(savedPlays()).toEqual(SAMPLE_PLAYS);
+        expect(savedPlayers()).toEqual([{ id: 'p-new', name: 'Riley' }]);
+        expect(text(fixture)).toContain('Imported 1 player.');
+      });
+
+      it('disables Confirm when nothing is ticked', async () => {
+        await chooseFile(JSON.stringify(file()));
+        box('apply-games').click();
+        box('apply-players').click();
+        box('apply-plays').click();
+        await settle(fixture);
+        expect(findByText<HTMLButtonElement>(fixture, 'button', 'Confirm Import').disabled).toBe(true);
+      });
+
+      it('only offers checkboxes for sections the file has', async () => {
+        await chooseFile(JSON.stringify([SAMPLE_GAMES[0]]));
+        expect(fixture.nativeElement.querySelector('#apply-games')).toBeTruthy();
+        expect(fixture.nativeElement.querySelector('#apply-players')).toBeNull();
+        expect(fixture.nativeElement.querySelector('#apply-plays')).toBeNull();
+      });
+    });
+
     it('clears a previous error when a new file is chosen', async () => {
       await chooseFile('{ not json');
       expect(text(fixture)).toContain('Could not parse file');
 
       await chooseFile(JSON.stringify(SAMPLE_GAMES));
       expect(text(fixture)).not.toContain('Could not parse file');
-      expect(text(fixture)).toContain('Ready to import');
+      expect(text(fixture)).toContain('Replace games with');
     });
   });
 
-  it('links back home and to the collection and players pages', () => {
+  it('links back home and to the collection, players and history pages', () => {
     const hrefs = queryAll<HTMLAnchorElement>(fixture, 'a').map(a => a.getAttribute('href'));
-    expect(hrefs).toEqual(expect.arrayContaining(['/', '/collection', '/players']));
+    expect(hrefs).toEqual(expect.arrayContaining(['/', '/collection', '/players', '/history']));
   });
 });

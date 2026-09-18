@@ -12,17 +12,21 @@
         <a routerLink="/players" class="text-gray-500 hover:text-amber-400 text-sm transition-colors">
           Players
         </a>
+        <a routerLink="/history" class="text-gray-500 hover:text-amber-400 text-sm transition-colors">
+          History
+        </a>
       </div>
       <h1 class="mt-4 text-3xl font-bold text-white tracking-tight">Manage Collection</h1>
-      <p class="mt-1 text-gray-400">Back up or move your games and players as a JSON file. Everything is stored on this device.</p>
+      <p class="mt-1 text-gray-400">Back up or move your games, players and play history as a JSON file. Everything is stored on this device.</p>
     </div>
 
     <!-- Export -->
     <section class="mb-8 p-6 rounded-2xl bg-gray-900 border border-gray-800">
       <h2 class="text-lg font-semibold text-white mb-1">Export Backup</h2>
       <p class="text-gray-400 text-sm mb-4">
-        Download your games ({{ gameCount() }} game{{ gameCount() === 1 ? '' : 's' }}) and players ({{ playerCount() }} player{{ playerCount() === 1 ? '' : 's' }})
-        as a <code class="text-amber-400">boardgame-butler.json</code> file. Use this to back up or move everything to another device.
+        Download your games ({{ gameCount() }} game{{ gameCount() === 1 ? '' : 's' }}), players ({{ playerCount() }} player{{ playerCount() === 1 ? '' : 's' }})
+        and play history ({{ playCount() }} play{{ playCount() === 1 ? '' : 's' }}) as a <code class="text-amber-400">boardgame-butler.json</code> file.
+        Use this to back up or move everything to another device.
       </p>
       <button
         (click)="exportCollection()"
@@ -36,8 +40,9 @@
     <section class="p-6 rounded-2xl bg-gray-900 border border-gray-800">
       <h2 class="text-lg font-semibold text-white mb-1">Import Backup</h2>
       <p class="text-gray-400 text-sm mb-4">
-        Upload a backup file to replace what's on this device. Older <code class="text-amber-400">games.json</code> files (a plain list of games) also work — they replace the games and leave your players alone.
-        <span class="text-red-400 font-medium">This will overwrite existing data.</span>
+        Upload a backup file. Games and players in the file <span class="text-red-400 font-medium">replace</span> what's on this device;
+        plays are <span class="text-green-400 font-medium">merged</span>, so importing an old backup never loses history.
+        Older <code class="text-amber-400">games.json</code> files (a plain list of games) also work. You can untick any section below before confirming.
       </p>
 
       @if (!preview()) {
@@ -56,9 +61,9 @@
         </p>
       }
 
-      @if (importSuccess()) {
+      @if (importSuccess(); as message) {
         <p class="mt-4 text-green-400 text-sm bg-green-950/50 border border-green-800 rounded-lg px-4 py-3">
-          Backup imported successfully!
+          {{ message }}
         </p>
       }
 
@@ -66,13 +71,16 @@
         <div class="mt-4 flex flex-col gap-5">
 
           <!-- Games -->
-          <div data-testid="games-preview">
-            <p class="text-gray-300 text-sm mb-3">
-              Ready to import <span class="text-amber-400 font-semibold">{{ p.games.kept.length }} game{{ p.games.kept.length === 1 ? '' : 's' }}</span>
-              @if (p.games.skipped > 0) {
-                <span class="text-gray-500">({{ p.games.skipped }} duplicate{{ p.games.skipped === 1 ? '' : 's' }} will be skipped)</span>
-              }:
-            </p>
+          <div data-testid="games-preview" [class.opacity-50]="!apply().games">
+            <label class="flex items-start gap-3 text-gray-300 text-sm mb-3 cursor-pointer">
+              <input type="checkbox" id="apply-games" [checked]="apply().games" (change)="toggle('games', $event)" class="mt-0.5 accent-amber-500" />
+              <span>
+                Replace games with <span class="text-amber-400 font-semibold">{{ p.games.kept.length }} game{{ p.games.kept.length === 1 ? '' : 's' }}</span>
+                @if (p.games.skipped > 0) {
+                  <span class="text-gray-500"> ({{ p.games.skipped }} duplicate{{ p.games.skipped === 1 ? '' : 's' }} will be skipped)</span>
+                }
+              </span>
+            </label>
 
             @if (p.games.skipped > 0) {
               <p class="mb-3 text-amber-200/90 text-xs bg-amber-950/40 border border-amber-800 rounded-lg px-4 py-2.5">
@@ -104,17 +112,20 @@
           </div>
 
           <!-- Players -->
-          <div data-testid="players-preview">
+          <div data-testid="players-preview" [class.opacity-50]="p.players && !apply().players">
             @if (p.players; as players) {
-              <p class="text-gray-300 text-sm mb-3">
-                and <span class="text-amber-400 font-semibold">{{ players.kept.length }} player{{ players.kept.length === 1 ? '' : 's' }}</span>
-                @if (players.skipped > 0) {
-                  <span class="text-gray-500"> ({{ players.skipped }} duplicate{{ players.skipped === 1 ? '' : 's' }} will be skipped)</span>
-                }
-                @if (players.kept.length === 0) {
-                  <span class="text-gray-500"> — your current players will be removed</span>
-                }
-              </p>
+              <label class="flex items-start gap-3 text-gray-300 text-sm mb-3 cursor-pointer">
+                <input type="checkbox" id="apply-players" [checked]="apply().players" (change)="toggle('players', $event)" class="mt-0.5 accent-amber-500" />
+                <span>
+                  Replace players with <span class="text-amber-400 font-semibold">{{ players.kept.length }} player{{ players.kept.length === 1 ? '' : 's' }}</span>
+                  @if (players.skipped > 0) {
+                    <span class="text-gray-500"> ({{ players.skipped }} duplicate{{ players.skipped === 1 ? '' : 's' }} will be skipped)</span>
+                  }
+                  @if (players.kept.length === 0) {
+                    <span class="text-gray-500"> — your current players will be removed</span>
+                  }
+                </span>
+              </label>
               @if (players.rows.length > 0) {
                 <ul class="flex flex-wrap gap-2">
                   @for (row of players.rows; track $index) {
@@ -133,10 +144,28 @@
             }
           </div>
 
+          <!-- Plays -->
+          <div data-testid="plays-preview" [class.opacity-50]="p.plays && !apply().plays">
+            @if (p.plays; as plays) {
+              <label class="flex items-start gap-3 text-gray-300 text-sm cursor-pointer">
+                <input type="checkbox" id="apply-plays" [checked]="apply().plays" (change)="toggle('plays', $event)" class="mt-0.5 accent-amber-500" />
+                <span>
+                  Merge <span class="text-amber-400 font-semibold">{{ plays.incoming.length }} play{{ plays.incoming.length === 1 ? '' : 's' }}</span> into your history
+                  <span class="text-gray-500"> — {{ plays.fresh }} new, {{ plays.incoming.length - plays.fresh }} already here</span>
+                </span>
+              </label>
+            } @else {
+              <p class="text-gray-500 text-sm">
+                This file has no play history — your {{ playCount() }} logged play{{ playCount() === 1 ? '' : 's' }} will be kept.
+              </p>
+            }
+          </div>
+
           <div class="flex gap-3">
             <button
               (click)="confirmImport()"
-              class="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-white font-semibold rounded-xl shadow transition-colors duration-200 cursor-pointer"
+              [disabled]="!canImport()"
+              class="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 active:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl shadow transition-colors duration-200 cursor-pointer"
             >
               Confirm Import
             </button>

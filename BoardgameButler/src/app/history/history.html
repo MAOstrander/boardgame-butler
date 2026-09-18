@@ -1,0 +1,102 @@
+<div class="min-h-screen bg-gray-950 flex flex-col items-center px-4 py-12">
+  <div class="w-full max-w-2xl">
+
+    <div class="mb-8">
+      <div class="flex items-center gap-4">
+        <a routerLink="/" class="text-amber-400 hover:text-amber-300 text-sm font-medium transition-colors">
+          &larr; Back to Butler
+        </a>
+        <a routerLink="/collection" class="text-gray-500 hover:text-amber-400 text-sm transition-colors">
+          View collection
+        </a>
+        <a routerLink="/players" class="text-gray-500 hover:text-amber-400 text-sm transition-colors">
+          Players
+        </a>
+      </div>
+      <div class="mt-4 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 class="text-3xl font-bold text-white tracking-tight">Play History</h1>
+          <p class="mt-1 text-gray-400">
+            @if (count() === 0) {
+              Nothing logged yet.
+            } @else {
+              {{ count() }} play{{ count() === 1 ? '' : 's' }} logged, newest first.
+            }
+          </p>
+        </div>
+        <a
+          routerLink="/log-play"
+          class="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-white font-semibold rounded-xl shadow transition-colors duration-200"
+        >
+          + Log a play
+        </a>
+      </div>
+    </div>
+
+    @if (error()) {
+      <p class="mb-6 text-red-400 text-sm bg-red-950/50 border border-red-800 rounded-lg px-4 py-3">{{ error() }}</p>
+    }
+
+    @if (count() === 0) {
+      <div class="p-10 rounded-2xl bg-gray-900 border border-gray-800 text-center">
+        <p class="text-gray-400">Log a play after your next game night and it will show up here.</p>
+      </div>
+    } @else {
+      <ul class="flex flex-col gap-3">
+        @for (play of plays(); track play.id) {
+          <li class="p-5 rounded-2xl bg-gray-900 border border-gray-800">
+            <div class="flex items-start justify-between gap-4">
+              <div class="min-w-0">
+                <p class="text-xs uppercase tracking-widest text-gray-500">{{ formatDate(play.playedAt) }}</p>
+                <h2 class="text-xl font-bold text-white truncate">{{ play.gameTitle }}</h2>
+              </div>
+              <div class="flex gap-3 shrink-0 text-xs font-medium">
+                <a [routerLink]="['/log-play', play.id]" class="text-gray-500 hover:text-amber-400 transition-colors" [attr.aria-label]="'Edit play of ' + play.gameTitle">Edit</a>
+                <button type="button" (click)="askDelete(play.id)" class="text-gray-500 hover:text-red-400 transition-colors cursor-pointer" [attr.aria-label]="'Delete play of ' + play.gameTitle">Delete</button>
+              </div>
+            </div>
+
+            <div class="mt-3 flex flex-wrap gap-2 text-sm">
+              @if (winners(play); as w) {
+                <span class="px-3 py-1 rounded-full bg-green-950/60 border border-green-800 text-green-300">🏆 {{ w }}</span>
+              }
+              @if (others(play); as o) {
+                <span class="px-3 py-1 rounded-full bg-gray-800 text-gray-300">{{ o }}</span>
+              }
+              @if (play.players.length === 0) {
+                <span class="px-3 py-1 rounded-full bg-gray-800 text-gray-500">no players recorded</span>
+              }
+              @if (play.durationMinutes) {
+                <span class="px-3 py-1 rounded-full bg-gray-800 text-gray-300">{{ play.durationMinutes }} min</span>
+              }
+              @if (play.funRating) {
+                <span class="px-3 py-1 rounded-full bg-gray-800 text-amber-400">fun {{ play.funRating }}/10</span>
+              }
+            </div>
+
+            @if (play.notes) {
+              <p class="mt-3 text-sm text-gray-400 whitespace-pre-line">{{ play.notes }}</p>
+            }
+
+            @if (confirmingId() === play.id) {
+              <div class="mt-4 p-3 rounded-xl bg-red-950/40 border border-red-800 flex flex-wrap items-center justify-between gap-3 text-sm">
+                <span class="text-red-200">Delete this play of <span class="font-semibold text-white">{{ play.gameTitle }}</span>?</span>
+                <div class="flex gap-2">
+                  <button type="button" (click)="confirmDelete()"
+                    class="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white text-xs font-semibold rounded-lg transition-colors cursor-pointer">
+                    Yes, delete
+                  </button>
+                  <button type="button" (click)="cancelDelete()"
+                    class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-semibold rounded-lg transition-colors cursor-pointer">
+                    Keep
+                  </button>
+                </div>
+              </div>
+            }
+          </li>
+        }
+      </ul>
+    }
+
+  </div>
+</div>

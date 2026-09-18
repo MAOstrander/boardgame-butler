@@ -146,6 +146,9 @@
           <div class="p-4 rounded-xl bg-red-950/40 border border-red-800 flex flex-col gap-3">
             <p class="text-sm text-red-200">
               Remove <span class="font-semibold text-white">{{ game()!.title }}</span> from your collection? This can't be undone.
+              @if (playCount() > 0) {
+                <span class="block mt-1 text-red-200/80">Its {{ playCount() }} logged play{{ playCount() === 1 ? '' : 's' }} will stay in your history.</span>
+              }
             </p>
             <div class="flex gap-3">
               <button

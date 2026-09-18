@@ -60,8 +60,8 @@ describe('Collection', () => {
   it('shows each game’s details, with a dash for missing ratings', async () => {
     await load();
     const rows = queryAll(fixture, 'tbody tr').map(cellText);
-    expect(rows).toContain('Azul 2-4 30-45 Easy 9/10 Edit');
-    expect(rows).toContain('Gloomhaven 1-4 60-120 Hard — Edit');
+    expect(rows).toContain('Azul 2-4 30-45 Easy 9/10 Log play Edit');
+    expect(rows).toContain('Gloomhaven 1-4 60-120 Hard — Log play Edit');
   });
 
   it('colour-codes the complexity pill', async () => {
@@ -192,16 +192,21 @@ describe('Collection', () => {
     });
   });
 
-  it('gives every row an Edit link to that game', async () => {
+  it('gives every row Log play and Edit links to that game', async () => {
     await load();
     const links = queryAll<HTMLAnchorElement>(fixture, 'tbody a');
     expect(links.map(a => a.getAttribute('href'))).toEqual([
+      '/log-play?game=g-azul',
       '/edit-game/g-azul',
+      '/log-play?game=g-catan',
       '/edit-game/g-catan',
+      '/log-play?game=g-gloom',
       '/edit-game/g-gloom',
+      '/log-play?game=g-tm',
       '/edit-game/g-tm',
     ]);
-    expect(links[0].getAttribute('aria-label')).toBe('Edit Azul');
+    expect(links[0].getAttribute('aria-label')).toBe('Log a play of Azul');
+    expect(links[1].getAttribute('aria-label')).toBe('Edit Azul');
   });
 
   it('links to home, add-game and manage', async () => {

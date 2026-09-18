@@ -10,7 +10,9 @@ import { Manage } from './manage/manage';
 import { Collection } from './collection/collection';
 import { Tools } from './tools/tools';
 import { Players } from './players/players';
-import { SAMPLE_GAMES, seedStorage } from '../testing/helpers';
+import { History } from './history/history';
+import { PlayForm } from './play-form/play-form';
+import { SAMPLE_GAMES, SAMPLE_PLAYS, seedPlays, seedStorage } from '../testing/helpers';
 
 describe('App routing', () => {
   let harness: RouterTestingHarness;
@@ -19,6 +21,7 @@ describe('App routing', () => {
   beforeEach(async () => {
     localStorage.clear();
     seedStorage(SAMPLE_GAMES);
+    seedPlays(SAMPLE_PLAYS);
 
     // Use the real app providers (router config, input binding, …) so routing
     // is tested as configured, with only the HTTP backend swapped for a stub.
@@ -50,6 +53,9 @@ describe('App routing', () => {
     ['/manage', Manage, 'Manage Collection'],
     ['/tools', Tools, 'Table Tools'],
     ['/players', Players, 'Players'],
+    ['/history', History, 'Play History'],
+    ['/log-play', PlayForm, 'Log a Play'],
+    ['/log-play/pl-1', PlayForm, 'Edit Play'],
   ])('renders %s', async (url, component, heading) => {
     const instance = await harness.navigateByUrl(url, component);
     expect(instance).toBeInstanceOf(component);
@@ -59,6 +65,11 @@ describe('App routing', () => {
   it('passes the id route parameter to the edit form', async () => {
     await harness.navigateByUrl('/edit-game/g-azul', GameForm);
     expect(harness.routeNativeElement?.querySelector<HTMLInputElement>('#title')?.value).toBe('Azul');
+  });
+
+  it('passes the game query parameter to the log-play form', async () => {
+    await harness.navigateByUrl('/log-play?game=g-azul', PlayForm);
+    expect(harness.routeNativeElement?.querySelector<HTMLSelectElement>('#game')?.value).toBe('g-azul');
   });
 
   it('navigates between pages via their links', async () => {

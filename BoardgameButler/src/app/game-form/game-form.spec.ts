@@ -3,7 +3,7 @@ import { Router, provideRouter } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { GameForm } from './game-form';
-import { SAMPLE_GAMES, query, queryAll, savedGames, seedStorage, setInputValue, settle, text } from '../../testing/helpers';
+import { SAMPLE_GAMES, SAMPLE_PLAYS, query, queryAll, savedGames, savedPlays, seedPlays, seedStorage, setInputValue, settle, text } from '../../testing/helpers';
 
 describe('GameForm', () => {
   let fixture: ComponentFixture<GameForm>;
@@ -14,6 +14,7 @@ describe('GameForm', () => {
   async function setup(id?: string) {
     localStorage.clear();
     seedStorage(SAMPLE_GAMES);
+    seedPlays(SAMPLE_PLAYS);
 
     await TestBed.configureTestingModule({
       imports: [GameForm],
@@ -290,7 +291,7 @@ describe('GameForm', () => {
         expect(router.navigate).not.toHaveBeenCalled();
       });
 
-      it('confirming removes the game and returns to the collection', async () => {
+      it('confirming removes the game, keeps its plays, and returns to the collection', async () => {
         await setup('g-azul');
         deleteButton()!.click();
         await settle(fixture);
@@ -298,7 +299,22 @@ describe('GameForm', () => {
         await settle(fixture);
 
         expect(savedGames()!.map(g => g.id)).toEqual(['g-catan', 'g-gloom', 'g-tm']);
+        expect(savedPlays()).toEqual(SAMPLE_PLAYS);
         expect(router.navigate).toHaveBeenCalledWith(['/collection']);
+      });
+
+      it('the confirmation says how many logged plays will be kept', async () => {
+        await setup('g-catan');
+        deleteButton()!.click();
+        await settle(fixture);
+        expect(text(fixture)).toContain('Its 2 logged plays will stay in your history.');
+      });
+
+      it('the confirmation says nothing about plays when there are none', async () => {
+        await setup('g-tm');
+        deleteButton()!.click();
+        await settle(fixture);
+        expect(text(fixture)).not.toContain('logged play');
       });
 
       it('shows an error and stays on the page when the device refuses to save', async () => {

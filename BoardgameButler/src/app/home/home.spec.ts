@@ -259,9 +259,19 @@ describe('Home', () => {
     }
   });
 
-  it('links to the collection, add-game, manage, tools and players pages', async () => {
+  it('links to the collection, add-game, manage, tools, players and history pages', async () => {
     await setup();
     const hrefs = queryAll<HTMLAnchorElement>(fixture, 'a').map(a => a.getAttribute('href'));
-    expect(hrefs).toEqual(expect.arrayContaining(['/collection', '/add-game', '/manage', '/tools', '/players']));
+    expect(hrefs).toEqual(expect.arrayContaining(['/collection', '/add-game', '/manage', '/tools', '/players', '/history']));
+  });
+
+  it('the pick card offers to log a play of that game', async () => {
+    await setup();
+    vi.spyOn(Math, 'random').mockReturnValue(0.5); // Gloomhaven
+    serveButton().click();
+    await settle(fixture);
+
+    const link = findByText<HTMLAnchorElement>(fixture, 'a', 'We played this');
+    expect(link.getAttribute('href')).toBe('/log-play?game=g-gloom');
   });
 });

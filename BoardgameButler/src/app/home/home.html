@@ -157,6 +157,13 @@
             <span class="px-3 py-1 rounded-full bg-white/20 text-sm">{{ game.rating }}/10</span>
           }
         </div>
+        <a
+          routerLink="/log-play"
+          [queryParams]="{ game: game.id }"
+          class="mt-5 inline-block px-4 py-2 rounded-xl bg-white/15 hover:bg-amber-500 border border-white/20 text-sm font-semibold transition-colors"
+        >
+          We played this →
+        </a>
       </div>
     }
 
@@ -181,6 +188,9 @@
       </a>
       <a routerLink="/players" class="text-white/50 hover:text-amber-400 text-sm transition-colors">
         &#x1F465; Players
+      </a>
+      <a routerLink="/history" class="text-white/50 hover:text-amber-400 text-sm transition-colors">
+        &#x1F4D6; History
       </a>
     </div>
 

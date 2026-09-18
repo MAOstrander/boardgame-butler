@@ -122,6 +122,18 @@ Open http://localhost:4200. Work through the checklist in order — later steps 
 - [ ] While *Remove Sam?* is showing, click **Rename** on Joanna → the confirmation closes and the editor opens.
 - [ ] F5 → players persist.
 
+### Play History
+
+- [ ] Home → **Serve me a game!** → the pick card has **We played this →**. Click it → *Log a Play* with that game pre-selected and today's date.
+- [ ] **Who played:** chips for every player; tap Sam and Alex → a **Who won** row appears with just those two. Tap Alex there → 🏆 Alex. Un-tap Alex in *Who played* → the winners row loses Alex (or disappears if nobody's left).
+- [ ] Enter 75 minutes, drag *How fun* to 8 (label reads *8 / 10*; **clear** resets to *not rated*), type a note → **Log Play** → *Play History* shows one card: date, game, 🏆 winner, others, *75 min*, *fun 8/10*, note.
+- [ ] Table Tools → start the **Stopwatch**, wait a minute, pause. Back to **+ Log a play** → a **Use stopwatch (1 min)** button fills the duration.
+- [ ] Collection → **Log play** on a row → that game is pre-selected. Log it with no players and no extras → the card shows *no players recorded* and nothing else.
+- [ ] Log a third play dated yesterday → History lists newest date first; two plays on the same date show the most recently logged first.
+- [ ] **Edit** a play → everything pre-filled, **Save Changes** → card updates. **Delete** → *Delete this play of …?* → **Keep** keeps; **Yes, delete** removes and the count drops.
+- [ ] **Snapshots:** Players → **Remove** Alex. History still shows Alex's name on the old play. Edit that play → the chip reads *Alex (removed)* and is still selected. Collection → Edit the game you logged twice → **Delete this game** → the confirmation says *Its 2 logged plays will stay in your history.* Confirm → History still lists them; editing one offers *Catan (no longer in collection)*.
+- [ ] F5 → history persists.
+
 ### Table Tools
 
 - [ ] Home → **🎲 Table tools** → three cards: Dice, Countdown, Stopwatch.
@@ -135,22 +147,25 @@ Open http://localhost:4200. Work through the checklist in order — later steps 
 
 ### Manage — export
 
-- [ ] **Manage collection** → Export section says *(12 games)* and *(2 players)*.
-- [ ] Click **Download boardgame-butler.json** → browser downloads `boardgame-butler.json`. Open it: an object with `"version": 2`, `"exportedAt"`, a `"games"` array of 12 (each with an `"id"`, Cascadia last with `"rating": 8`) and a `"players"` array of 2.
+- [ ] **Manage collection** → Export section says *(12 games)*, *(2 players)* and your play count.
+- [ ] Click **Download boardgame-butler.json** → browser downloads `boardgame-butler.json`. Open it: an object with `"version": 3`, `"exportedAt"`, a `"games"` array of 12 (each with an `"id"`, Cascadia last with `"rating": 8`), a `"players"` array of 2 and a `"plays"` array.
 
 ### Manage — import
 
 - [ ] Edit the downloaded file: delete a few games, change a title, add a third player, save.
-- [ ] Click the drop-zone, choose the edited file → *Ready to import N games* with a preview list, then *and 3 players* with name chips; the drop-zone disappears.
+- [ ] Click the drop-zone, choose the edited file → three ticked sections: *Replace games with N games* with a preview list, *Replace players with 3 players* with name chips, and *Merge N plays into your history — 0 new, N already here*; the drop-zone disappears.
 - [ ] Click **Cancel** → preview gone, drop-zone back, collection unchanged (check View collection).
-- [ ] Choose the file again → **Confirm Import** → green *Collection imported successfully!*; Export section count updates.
+- [ ] Choose the file again → **Confirm Import** → green *Imported N games, 3 players, 0 new plays.*; Export section counts update.
 - [ ] **View collection** shows exactly what was in the file; **Players** shows the three from the file.
-- [ ] **Older format:** copy just the `"games"` array from the file into a new file (so it starts with `[`). Import it → preview ends with *This is an older games-only file — your 3 players will be kept.* Confirm → games replaced, players untouched.
+- [ ] **Plays merge, never shrink:** log one more play, then import the same file again → *Merge N plays — 0 new, N already here* → Confirm → History still has the extra play. Now edit the file to delete all but one play and import → *0 new, 1 already here* → Confirm → nothing lost.
+- [ ] **Per-section apply:** choose the file, untick **Replace games** and **Merge plays**, leaving players → Confirm → *Imported 3 players.*; games and history unchanged. Untick everything → **Confirm Import** is disabled.
+- [ ] **Older format:** copy just the `"games"` array from the file into a new file (so it starts with `[`). Import it → only a games checkbox, plus *This is an older games-only file — your 3 players will be kept.* and *This file has no play history — your N logged plays will be kept.* Confirm → games replaced, players and history untouched.
 - [ ] Import a backup whose `"players"` is `[]` → *and 0 players — your current players will be removed*. Confirm → Players page is empty. Re-add a couple for later steps.
 - [ ] **Duplicates in a file:** open the exported file and paste a copy of the Catan entry at the end, changing its `"rating"` to `9` and its `"title"` to `"catan"`. Choose it → summary reads *Ready to import 12 games (1 duplicate will be skipped)*, an amber note explains first-wins, and the last row is greyed out and struck through: *skipped — duplicate of Catan · differs: rating 9*. **Confirm Import** → collection has 12 games, one Catan, with its original rating.
 - [ ] Create a text file containing `{ not json` → choose it → red *Could not parse file — make sure it is valid JSON.*
 - [ ] Create a file containing `{"title":"Catan"}` → *File must contain a JSON array of games, or a backup exported by this app.*
 - [ ] Create a file containing `{"games":"nope"}` → *The "games" entry must be a JSON array.*
+- [ ] Create a file containing `{"games":[],"plays":{}}` → *The "plays" entry must be a JSON array.*
 - [ ] Choose a valid file after an error → the error clears.
 - [ ] Import an empty array `[]` → Home shows *Your collection is empty — add a game to get started.* and the button is disabled; Collection shows the empty-state card with **Add your first game**.
 

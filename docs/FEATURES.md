@@ -11,6 +11,7 @@ This document describes the features that exist today. Items shown as "planned" 
 - [Overview](#overview)
 - [Game data model](#game-data-model)
 - [Player data model](#player-data-model)
+- [Play data model](#play-data-model)
 - [Pages](#pages)
   - [Home — "Serve me a game!"](#home--serve-me-a-game)
   - [Your Collection](#your-collection)
@@ -18,6 +19,7 @@ This document describes the features that exist today. Items shown as "planned" 
   - [Manage Collection (import / export)](#manage-collection-import--export)
   - [Table Tools (dice & timers)](#table-tools-dice--timers)
   - [Players](#players)
+  - [Play History & Log a Play](#play-history--log-a-play)
 - [Data storage](#data-storage)
 - [Backup file format](#backup-file-format)
 - [Progressive web app (install & offline)](#progressive-web-app-install--offline)
@@ -34,11 +36,11 @@ This document describes the features that exist today. Items shown as "planned" 
 | Frontend | Angular 21 (standalone components, signals, new control flow, zoneless) |
 | Styling | Tailwind CSS 4 |
 | Backend | None — static files only |
-| Persistence | `localStorage` on each device — games (seeded from a bundled `games.json`) and players under separate keys |
+| Persistence | `localStorage` on each device — games (seeded from a bundled `games.json`), players and plays under separate keys |
 | Offline / install | `@angular/service-worker` + web app manifest |
 | Tests | Vitest + jsdom — functional component specs for every page (`npm test`) |
 
-There are seven routes:
+There are ten routes:
 
 | Route | Component | Purpose |
 |---|---|---|
@@ -46,9 +48,12 @@ There are seven routes:
 | `/collection` | `Collection` | Searchable, sortable table of every game, with an Edit link per row |
 | `/add-game` | `GameForm` | Form to add one game to the collection |
 | `/edit-game/:id` | `GameForm` | The same form, pre-filled, to change or delete an existing game |
-| `/manage` | `Manage` | Export games + players as a backup, or restore from one |
+| `/manage` | `Manage` | Export games, players and plays as a backup, or restore from one |
 | `/tools` | `Tools` | Dice roller, countdown timer and stopwatch for use at the table |
 | `/players` | `Players` | The people you play with — add, rename, remove |
+| `/history` | `History` | Every logged play, newest first, with edit and delete |
+| `/log-play` | `PlayForm` | Log a play; `?game=<id>` pre-selects the game |
+| `/log-play/:id` | `PlayForm` | Edit a logged play |
 
 Every page links to the others through a small nav row under the back link.
 
@@ -100,6 +105,28 @@ There are no players in the seed data; the list starts empty on a new device.
 
 ---
 
+## Play data model
+
+```ts
+interface Play {
+  id: string;
+  gameId: string;
+  gameTitle: string;                          // snapshot at logging time
+  playedAt: string;                           // YYYY-MM-DD
+  players: { id: string; name: string }[];    // snapshots at logging time
+  winnerIds: string[];                        // empty = loss (co-op) or not recorded
+  durationMinutes?: number;
+  funRating?: number;                         // 1–10, how fun *this session* was
+  notes?: string;
+}
+```
+
+**Snapshots.** A play stores the game's title and each player's name as they were when it was logged. That is the deletion policy: deleting a game or removing a player **keeps their plays**, and history still reads correctly. The ids remain so statistics can group across snapshots, and the edit form still offers a deleted game / removed player as a choice, labelled *(no longer in collection)* / *(removed)*.
+
+**Merge semantics.** Plays are append-only events, so a backup's plays are *merged* by id rather than replacing what's on the device — see [Backup file format](#backup-file-format).
+
+---
+
 ## Pages
 
 ### Home — "Serve me a game!"
@@ -121,7 +148,8 @@ The landing page shows a full-bleed background image (`public/DiceButler.jpg`) w
    - `rating/10` (only if the game has a rating)
 4. Clicking the button again re-rolls. The same game can be picked twice in a row — there is no history or exclusion.
 5. **▾ Narrow it down** opens a filter panel (see below). **Serve me a match!** inside it picks at random from only the games that pass the filters, and the card is labelled *"Tonight's pick · from your matches"*. The main button always ignores the filters, so both options are available at once.
-6. Links at the bottom go to **📚 View collection**, **+ Add a game**, **⚙ Manage collection**, **🎲 Table tools** and **👥 Players**.
+6. The *Tonight's pick* card has a **We played this →** link to `/log-play?game=<id>`.
+7. Links at the bottom go to **📚 View collection**, **+ Add a game**, **⚙ Manage collection**, **🎲 Table tools**, **👥 Players** and **📖 History**.
 
 **Filters**
 
@@ -166,7 +194,7 @@ A read-only table of every game in the collection.
 | Rating | Numeric; unrated games always sort last in either direction |
 
 5. Complexity is shown as a colour-coded pill (green / amber / red). Missing ratings render as `—`.
-6. Every row ends with an **Edit** link to `/edit-game/<id>`.
+6. Every row ends with **Log play** (`/log-play?game=<id>`) and **Edit** (`/edit-game/<id>`) links.
 7. If the collection is empty, an empty-state card links to **Add your first game**.
 8. If the store reports an error (e.g. the starter collection could not be fetched on first run) it is shown in a red banner.
 
@@ -190,7 +218,7 @@ One reactive form serves both jobs. Without an `:id` it adds a game; with one it
 | Initial values | empty, complexity Medium | the game's current values |
 | Submit button | *Add to Collection* | *Save Changes* (plus a *Cancel* link) |
 | On success | `GameStore.add()`, go to `/` | `GameStore.update(id, …)`, go to `/collection` |
-| Delete | — | **Delete this game** below the form → inline confirmation *"Remove Title from your collection? This can't be undone."* with **Yes, delete it** / **Keep it**. Confirming calls `GameStore.remove(id)` and returns to `/collection` |
+| Delete | — | **Delete this game** below the form → inline confirmation *"Remove Title from your collection? This can't be undone."* with **Yes, delete it** / **Keep it**. If the game has logged plays the confirmation adds *"Its N logged plays will stay in your history."* Confirming calls `GameStore.remove(id)` and returns to `/collection` |
 | Unknown id | — | *"That game isn't in your collection any more."* with a link back |
 
 **Fields**
@@ -226,19 +254,22 @@ One reactive form serves both jobs. Without an `:id` it adds a game; with one it
 **Route:** `/manage`
 **Files:** `src/app/manage/manage.ts`, `src/app/manage/manage.html`
 
-Backup and restore of everything on the device — games **and players**. Because each device keeps its own data, this is also how you move between devices — export on one, import on the other.
+Backup and restore of everything on the device — games, players **and play history**. Because each device keeps its own data, this is also how you move between devices — export on one, import on the other.
 
 #### Export
 
-- The page shows how many games and players will be exported.
+- The page shows how many games, players and plays will be exported.
 - **Download boardgame-butler.json** builds a `Blob` of the [backup file](#backup-file-format) (pretty-printed) and triggers a browser download. Nothing leaves the device.
 
 #### Import
 
-Importing **replaces what's on this device**; the page warns about this in red. Two file shapes are accepted:
+Games and players in a file **replace** what's on the device; plays are **merged** (only plays whose id isn't already here are added), so importing an old backup can never lose history. The page explains this above the drop-zone. Any file shape from any version is accepted; a section the file doesn't have is left alone:
 
-- A **backup** (`{ version: 2, games, players }`) replaces both games and players.
-- An **older games-only file** (a bare JSON array, as exported before players existed) replaces the games and **leaves the players alone** — the preview says so explicitly.
+| File | Games | Players | Plays |
+|---|---|---|---|
+| Bare array (v1, pre-players) | replaced | kept | kept |
+| `{ games, players }` (v2) | replaced | replaced | kept |
+| `{ games, players, plays }` (v3) | replaced | replaced | merged |
 
 1. Click the dashed drop-zone to choose a file (`.json` / `application/json` only).
 2. The file is read client-side with `FileReader` and parsed (`parseImport()` in `src/app/export-format.ts`):
@@ -247,14 +278,18 @@ Importing **replaces what's on this device**; the page warns about this in red. 
    - A backup whose `games` or `players` entry isn't an array → *"The "games" entry must be a JSON array."* (or `players`)
 3. A **preview** lists every game in the file (title, players, complexity) with a count, in a scrollable list.
 4. **Duplicate titles in the file** (same title ignoring case and whitespace) are handled *first wins*: the first entry is kept, later ones are greyed out and struck through with *skipped — duplicate of Catan*. If a skipped entry differs from the kept one, the differing fields are shown (*differs: rating 9*) so you can cancel and fix the file if "first wins" isn't what you want. The summary reads *Ready to import 10 games (2 duplicates will be skipped)* and an amber note explains the rule. The logic is the pure `planImport()` in `src/app/import-plan.ts`.
-5. Below the games, a **players line** shows what will happen to players: *"and 3 players"* with the names as chips (duplicates by name struck through, first wins, same as games), *"and 0 players — your current players will be removed"* for a backup with none, or *"This is an older games-only file — your N players will be kept."*
-6. **Confirm Import** replaces the games (and players, if the file has them) and persists. **Cancel** discards the preview.
-7. On success a green *"Backup imported successfully!"* banner appears and the drop-zone is shown again. If the browser refuses the write: *"Import failed. Please try again."* and the preview is kept.
+5. Each section present in the file gets a **checkbox** (all ticked by default) with a summary line:
+   - *Replace games with N games* (with duplicate-skip counts as above)
+   - *Replace players with N players* with the names as chips (duplicates struck through, first wins), or *"— your current players will be removed"* if the list is empty
+   - *Merge N plays into your history — X new, Y already here*
+   Sections the file lacks show a note instead: *"This is an older games-only file — your N players will be kept."* / *"This file has no play history — your N logged plays will be kept."* Untick a section to leave it alone (e.g. restore only the games from an old backup). **Confirm Import** is disabled when nothing is ticked.
+6. **Confirm Import** applies the ticked sections and persists. **Cancel** discards the preview.
+7. On success a green banner summarises what happened — *"Imported 12 games, 3 players, 2 new plays."* and the drop-zone is shown again. If the browser refuses the write: *"Import failed. Please try again."* and the preview is kept.
 
 **Current limitations**
 
 - The preview only checks that the payload is an array; it does not validate that each item has the expected `Game` fields.
-- There is no merge option — import is always a full overwrite (per section: games, and players when present).
+- Games and players are always a full overwrite of their section; only plays merge.
 - Duplicates are resolved by position only; there is no per-duplicate choice of which entry to keep.
 
 ---
@@ -312,7 +347,55 @@ Manage the people you play with. Everything is inline on one page.
 
 **Current limitations**
 
-- No play history yet, so removing a player has no side effects to consider. Once plays exist, removal will need a policy (block, cascade, or keep with a name snapshot).
+- Removing a player does not touch their logged plays — each play keeps a snapshot of the name (see [Play data model](#play-data-model)). There is no warning about this on the Players page yet.
+
+---
+
+### Play History & Log a Play
+
+**Routes:** `/history`, `/log-play`, `/log-play/:id`
+**Files:** `src/app/history/`, `src/app/play-form/`, `src/app/play-store.ts`
+
+#### Log a Play (`/log-play`)
+
+One form for logging and editing, like the game form. Reached from the pick card's **We played this →**, a Collection row's **Log play**, or the History page's **+ Log a play**.
+
+| Field | Control | Notes |
+|---|---|---|
+| Game | select, alphabetical | **required**; pre-selected from `?game=<id>`. Empty collection → link to Add a game |
+| Date | date input | **required**; defaults to today (local time) |
+| Who played | toggle chips of every player, alphabetical | no players → link to the Players page |
+| Who won | toggle chips of the *selected* players only | appears once someone is selected; deselecting a player also un-wins them; leave empty for a loss or draw |
+| How long | minutes | if the Table Tools **stopwatch** has time on it, a **Use stopwatch (N min)** button fills it in |
+| How fun was it? | 1–10 slider, optional | shows *not rated* until moved; **clear** unsets it |
+| Notes | textarea | trimmed; dropped if empty |
+
+**Log Play** saves to `PlayStore` with the game title and player names snapshotted, then goes to `/history`. Editing (`/log-play/:id`) pre-fills everything, says **Save Changes**, offers **Cancel**, and keeps the play's id. A deleted game or removed player stays selectable with its snapshot, labelled *(no longer in collection)* / *(removed)*. Unknown id → *"That play isn't in your history any more."*
+
+#### Play History (`/history`)
+
+- Cards newest-first (by date, then most recently logged), with a count.
+- Each card: date, game title, winners as a green 🏆 chip, other players, duration, *fun N/10*, notes; **Edit** and **Delete** (inline confirm *Delete this play of Azul?* with **Yes, delete** / **Keep**).
+- Empty state points at **+ Log a play**.
+
+#### `PlayStore`
+
+| Member | Purpose |
+|---|---|
+| `plays` | Read-only signal, storage order |
+| `recent` | Computed: newest first |
+| `find(id)`, `forGame(gameId)` | Lookups |
+| `add(details)`, `update(id, details)`, `remove(id)` | Persisting edits |
+| `merge(incoming)` | Add plays whose id isn't already here; returns how many were added |
+| `countNew(incoming)` | What `merge` would add, for the import preview |
+
+Stored under `boardgame-butler.plays`.
+
+**Current limitations**
+
+- No statistics yet — this is the raw log. Per-game and per-player aggregates are the next step.
+- No filtering or search on the History page.
+- Logging is manual; nothing is recorded automatically from the quick-pick or timers.
 
 ---
 
@@ -339,7 +422,7 @@ There is no backend. The collection is owned by `GameStore` (`src/app/game-store
 
 **Where the data lives**
 
-- Games are stored in `localStorage` under `boardgame-butler.games`, players under `boardgame-butler.players`, each as a JSON array. A games-only import therefore can't disturb players, and vice-versa.
+- Games are stored in `localStorage` under `boardgame-butler.games`, players under `boardgame-butler.players`, plays under `boardgame-butler.plays`, each as a JSON array. Importing one section can't disturb another.
 - Every write goes through `commit()`, which updates the in-memory signal first and then `localStorage`. If the write throws (quota exceeded, private mode with storage disabled, etc.) the in-memory change is kept and `error` is set so the page can tell the user.
 
 **First run**
@@ -358,20 +441,23 @@ When the store is constructed and finds nothing saved (or something unparseable 
 
 Defined in `src/app/export-format.ts`.
 
-**Version 2 (current)** — what Export produces:
+**Version 3 (current)** — what Export produces:
 
 ```json
 {
-  "version": 2,
+  "version": 3,
   "exportedAt": "2026-09-18T12:00:00.000Z",
   "games": [ { "id": "…", "title": "Catan", "players": "3-4", "duration": "60-120", "complexity": "Medium", "rating": 7 } ],
-  "players": [ { "id": "…", "name": "Sam" } ]
+  "players": [ { "id": "…", "name": "Sam" } ],
+  "plays": [ { "id": "…", "gameId": "…", "gameTitle": "Catan", "playedAt": "2026-09-10", "players": [ { "id": "…", "name": "Sam" } ], "winnerIds": [ "…" ], "durationMinutes": 90, "funRating": 7 } ]
 }
 ```
 
-**Version 1** — a bare JSON array of games, as exported before players existed and as the bundled `games.json` is written. Import still accepts it; it carries no players, so importing one leaves the device's players untouched.
+**Version 2** — the same without `plays`. **Version 1** — a bare JSON array of games, as exported before players existed and as the bundled `games.json` is written.
 
-`parseImport()` decides the version by shape (array ⇒ v1; object with a `games` array ⇒ v2), so a hand-written v2 file without a `version` field also works. Ids in the file are preserved on import; missing ones are generated. Future formats (a play log) should bump `version` and extend `parseImport()` rather than change the meaning of existing fields.
+Import accepts all three. `parseImport()` decides the version by shape (array ⇒ v1; object with a `games` array ⇒ v2; with a `plays` array too ⇒ v3), so a hand-written file without a `version` field also works. A section the file doesn't have is reported as `null` and left alone on the device. Ids in the file are preserved on import; missing ones are generated.
+
+**Why plays merge instead of replace.** Games and players are *state* — the file is the truth and replaces the device. Plays are *events* — every one is worth keeping, and they have stable ids, so a union by id is always safe. This is what makes it harmless to restore last month's backup: games and players roll back, history doesn't shrink. Future formats should bump `version` and extend `parseImport()` rather than change the meaning of existing fields.
 
 ---
 
@@ -427,17 +513,20 @@ Each page has a functional spec next to it (`*.spec.ts`) that drives the rendere
 | `game-store.spec.ts` | First-run seeding (incl. corrupt / non-array saved data), seed failure, load from storage, id assignment (seed, legacy saved data, import, duplicate ids), add / update / remove / replaceAll persistence, `find`, `hasTitle`, `toJson`, storage write failure |
 | `game-filter.spec.ts` | Range parsing (`2-4`, `2`, `3+`, `2 to 6`, en dash, garbage), each filter's matching rule, AND-combination, `filterGames` |
 | `home.spec.ts` | Loading state while seeding, ready from storage, empty-collection hint, random pick and re-roll, rating badge, filter panel toggle, every filter's live count, no-match state, clear, filtered pick vs. whole-collection pick, nav links |
-| `collection.spec.ts` | Seeding/empty/error states, row rendering, complexity pills, search, every sort column and direction |
-| `game-form.spec.ts` | Add: defaults, required errors, live rating label, what gets saved (with id), trimming, duplicate-title rejection (case/whitespace, forced submit, clears on change), storage failure. Edit: pre-fill, save in place keeping id, own title allowed / other title rejected, rename, rating required for unrated, unknown id. Delete: hidden when adding, confirm step, keep, confirm removes and navigates, storage failure |
+| `collection.spec.ts` | Seeding/empty/error states, row rendering, complexity pills, search, every sort column and direction, Log play and Edit links |
+| `game-form.spec.ts` | Add: defaults, required errors, live rating label, what gets saved (with id), trimming, duplicate-title rejection (case/whitespace, forced submit, clears on change), storage failure. Edit: pre-fill, save in place keeping id, own title allowed / other title rejected, rename, rating required for unrated, unknown id. Delete: hidden when adding, confirm step (mentions kept plays), keep, confirm removes game but not its plays, storage failure |
 | `import-plan.spec.ts` | First-wins de-duplication for games: case/whitespace matching, kept order, difference reporting (incl. missing rating), untitled rows; and for players by name |
 | `player-store.spec.ts` | Empty start, load, id assignment for legacy data, corrupt data, add (trimmed, new id), rename, remove, replaceAll, `hasName`, storage failure |
 | `players.spec.ts` | Alphabetical list and count, empty state, add (disabled until typed, trimmed, Enter, duplicate rejected, storage error keeps input), rename (inline editor, save, own name allowed / other rejected, cancel), remove (confirm, keep, confirm removes, opening rename closes confirm), nav links |
-| `export-format.spec.ts` | `buildExport` shape and timestamp; `parseImport` for v1 arrays, v2 objects, missing players, bad `games`/`players` entries, and non-backup values |
-| `manage.spec.ts` | Export counts and download (v2 Blob contents, filename), invalid/unrecognised/bad-entry file errors, games preview with duplicates greyed and reasons, v1 file keeps players, v2 file previews and imports players (duplicates first-wins, empty list warns), cancel, confirm persists, storage-failure handling |
+| `export-format.spec.ts` | `buildExport` shape and timestamp; `parseImport` for v1 arrays, v2 and v3 objects, missing players, bad `games`/`players`/`plays` entries, and non-backup values |
+| `play-store.spec.ts` | Empty start, load with id assignment, corrupt data, `recent` ordering, add/update/remove, `forGame`, `merge`/`countNew` (skips existing ids, treats id-less as new, no write when nothing is new), storage failure |
+| `play-form.spec.ts` | Log: defaults, alphabetical games with `?game` pre-select (unknown ignored), player chips and winners only for selected players, deselect un-wins, stopwatch shortcut, full and minimal saves with snapshots, clear rating, empty-players / empty-collection hints, storage error. Edit: pre-fill, save in place, deleted game and removed player stay selectable, unknown id |
+| `history.spec.ts` | Empty state, newest-first list and count, card contents (date, winners, others, duration, fun, notes), no-winner and no-players cases, edit links, delete confirm/keep/confirm |
+| `manage.spec.ts` | Export counts and download (v3 Blob contents, filename), invalid/unrecognised/bad-entry file errors, games preview with duplicates greyed and reasons, v1 file keeps players and plays, v2 file previews and imports players (duplicates first-wins, empty list warns) and keeps plays, v3 plays preview with new/already-here counts, merge adds only new plays, old backup can't delete newer plays, per-section checkboxes (default ticked, unticked sections untouched, Confirm disabled when none, only present sections offered), cancel, storage-failure handling |
 | `dice.spec.ts` | Random-source mapping onto 1..sides, totals, count clamping, range check across all die types |
 | `timer.spec.ts` | `formatDuration`; Stopwatch start/pause/resume/reset, timestamp-based elapsed (throttled-tab case), `onTick`, `destroy`; Countdown remaining/finished, `onFinish` fires once, pause/resume, reset, `setDuration` |
 | `tools.spec.ts` | Dice type/count selection and clamping, roll rendering (total + individual dice), history; Countdown presets, custom minutes, running/pause/resume display with fake timers, time's-up alert once + reset, survives leaving and re-opening the page; Stopwatch count-up through the hour boundary; nav links |
-| `app.spec.ts` | Every route renders the right component and heading using the real `appConfig` providers; the `:id` parameter reaches the edit form; link navigation between pages |
+| `app.spec.ts` | Every route renders the right component and heading using the real `appConfig` providers; the `:id` parameter reaches the edit forms and `?game` reaches the log form; link navigation between pages |
 
 ---
 
@@ -452,7 +541,7 @@ The Home page advertises the following chips. Only the first four are fully back
 | Complexity ratings | ✅ Easy / Medium / Hard |
 | User ratings | ✅ 1–10 slider, shown on the pick card |
 | Quick-pick assistant | ✅ Random from the whole collection, or from games matching players / time / complexity / rating |
-| Play statistics | ❌ Not started |
+| Play statistics | ⚠️ Plays can be logged and reviewed; no aggregates yet |
 | In-game utilities | ✅ Dice, countdown, stopwatch on `/tools` |
 
 Technical gaps in what already exists:
@@ -480,7 +569,7 @@ The full candidate scope for the project, grouped by area. Nothing here has been
 | Item | Status |
 |---|---|
 | Quick setup chooser (randomize / select a game) | ✅ Random pick from the whole collection or from a filtered subset |
-| Play statistics — players, winner, duration, fun rating | ❌ Not started; the `Game` model has no play-history fields |
+| Play statistics — players, winner, duration, fun rating | ⚠️ Logging and history done (`/log-play`, `/history`); per-game / per-player aggregates not yet |
 | Dice | ✅ `/tools` — d4–d100, up to 10 dice, history |
 | Timers | ✅ `/tools` — countdown with alert, stopwatch |
 
@@ -501,4 +590,4 @@ The full candidate scope for the project, grouped by area. Nothing here has been
 
 ### Likely next step
 
-The MVP is complete and two pieces of the play-statistics groundwork are in: **players as entities** and a **versioned backup format**. What remains before a stats page: a play-log store (`Play { gameId, playedAt, playerIds, winnerIds, durationMinutes, funRating }`) added to the backup as a version-3 section, a policy for plays whose game or player is deleted (keep them with a title/name snapshot), and a fast "we played this" capture flow from the pick card and Collection rows. The stopwatch already provides the duration.
+All of the play-statistics groundwork is in: players as entities, a play log with snapshots (so deletions are safe), merge-on-import in the v3 backup, and capture from the pick card, Collection rows and History. What's left is the **stats page itself**: pure aggregation functions over `Play[]` (plays per game, last played, never-played games, win rate per player and per player-count, average duration vs. the game's listed range, fun trend) and a `/stats` page to show them. "Never played" would also make a good quick-pick filter.

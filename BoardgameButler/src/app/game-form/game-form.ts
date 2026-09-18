@@ -3,6 +3,7 @@ import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Va
 import { Router, RouterLink } from '@angular/router';
 import { Game, GameDetails } from '../game';
 import { GameStore } from '../game-store';
+import { PlayStore } from '../play-store';
 
 /**
  * One form for both adding and editing. With no `id` route parameter it
@@ -16,6 +17,7 @@ import { GameStore } from '../game-store';
 export class GameForm implements OnInit {
   private fb = inject(FormBuilder);
   private store = inject(GameStore);
+  private plays = inject(PlayStore);
   private router = inject(Router);
 
   /** Bound from the `:id` route parameter; absent when adding. */
@@ -26,6 +28,11 @@ export class GameForm implements OnInit {
   protected notFound = signal(false);
   protected confirmingDelete = signal(false);
   protected error = this.store.error;
+  /** Logged plays of this game; they are kept when the game is deleted. */
+  protected playCount = computed(() => {
+    const game = this.game();
+    return game ? this.plays.forGame(game.id).length : 0;
+  });
 
   protected form = this.fb.nonNullable.group({
     title: ['', [Validators.required, this.uniqueTitle()]],

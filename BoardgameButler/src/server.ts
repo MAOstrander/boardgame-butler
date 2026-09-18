@@ -31,6 +31,30 @@ app.post('/api/games', express.json(), (req, res) => {
   }
 });
 
+app.put('/api/games', express.json(), (req, res) => {
+  try {
+    if (!Array.isArray(req.body)) {
+      res.status(400).json({ error: 'Body must be a JSON array of games.' });
+      return;
+    }
+    writeFileSync(gamesFilePath, JSON.stringify(req.body, null, 2), 'utf-8');
+    res.status(200).json({ success: true, count: req.body.length });
+  } catch {
+    res.status(500).json({ error: 'Failed to replace collection.' });
+  }
+});
+
+app.get('/api/games/export', (_req, res) => {
+  try {
+    const data = readFileSync(gamesFilePath, 'utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="games.json"');
+    res.setHeader('Content-Type', 'application/json');
+    res.send(data);
+  } catch {
+    res.status(500).json({ error: 'Failed to export collection.' });
+  }
+});
+
 /**
  * Serve static files from /browser
  */

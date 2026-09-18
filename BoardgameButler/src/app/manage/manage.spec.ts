@@ -155,6 +155,47 @@ describe('Manage', () => {
       expect(text(fixture)).toContain('Ready to import');
     });
 
+    describe('duplicate titles in the file', () => {
+      const file = [
+        SAMPLE_GAMES[0],                                   // Catan
+        SAMPLE_GAMES[1],                                   // Azul
+        { ...SAMPLE_GAMES[0], id: undefined, rating: 9 },  // duplicate Catan, different rating
+        { ...SAMPLE_GAMES[1], title: ' azul ' },           // duplicate Azul, identical otherwise
+        SAMPLE_GAMES[2],                                   // Gloomhaven
+      ];
+
+      it('shows how many will be skipped and why', async () => {
+        await chooseFile(JSON.stringify(file));
+
+        expect(text(fixture)).toContain('Ready to import 3 games');
+        expect(text(fixture)).toContain('(2 duplicates will be skipped)');
+        expect(text(fixture)).toContain('The file lists some titles more than once.');
+
+        const rows = queryAll(fixture, 'li');
+        expect(rows.length).toBe(5);
+        expect(rows[2].className).toContain('opacity-50');
+        expect(cellText(rows[2])).toBe('Catan skipped — duplicate of Catan · differs: rating 9');
+        expect(cellText(rows[3])).toBe('azul skipped — duplicate of Azul');
+        expect(rows[0].className).not.toContain('opacity-50');
+      });
+
+      it('imports only the kept games', async () => {
+        await chooseFile(JSON.stringify(file));
+        findByText<HTMLButtonElement>(fixture, 'button', 'Confirm Import').click();
+        await settle(fixture);
+
+        expect(savedGames()!.map(g => g.title)).toEqual(['Catan', 'Azul', 'Gloomhaven']);
+        expect(savedGames()![0].rating).toBe(7); // first occurrence wins
+        expect(text(fixture)).toContain('(3 games)');
+      });
+
+      it('says nothing about duplicates when there are none', async () => {
+        await chooseFile(JSON.stringify([SAMPLE_GAMES[0]]));
+        expect(text(fixture)).not.toContain('will be skipped');
+        expect(text(fixture)).not.toContain('more than once');
+      });
+    });
+
     it('clears a previous error when a new file is chosen', async () => {
       await chooseFile('{ not json');
       expect(text(fixture)).toContain('Could not parse file');

@@ -1,7 +1,7 @@
 import { Component, signal, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { Game } from '../game';
 import { GameStore } from '../game-store';
+import { ImportPlan, planImport } from '../import-plan';
 
 @Component({
   selector: 'app-manage',
@@ -12,7 +12,7 @@ export class Manage {
   private store = inject(GameStore);
 
   protected count = () => this.store.games().length;
-  protected preview = signal<Game[] | null>(null);
+  protected preview = signal<ImportPlan | null>(null);
   protected importError = signal<string | null>(null);
   protected importSuccess = signal(false);
 
@@ -33,7 +33,7 @@ export class Manage {
           this.importError.set('File must contain a JSON array of games.');
           return;
         }
-        this.preview.set(parsed);
+        this.preview.set(planImport(parsed));
       } catch {
         this.importError.set('Could not parse file — make sure it is valid JSON.');
       }
@@ -42,10 +42,10 @@ export class Manage {
   }
 
   protected confirmImport() {
-    const games = this.preview();
-    if (!games) return;
+    const plan = this.preview();
+    if (!plan) return;
 
-    this.store.replaceAll(games);
+    this.store.replaceAll(plan.kept);
     if (this.store.error()) {
       this.importError.set('Import failed. Please try again.');
       return;

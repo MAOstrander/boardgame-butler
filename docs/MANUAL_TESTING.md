@@ -84,12 +84,14 @@ Open http://localhost:4200. Work through the checklist in order — later steps 
 - [ ] Type `an` in the search box → only titles containing "an" (Catan, Pandemic, …); subtitle reads *Showing N of 11 games*.
 - [ ] Type `zzz` → single row *No games match "zzz".*
 - [ ] Clear the box → all 11 rows return.
+- [ ] Every row ends with a small **Edit** link.
 
 ### Add a Game
 
 - [ ] **+ Add a game** → form with Complexity preselected to *Medium*; **Add to Collection** is disabled.
 - [ ] Click into Title, then click away → *Title is required.* appears in red. Same for Players and Duration.
 - [ ] Drag the rating slider → label shows e.g. *7 / 10*.
+- [ ] **Duplicate guard:** type `catan` (lower-case) as the title → red *You already have a game called "catan".* and the button stays disabled even with every other field filled. Change it to `Catan: Seafarers` → the error clears.
 - [ ] Fill in: Title `Cascadia`, Players `1-4`, Duration `30-45`, Complexity `Easy`, Rating `8`. Button enables.
 - [ ] Click **Add to Collection** → returns to Home.
 - [ ] **View collection** → *12 games*; Cascadia is there with rating `8/10`.
@@ -97,10 +99,23 @@ Open http://localhost:4200. Work through the checklist in order — later steps 
 - [ ] Home → **Serve me a game!** until Cascadia comes up → card shows the `8/10` badge.
 - [ ] **Persistence:** press F5. Collection still has 12 games. Close the tab, reopen — still 12.
 
+### Edit a Game
+
+- [ ] **View collection** → click **Edit** on Catan → *Edit Game* page, subtitle *Update the details for Catan.*, every field pre-filled (3-4, 60-120, Medium; rating slider unset because the seed is unrated), button reads **Save Changes**, disabled until a rating is chosen.
+- [ ] Set rating `6`, change Duration to `75-100`, Complexity to `Hard` → **Save Changes** → back on the collection; Catan's row shows `75-100`, a red *Hard* pill and `6/10`. Row count is still 12.
+- [ ] Press F5 → the changes survived.
+- [ ] **Edit** Catan again → change the title to `azul` → *You already have a game called "azul".*, button disabled. Change it back to `Catan` → error clears. Change it to `Catan (base)` → **Save Changes** → the row is renamed; sort by Title still works.
+- [ ] **Edit** any game → click **Cancel** → back on the collection with nothing changed.
+- [ ] **Delete:** **Edit** Pandemic → scroll down → red **Delete this game** link → a confirmation box: *Remove Pandemic from your collection? This can't be undone.* Click **Keep it** → box closes, nothing removed. Click **Delete this game** → **Yes, delete it** → back on the collection, *11 games*, Pandemic gone. F5 → still gone.
+- [ ] The **Add a Game** page has no delete option.
+- [ ] Type a bogus address, e.g. `http://localhost:4200/edit-game/nope` → *That game isn't in your collection any more.* with a link back to the collection.
+- [ ] Re-add Pandemic (`2-4`, `45-75`, `Medium`, any rating) so the counts below still line up.
+- [ ] Export now, open the file → every game has an `"id"` field. Import that file back → **Edit** links still work and a re-export gives the same ids.
+
 ### Manage — export
 
 - [ ] **Manage collection** → Export section says *(12 games)*.
-- [ ] Click **Download games.json** → browser downloads `games.json`. Open it: pretty-printed JSON array, 12 entries, Cascadia last with `"rating": 8`.
+- [ ] Click **Download games.json** → browser downloads `games.json`. Open it: pretty-printed JSON array, 12 entries, each with an `"id"`, Cascadia last with `"rating": 8`.
 
 ### Manage — import
 
@@ -109,6 +124,7 @@ Open http://localhost:4200. Work through the checklist in order — later steps 
 - [ ] Click **Cancel** → preview gone, drop-zone back, collection unchanged (check View collection).
 - [ ] Choose the file again → **Confirm Import** → green *Collection imported successfully!*; Export section count updates.
 - [ ] **View collection** shows exactly what was in the file.
+- [ ] **Duplicates in a file:** open the exported file and paste a copy of the Catan entry at the end, changing its `"rating"` to `9` and its `"title"` to `"catan"`. Choose it → summary reads *Ready to import 12 games (1 duplicate will be skipped)*, an amber note explains first-wins, and the last row is greyed out and struck through: *skipped — duplicate of Catan · differs: rating 9*. **Confirm Import** → collection has 12 games, one Catan, with its original rating.
 - [ ] Create a text file containing `{ not json` → choose it → red *Could not parse file — make sure it is valid JSON.*
 - [ ] Create a file containing `{"title":"Catan"}` → *File must contain a JSON array of games.*
 - [ ] Choose a valid file after an error → the error clears.

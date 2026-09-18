@@ -73,8 +73,8 @@ export function selectFile(input: HTMLInputElement, contents: string, name = 'ga
 }
 
 export const SAMPLE_GAMES: Game[] = [
-  { title: 'Catan', players: '3-4', duration: '60-120', complexity: 'Medium', rating: 7 },
-  { title: 'Azul', players: '2-4', duration: '30-45', complexity: 'Easy', rating: 9 },
-  { title: 'Gloomhaven', players: '1-4', duration: '60-120', complexity: 'Hard' },
-  { title: 'Terraforming Mars', players: '1-5', duration: '120-180', complexity: 'Hard', rating: 8 },
+  { id: 'g-catan', title: 'Catan', players: '3-4', duration: '60-120', complexity: 'Medium', rating: 7 },
+  { id: 'g-azul', title: 'Azul', players: '2-4', duration: '30-45', complexity: 'Easy', rating: 9 },
+  { id: 'g-gloom', title: 'Gloomhaven', players: '1-4', duration: '60-120', complexity: 'Hard' },
+  { id: 'g-tm', title: 'Terraforming Mars', players: '1-5', duration: '120-180', complexity: 'Hard', rating: 8 },
 ];

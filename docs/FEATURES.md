@@ -13,7 +13,7 @@ This document describes the features that exist today. Items shown as "planned" 
 - [Pages](#pages)
   - [Home — "Serve me a game!"](#home--serve-me-a-game)
   - [Your Collection](#your-collection)
-  - [Add a Game](#add-a-game)
+  - [Add / Edit a Game](#add--edit-a-game)
   - [Manage Collection (import / export)](#manage-collection-import--export)
 - [Data storage](#data-storage)
 - [Progressive web app (install & offline)](#progressive-web-app-install--offline)
@@ -34,13 +34,14 @@ This document describes the features that exist today. Items shown as "planned" 
 | Offline / install | `@angular/service-worker` + web app manifest |
 | Tests | Vitest + jsdom — functional component specs for every page (`npm test`) |
 
-There are four routes:
+There are five routes:
 
 | Route | Component | Purpose |
 |---|---|---|
 | `/` | `Home` | Splash page and random game picker |
-| `/collection` | `Collection` | Searchable, sortable table of every game |
-| `/add-game` | `AddGame` | Form to add one game to the collection |
+| `/collection` | `Collection` | Searchable, sortable table of every game, with an Edit link per row |
+| `/add-game` | `GameForm` | Form to add one game to the collection |
+| `/edit-game/:id` | `GameForm` | The same form, pre-filled, to change or delete an existing game |
 | `/manage` | `Manage` | Export the collection or replace it by importing a JSON file |
 
 Every page links to the others through a small nav row under the back link.
@@ -53,6 +54,7 @@ A game is a plain JSON object, defined once in `src/app/game.ts`:
 
 ```ts
 interface Game {
+  id: string;          // stable identifier, assigned by GameStore
   title: string;       // e.g. "Catan"
   players: string;     // free text, e.g. "3-4"
   duration: string;    // free text, minutes, e.g. "60-120"
@@ -61,12 +63,17 @@ interface Game {
 }
 ```
 
+Two helper types cover the edges: `RawGame` (a game from a JSON file, where `id` is optional) and `GameDetails` (everything except `id` — what the form edits).
+
 Notes:
+
+- `id` is what the edit route and the store's `find`/`update` use. Files don't need to include it: the store assigns one to anything that arrives without it (see [Data storage](#data-storage)). Exported files do include it, so a round trip keeps ids stable.
+- **Titles are unique** within a collection, ignoring case and surrounding whitespace. The form refuses a duplicate, and import keeps only the first entry of each title (see [Manage](#manage-collection-import--export)). The store itself does not enforce it.
 
 - `players` and `duration` are **strings**, not numbers, so ranges like `"2-5"` or `"45-90"` are stored exactly as typed. Nothing parses them yet.
 - `complexity` is constrained to Easy / Medium / Hard by the Add Game form, but imported files are not validated.
 - `rating` is required when adding a game through the UI, but the seed data and imported files may leave it out. The UI treats a missing rating as "no rating" and hides the badge.
-- There is no `id` field. Games are identified only by their position in the array (and by `title` in the import preview list).
+- The import preview list is keyed by `title` because imported rows may not have ids yet.
 
 The starter collection in `public/games.json` contains 11 games (Catan, Ticket to Ride, Pandemic, Terraforming Mars, Azul, Wingspan, Gloomhaven, …). It is only used to seed a device that has never saved a collection — see [Data storage](#data-storage).
 
@@ -138,34 +145,45 @@ A read-only table of every game in the collection.
 | Rating | Numeric; unrated games always sort last in either direction |
 
 5. Complexity is shown as a colour-coded pill (green / amber / red). Missing ratings render as `—`.
-6. If the collection is empty, an empty-state card links to **Add your first game**.
-7. If the store reports an error (e.g. the starter collection could not be fetched on first run) it is shown in a red banner.
+6. Every row ends with an **Edit** link to `/edit-game/<id>`.
+7. If the collection is empty, an empty-state card links to **Add your first game**.
+8. If the store reports an error (e.g. the starter collection could not be fetched on first run) it is shown in a red banner.
 
 **Current limitations**
 
-- Read-only — no inline edit or delete yet (see [Roadmap](#roadmap)).
+- Delete lives on the edit page rather than in the table, so removing several games means several round trips.
 - Values that don't start with a number (e.g. `"any"`) sort to the end of Players / Minutes.
 
 ---
 
-### Add a Game
+### Add / Edit a Game
 
-**Route:** `/add-game`
-**Files:** `src/app/add-game/add-game.ts`, `src/app/add-game/add-game.html`
+**Routes:** `/add-game`, `/edit-game/:id`
+**Files:** `src/app/game-form/game-form.ts`, `src/app/game-form/game-form.html`
 
-A reactive form for adding a single game.
+One reactive form serves both jobs. Without an `:id` it adds a game; with one it loads that game from the store and edits it in place. The `id` arrives as a component input via the router's `withComponentInputBinding()`.
+
+| | Add | Edit |
+|---|---|---|
+| Heading | *Add a Game* | *Edit Game* — "Update the details for *Title*." |
+| Initial values | empty, complexity Medium | the game's current values |
+| Submit button | *Add to Collection* | *Save Changes* (plus a *Cancel* link) |
+| On success | `GameStore.add()`, go to `/` | `GameStore.update(id, …)`, go to `/collection` |
+| Delete | — | **Delete this game** below the form → inline confirmation *"Remove Title from your collection? This can't be undone."* with **Yes, delete it** / **Keep it**. Confirming calls `GameStore.remove(id)` and returns to `/collection` |
+| Unknown id | — | *"That game isn't in your collection any more."* with a link back |
 
 **Fields**
 
 | Field | Control | Validation | Default |
 |---|---|---|---|
-| Title | text | required | — |
+| Title | text | required; **must not match another game's title** (case-insensitive, trimmed) | — |
 | Players | text (e.g. `2-4`) | required | — |
 | Duration (minutes) | text (e.g. `60-120`) | required | — |
 | Complexity | select: Easy / Medium / Hard | required | Medium |
 | Your Rating | range slider 1–10 | required, min 1, max 10 | none (slider must be moved) |
 
-- Required-field errors appear beneath a field once it has been touched.
+- Required-field errors appear beneath a field once it has been touched. The duplicate-title error — *You already have a game called "…"* — appears as soon as the title matches, and the submit button stays disabled. When editing, the game's own current title is allowed.
+- Text fields are trimmed before saving.
 - The rating slider shows the live value (`7 / 10`) next to its label once set.
 - The submit button is disabled while the form is invalid.
 
@@ -177,9 +195,8 @@ A reactive form for adding a single game.
 
 **Current limitations**
 
-- No duplicate-title check.
-- No editing or deleting of existing games — only adding.
 - Players/duration are not validated as numbers or ranges.
+- Rating is required even when editing, so saving any change to an unrated game means rating it.
 
 ---
 
@@ -204,14 +221,15 @@ Importing **replaces the entire collection on this device**; the page warns abou
    - Invalid JSON → *"Could not parse file — make sure it is valid JSON."*
    - Valid JSON that is not an array → *"File must contain a JSON array of games."*
 3. A **preview** lists every game in the file (title, players, complexity) with a count, in a scrollable list.
-4. **Confirm Import** replaces the store's collection with the parsed array and persists it. **Cancel** discards the preview.
-5. On success a green *"Collection imported successfully!"* banner appears and the drop-zone is shown again. If the browser refuses the write: *"Import failed. Please try again."* and the preview is kept.
+4. **Duplicate titles in the file** (same title ignoring case and whitespace) are handled *first wins*: the first entry is kept, later ones are greyed out and struck through with *skipped — duplicate of Catan*. If a skipped entry differs from the kept one, the differing fields are shown (*differs: rating 9*) so you can cancel and fix the file if "first wins" isn't what you want. The summary reads *Ready to import 10 games (2 duplicates will be skipped)* and an amber note explains the rule. The logic is the pure `planImport()` in `src/app/import-plan.ts`.
+5. **Confirm Import** replaces the store's collection with the kept games and persists it. **Cancel** discards the preview.
+6. On success a green *"Collection imported successfully!"* banner appears and the drop-zone is shown again. If the browser refuses the write: *"Import failed. Please try again."* and the preview is kept.
 
 **Current limitations**
 
 - The preview only checks that the payload is an array; it does not validate that each item has the expected `Game` fields.
 - There is no merge option — import is always a full overwrite.
-- The preview list uses `title` as its tracking key, so duplicate titles in the file may render oddly.
+- Duplicates are resolved by position only; there is no per-duplicate choice of which entry to keep.
 
 ---
 
@@ -224,9 +242,15 @@ There is no backend. The collection is owned by `GameStore` (`src/app/game-store
 | `games` | Read-only signal of the current collection |
 | `ready` | `false` until the collection has been read from storage or seeded |
 | `error` | Last storage/seed error message, or `null` |
-| `add(game)` | Append one game and persist |
+| `find(id)` | Look a game up by id |
+| `hasTitle(title, excludeId?)` | Case-insensitive, trimmed title check; `excludeId` ignores one game (used when editing) |
+| `add(details)` | Append one game with a fresh id and persist; returns the new `Game` |
+| `update(id, details)` | Replace one game's details in place and persist |
+| `remove(id)` | Drop one game and persist |
 | `replaceAll(games)` | Overwrite the collection and persist |
 | `toJson()` | Pretty-printed JSON, used by export |
+
+**Ids.** Everything entering the store — the saved collection, the seed file, an imported file — passes through `normalize()`, which keeps any `id` a game already has and generates one (`crypto.randomUUID()`) for games without one or with a duplicate. A collection saved before ids existed is upgraded and re-saved on the next launch.
 
 **Where the data lives**
 
@@ -294,13 +318,14 @@ Each page has a functional spec next to it (`*.spec.ts`) that drives the rendere
 
 | Spec | Covers |
 |---|---|
-| `game-store.spec.ts` | First-run seeding (incl. corrupt / non-array saved data), seed failure, load from storage, add / replaceAll persistence, `toJson`, storage write failure |
+| `game-store.spec.ts` | First-run seeding (incl. corrupt / non-array saved data), seed failure, load from storage, id assignment (seed, legacy saved data, import, duplicate ids), add / update / remove / replaceAll persistence, `find`, `hasTitle`, `toJson`, storage write failure |
 | `game-filter.spec.ts` | Range parsing (`2-4`, `2`, `3+`, `2 to 6`, en dash, garbage), each filter's matching rule, AND-combination, `filterGames` |
 | `home.spec.ts` | Loading state while seeding, ready from storage, empty-collection hint, random pick and re-roll, rating badge, filter panel toggle, every filter's live count, no-match state, clear, filtered pick vs. whole-collection pick, nav links |
 | `collection.spec.ts` | Seeding/empty/error states, row rendering, complexity pills, search, every sort column and direction |
-| `add-game.spec.ts` | Defaults, required-field errors, live rating label, what gets saved, success navigation, storage-failure handling |
-| `manage.spec.ts` | Export count and download (Blob contents, filename), invalid/non-array file errors, preview, cancel, confirm persists, storage-failure handling |
-| `app.spec.ts` | Every route renders the right component and heading; link navigation between pages |
+| `game-form.spec.ts` | Add: defaults, required errors, live rating label, what gets saved (with id), trimming, duplicate-title rejection (case/whitespace, forced submit, clears on change), storage failure. Edit: pre-fill, save in place keeping id, own title allowed / other title rejected, rename, rating required for unrated, unknown id. Delete: hidden when adding, confirm step, keep, confirm removes and navigates, storage failure |
+| `import-plan.spec.ts` | First-wins de-duplication: case/whitespace matching, kept order, difference reporting (incl. missing rating), untitled rows |
+| `manage.spec.ts` | Export count and download (Blob contents, filename), invalid/non-array file errors, preview, duplicate rows greyed with reasons and only kept games imported, cancel, confirm persists, storage-failure handling |
+| `app.spec.ts` | Every route renders the right component and heading using the real `appConfig` providers; the `:id` parameter reaches the edit form; link navigation between pages |
 
 ---
 
@@ -310,7 +335,7 @@ The Home page advertises the following chips. Only the first four are fully back
 
 | Chip | Status |
 |---|---|
-| Track your collection | ✅ View / add / import / export |
+| Track your collection | ✅ View / add / edit / delete / import / export |
 | Players & duration | ✅ Stored and displayed (free-text) |
 | Complexity ratings | ✅ Easy / Medium / Hard |
 | User ratings | ✅ 1–10 slider, shown on the pick card |
@@ -321,7 +346,6 @@ The Home page advertises the following chips. Only the first four are fully back
 Technical gaps in what already exists:
 
 - Schema validation of imported files (only "is an array" is checked)
-- Stable game IDs
 - No sync between devices — export/import is the only way to move a collection
 
 ---
@@ -336,7 +360,7 @@ The full candidate scope for the project, grouped by area. Nothing here has been
 |---|---|
 | View collection | ✅ `/collection` — searchable, sortable table |
 | Add entries | ✅ `/add-game` |
-| Update / delete entries | ❌ Not built |
+| Update / delete entries | ✅ `/edit-game/:id` from the Collection page |
 | Game file import / export | ✅ `/manage` |
 
 ### Play assistance
@@ -360,9 +384,9 @@ The full candidate scope for the project, grouped by area. Nothing here has been
 
 ### Open questions
 
-- **MVP cut line.** The likely MVP is collection view/add/edit/delete plus dice and timers (the filtered quick-setup chooser is done). The social / multiplayer layer (auth, scheduling, swapping, bot integration) would sit on the other side of that line.
+- **MVP cut line.** The likely MVP is collection view/add/edit/delete plus dice and timers. Collection management and the filtered quick-setup chooser are done; dice and timers remain. The social / multiplayer layer (auth, scheduling, swapping, bot integration) would sit on the other side of that line.
 - **Single-user vs. backend.** The current architecture — an installable PWA with the collection in browser storage and no server at all — is firmly single-user local software. Auth, cross-device sync and bot hosting all imply a real server and database, which would be a significant change rather than an incremental one.
 
 ### Likely next step
 
-With a collection view in place, the most obvious gap inside the MVP bucket is **edit and delete for individual games**: today you can add a game and bulk-replace the file, but you cannot change or remove a single entry. This will likely require stable game IDs (see technical gaps above).
+Collection management is complete. The remaining MVP items are the **in-game utilities — dice and timers** — followed by **play statistics**, which will need new fields on the `Game` model (or a separate play-log) to record players, winner, duration and fun rating per session.

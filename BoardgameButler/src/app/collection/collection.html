@@ -70,10 +70,11 @@
                     </button>
                   </th>
                 }
+                <th class="px-4 py-3"><span class="sr-only">Actions</span></th>
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-800">
-              @for (game of filtered(); track $index) {
+              @for (game of filtered(); track game.id) {
                 <tr class="hover:bg-gray-800/40 transition-colors">
                   <td class="px-4 py-3 text-white font-medium">{{ game.title }}</td>
                   <td class="px-4 py-3 text-gray-300 text-center">{{ game.players }}</td>
@@ -90,10 +91,19 @@
                       <span class="text-gray-600">—</span>
                     }
                   </td>
+                  <td class="px-4 py-3 text-right">
+                    <a
+                      [routerLink]="['/edit-game', game.id]"
+                      class="text-gray-500 hover:text-amber-400 text-xs font-medium transition-colors"
+                      [attr.aria-label]="'Edit ' + game.title"
+                    >
+                      Edit
+                    </a>
+                  </td>
                 </tr>
               } @empty {
                 <tr>
-                  <td colspan="5" class="px-4 py-8 text-center text-gray-500">No games match "{{ search() }}".</td>
+                  <td colspan="6" class="px-4 py-8 text-center text-gray-500">No games match "{{ search() }}".</td>
                 </tr>
               }
             </tbody>

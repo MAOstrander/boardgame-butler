@@ -60,8 +60,8 @@ describe('Collection', () => {
   it('shows each game’s details, with a dash for missing ratings', async () => {
     await load();
     const rows = queryAll(fixture, 'tbody tr').map(cellText);
-    expect(rows).toContain('Azul 2-4 30-45 Easy 9/10');
-    expect(rows).toContain('Gloomhaven 1-4 60-120 Hard —');
+    expect(rows).toContain('Azul 2-4 30-45 Easy 9/10 Edit');
+    expect(rows).toContain('Gloomhaven 1-4 60-120 Hard — Edit');
   });
 
   it('colour-codes the complexity pill', async () => {
@@ -176,7 +176,7 @@ describe('Collection', () => {
 
     it('pushes non-numeric players/minutes values to the end', async () => {
       await load([
-        { title: 'Party', players: 'any', duration: '20', complexity: 'Easy' },
+        { id: 'g-party', title: 'Party', players: 'any', duration: '20', complexity: 'Easy' },
         ...SAMPLE_GAMES,
       ]);
       await clickHeader('Players');
@@ -190,6 +190,18 @@ describe('Collection', () => {
       await settle(fixture);
       expect(titles()).toEqual(['Catan', 'Terraforming Mars', 'Azul', 'Gloomhaven']);
     });
+  });
+
+  it('gives every row an Edit link to that game', async () => {
+    await load();
+    const links = queryAll<HTMLAnchorElement>(fixture, 'tbody a');
+    expect(links.map(a => a.getAttribute('href'))).toEqual([
+      '/edit-game/g-azul',
+      '/edit-game/g-catan',
+      '/edit-game/g-gloom',
+      '/edit-game/g-tm',
+    ]);
+    expect(links[0].getAttribute('aria-label')).toBe('Edit Azul');
   });
 
   it('links to home, add-game and manage', async () => {

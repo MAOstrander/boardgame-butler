@@ -2,6 +2,7 @@ import { Game } from './game';
 import { EMPTY_FILTERS, GameFilters, filterGames, hasActiveFilters, matchesFilters, parseRange } from './game-filter';
 
 const game = (overrides: Partial<Game>): Game => ({
+  id: 'g-test',
   title: 'Test',
   players: '2-4',
   duration: '60-90',

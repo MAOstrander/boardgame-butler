@@ -1,13 +1,11 @@
 import { Type } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
-import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { App } from './app';
-import { routes } from './app.routes';
+import { appConfig } from './app.config';
 import { Home } from './home/home';
-import { AddGame } from './add-game/add-game';
+import { GameForm } from './game-form/game-form';
 import { Manage } from './manage/manage';
 import { Collection } from './collection/collection';
 import { SAMPLE_GAMES, seedStorage } from '../testing/helpers';
@@ -20,9 +18,11 @@ describe('App routing', () => {
     localStorage.clear();
     seedStorage(SAMPLE_GAMES);
 
+    // Use the real app providers (router config, input binding, …) so routing
+    // is tested as configured, with only the HTTP backend swapped for a stub.
     await TestBed.configureTestingModule({
       imports: [App],
-      providers: [provideRouter(routes), provideHttpClient(), provideHttpClientTesting()],
+      providers: [...appConfig.providers, provideHttpClientTesting()],
     }).compileComponents();
 
     http = TestBed.inject(HttpTestingController);
@@ -43,12 +43,18 @@ describe('App routing', () => {
   it.each<[string, Type<unknown>, string]>([
     ['/', Home, 'Boardgame Butler'],
     ['/collection', Collection, 'Your Collection'],
-    ['/add-game', AddGame, 'Add a Game'],
+    ['/add-game', GameForm, 'Add a Game'],
+    ['/edit-game/g-catan', GameForm, 'Edit Game'],
     ['/manage', Manage, 'Manage Collection'],
   ])('renders %s', async (url, component, heading) => {
     const instance = await harness.navigateByUrl(url, component);
     expect(instance).toBeInstanceOf(component);
     expect(harness.routeNativeElement?.querySelector('h1')?.textContent).toContain(heading);
+  });
+
+  it('passes the id route parameter to the edit form', async () => {
+    await harness.navigateByUrl('/edit-game/g-azul', GameForm);
+    expect(harness.routeNativeElement?.querySelector<HTMLInputElement>('#title')?.value).toBe('Azul');
   });
 
   it('navigates between pages via their links', async () => {

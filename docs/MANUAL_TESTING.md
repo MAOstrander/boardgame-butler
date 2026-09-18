@@ -59,6 +59,19 @@ Open http://localhost:4200. Work through the checklist in order — later steps 
 - [ ] Seed games have no rating, so no `/10` badge shows yet.
 - [ ] Three links at the bottom: **View collection**, **+ Add a game**, **Manage collection**.
 
+### Home — filtered pick
+
+- [ ] Click **▾ Narrow it down** → a filter panel appears reading *No filters set — all 11 games match*; the link now says **▴ Hide filters**.
+- [ ] Players tonight `5` → *N of 11 games match* drops to only games whose range includes 5 (e.g. Terraforming Mars 1-5, Ticket to Ride 2-5, Wingspan 1-5).
+- [ ] Time available *Up to 60 min* → *3 of 11 games match* — only games whose **longest** time is ≤ 60 (Azul, 7 Wonders, Codenames). Catan (60-120) and Ticket to Ride (45-90) must *not* match.
+- [ ] Click **Hard** → count changes; click **Easy** too → count grows (either complexity matches); click **Hard** again to deselect.
+- [ ] Minimum rating *5+* → *No games match these filters* (seed games are unrated) and **Serve me a match!** is disabled.
+- [ ] Click **Clear** → back to *all 11 games match*, inputs reset, **Clear** link disappears.
+- [ ] Set Players `2` and Time *Up to 45 min* → *3 of 11 games match* (Azul, 7 Wonders, Codenames). Click **Serve me a match!** repeatedly → only those three are ever served; the card says *Tonight's pick · from your matches*.
+- [ ] With those filters still set, click the big **Serve me a game!** → any game from the whole collection can come up (e.g. Catan) and the card just says *Tonight's pick*.
+- [ ] **▴ Hide filters** → panel collapses; open it again → filters are still set.
+- [ ] After adding Cascadia with rating 8 (next section), come back and set Minimum rating *8+* → *1 of 12 games match*.
+
 ### Collection
 
 - [ ] **View collection** → table of the 11 starter games, subtitle *11 games*.
@@ -77,17 +90,17 @@ Open http://localhost:4200. Work through the checklist in order — later steps 
 - [ ] **+ Add a game** → form with Complexity preselected to *Medium*; **Add to Collection** is disabled.
 - [ ] Click into Title, then click away → *Title is required.* appears in red. Same for Players and Duration.
 - [ ] Drag the rating slider → label shows e.g. *7 / 10*.
-- [ ] Fill in: Title `Wingspan`, Players `1-5`, Duration `40-70`, Complexity `Medium`, Rating `8`. Button enables.
+- [ ] Fill in: Title `Cascadia`, Players `1-4`, Duration `30-45`, Complexity `Easy`, Rating `8`. Button enables.
 - [ ] Click **Add to Collection** → returns to Home.
-- [ ] **View collection** → *12 games*; Wingspan is there with rating `8/10`.
-- [ ] Click **Rating** header → Wingspan is first (only rated game); unrated games follow. Click again → Wingspan still first, unrated still last.
-- [ ] Home → **Serve me a game!** until Wingspan comes up → card shows the `8/10` badge.
+- [ ] **View collection** → *12 games*; Cascadia is there with rating `8/10`.
+- [ ] Click **Rating** header → Cascadia is first (only rated game); unrated games follow. Click again → Cascadia still first, unrated still last.
+- [ ] Home → **Serve me a game!** until Cascadia comes up → card shows the `8/10` badge.
 - [ ] **Persistence:** press F5. Collection still has 12 games. Close the tab, reopen — still 12.
 
 ### Manage — export
 
 - [ ] **Manage collection** → Export section says *(12 games)*.
-- [ ] Click **Download games.json** → browser downloads `games.json`. Open it: pretty-printed JSON array, 12 entries, Wingspan last with `"rating": 8`.
+- [ ] Click **Download games.json** → browser downloads `games.json`. Open it: pretty-printed JSON array, 12 entries, Cascadia last with `"rating": 8`.
 
 ### Manage — import
 

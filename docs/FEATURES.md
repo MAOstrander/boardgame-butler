@@ -85,18 +85,33 @@ The landing page shows a full-bleed background image (`public/DiceButler.jpg`) w
 
 1. It reads the collection from the shared `GameStore` (see [Data storage](#data-storage)).
 2. Until the store is ready it shows *"Loading game library..."* and the main button is disabled. If the store is ready but empty it shows *"Your collection is empty — add a game to get started."* instead.
-3. Clicking **Serve me a game!** picks one game uniformly at random from the collection and displays it in a *"Tonight's pick"* card showing:
+3. Clicking **Serve me a game!** picks one game uniformly at random from the **whole collection** and displays it in a *"Tonight's pick"* card showing:
    - Title
    - `players` players
    - `duration` min
    - `complexity`
    - `rating/10` (only if the game has a rating)
 4. Clicking the button again re-rolls. The same game can be picked twice in a row — there is no history or exclusion.
-5. Links at the bottom go to **📚 View collection**, **+ Add a game**, and **⚙ Manage collection**.
+5. **▾ Narrow it down** opens a filter panel (see below). **Serve me a match!** inside it picks at random from only the games that pass the filters, and the card is labelled *"Tonight's pick · from your matches"*. The main button always ignores the filters, so both options are available at once.
+6. Links at the bottom go to **📚 View collection**, **+ Add a game**, and **⚙ Manage collection**.
+
+**Filters**
+
+| Filter | Control | A game matches when… |
+|---|---|---|
+| Players tonight | number input | the count is inside the game's player range, inclusive (`2-4` matches 2, 3 or 4; `3+` matches anything ≥ 3) |
+| Time available | select: Any / up to 30, 45, 60, 90, 120, 180 min | the game's **longest** listed duration fits — `45-90` does *not* match "up to 60", so you're never served a game that might run over |
+| Complexity | Easy / Medium / Hard toggle buttons | its complexity is one of the selected ones; none selected means any |
+| Minimum rating | select: Any / 5+ … 9+ | its rating is at or above the minimum; **unrated games are excluded** when this is set |
+
+- Filters combine with AND. The panel shows a live count: *"No filters set — all N games match"*, *"K of N games match"*, or *"No games match these filters"* (the match button is disabled in that case).
+- **Clear** resets every filter. Hiding the panel keeps the filters; they reset on a full page reload.
+- Player and duration ranges are parsed from the free-text fields (`"2-4"`, `"60-120"`, `"2"`, `"3+"`, `"2 to 6"`). A game whose text can't be parsed is excluded by that filter, since the app can't tell whether it fits. The parsing and matching logic is in `src/app/game-filter.ts`.
 
 **Current limitations**
 
-- The pick is purely random. There is no filtering by player count, duration, or complexity yet, even though the tagline describes that.
+- The pick is uniformly random with no history — the same game can come up repeatedly.
+- Filters aren't remembered between launches.
 
 ---
 
@@ -280,7 +295,8 @@ Each page has a functional spec next to it (`*.spec.ts`) that drives the rendere
 | Spec | Covers |
 |---|---|
 | `game-store.spec.ts` | First-run seeding (incl. corrupt / non-array saved data), seed failure, load from storage, add / replaceAll persistence, `toJson`, storage write failure |
-| `home.spec.ts` | Loading state while seeding, ready from storage, empty-collection hint, random pick and re-roll, rating badge, nav links |
+| `game-filter.spec.ts` | Range parsing (`2-4`, `2`, `3+`, `2 to 6`, en dash, garbage), each filter's matching rule, AND-combination, `filterGames` |
+| `home.spec.ts` | Loading state while seeding, ready from storage, empty-collection hint, random pick and re-roll, rating badge, filter panel toggle, every filter's live count, no-match state, clear, filtered pick vs. whole-collection pick, nav links |
 | `collection.spec.ts` | Seeding/empty/error states, row rendering, complexity pills, search, every sort column and direction |
 | `add-game.spec.ts` | Defaults, required-field errors, live rating label, what gets saved, success navigation, storage-failure handling |
 | `manage.spec.ts` | Export count and download (Blob contents, filename), invalid/non-array file errors, preview, cancel, confirm persists, storage-failure handling |
@@ -298,7 +314,7 @@ The Home page advertises the following chips. Only the first four are fully back
 | Players & duration | ✅ Stored and displayed (free-text) |
 | Complexity ratings | ✅ Easy / Medium / Hard |
 | User ratings | ✅ 1–10 slider, shown on the pick card |
-| Quick-pick assistant | ⚠️ Random pick only — no filters |
+| Quick-pick assistant | ✅ Random from the whole collection, or from games matching players / time / complexity / rating |
 | Play statistics | ❌ Not started |
 | In-game utilities | ❌ Not started |
 
@@ -327,7 +343,7 @@ The full candidate scope for the project, grouped by area. Nothing here has been
 
 | Item | Status |
 |---|---|
-| Quick setup chooser (randomize / select a game) | ⚠️ Random pick only; no filtering by player count, time available, or complexity |
+| Quick setup chooser (randomize / select a game) | ✅ Random pick from the whole collection or from a filtered subset |
 | Play statistics — players, winner, duration, fun rating | ❌ Not started; the `Game` model has no play-history fields |
 | Dice | ❌ Not started |
 | Timers | ❌ Not started |
@@ -344,7 +360,7 @@ The full candidate scope for the project, grouped by area. Nothing here has been
 
 ### Open questions
 
-- **MVP cut line.** The likely MVP is collection view/add/edit/delete plus dice, timers, and a filtered quick-setup chooser. The social / multiplayer layer (auth, scheduling, swapping, bot integration) would sit on the other side of that line.
+- **MVP cut line.** The likely MVP is collection view/add/edit/delete plus dice and timers (the filtered quick-setup chooser is done). The social / multiplayer layer (auth, scheduling, swapping, bot integration) would sit on the other side of that line.
 - **Single-user vs. backend.** The current architecture — an installable PWA with the collection in browser storage and no server at all — is firmly single-user local software. Auth, cross-device sync and bot hosting all imply a real server and database, which would be a significant change rather than an incremental one.
 
 ### Likely next step

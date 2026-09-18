@@ -4,7 +4,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { Home } from './home';
 import { Game } from '../game';
-import { SAMPLE_GAMES, findByText, query, queryAll, seedStorage, settle, text } from '../../testing/helpers';
+import { SAMPLE_GAMES, findByText, query, queryAll, seedStorage, setInputValue, settle, text } from '../../testing/helpers';
 
 describe('Home', () => {
   let fixture: ComponentFixture<Home>;
@@ -102,6 +102,153 @@ describe('Home', () => {
     serveButton().click();
     await settle(fixture);
     expect(text(fixture)).not.toContain('/10');
+  });
+
+  describe('filtered pick', () => {
+    const toggle = () => findByText<HTMLButtonElement>(fixture, 'button', 'Narrow it down');
+    const panel = () => fixture.nativeElement.querySelector('section[aria-label="Filters"]') as HTMLElement | null;
+    const matchButton = () => findByText<HTMLButtonElement>(fixture, 'button', 'Serve me a match!');
+    const complexity = (label: string) => findByText<HTMLButtonElement>(fixture, 'section button', label);
+
+    async function openFilters() {
+      toggle().click();
+      await settle(fixture);
+    }
+
+    async function setPlayers(value: string) {
+      setInputValue(query<HTMLInputElement>(fixture, '#filter-players'), value);
+      await settle(fixture);
+    }
+
+    async function setTime(value: string) {
+      setInputValue(query<HTMLSelectElement>(fixture, '#filter-time'), value);
+      await settle(fixture);
+    }
+
+    async function setRating(value: string) {
+      setInputValue(query<HTMLSelectElement>(fixture, '#filter-rating'), value);
+      await settle(fixture);
+    }
+
+    it('starts hidden and toggles open and closed', async () => {
+      await setup();
+      expect(panel()).toBeNull();
+
+      await openFilters();
+      expect(panel()).not.toBeNull();
+      expect(text(fixture)).toContain('No filters set — all 4 games match');
+      expect(matchButton().disabled).toBe(false);
+
+      findByText<HTMLButtonElement>(fixture, 'button', 'Hide filters').click();
+      await settle(fixture);
+      expect(panel()).toBeNull();
+    });
+
+    it('is disabled while the collection is empty', async () => {
+      await setup([]);
+      expect(toggle().disabled).toBe(true);
+    });
+
+    it('filters by player count', async () => {
+      await setup();
+      await openFilters();
+      await setPlayers('5');
+      expect(text(fixture)).toContain('1 of 4 games match'); // Terraforming Mars (1-5)
+
+      await setPlayers('2');
+      expect(text(fixture)).toContain('3 of 4 games match'); // everything but Catan (3-4)
+    });
+
+    it('filters by time available', async () => {
+      await setup();
+      await openFilters();
+      await setTime('60');
+      expect(text(fixture)).toContain('1 of 4 games match'); // Azul (30-45)
+
+      await setTime('120');
+      expect(text(fixture)).toContain('3 of 4 games match'); // all but Terraforming Mars (120-180)
+    });
+
+    it('filters by any of the selected complexities', async () => {
+      await setup();
+      await openFilters();
+
+      complexity('Hard').click();
+      await settle(fixture);
+      expect(complexity('Hard').getAttribute('aria-pressed')).toBe('true');
+      expect(text(fixture)).toContain('2 of 4 games match');
+
+      complexity('Easy').click();
+      await settle(fixture);
+      expect(text(fixture)).toContain('3 of 4 games match');
+
+      complexity('Hard').click();
+      await settle(fixture);
+      expect(complexity('Hard').getAttribute('aria-pressed')).toBe('false');
+      expect(text(fixture)).toContain('1 of 4 games match');
+    });
+
+    it('filters by minimum rating, excluding unrated games', async () => {
+      await setup();
+      await openFilters();
+      await setRating('8');
+      expect(text(fixture)).toContain('2 of 4 games match'); // Azul 9, Terraforming Mars 8
+    });
+
+    it('combines filters', async () => {
+      await setup();
+      await openFilters();
+      await setPlayers('2');
+      await setTime('45');
+      expect(text(fixture)).toContain('1 of 4 games match'); // Azul
+    });
+
+    it('disables the match button and says so when nothing matches', async () => {
+      await setup();
+      await openFilters();
+      await setPlayers('9');
+      expect(text(fixture)).toContain('No games match these filters');
+      expect(matchButton().disabled).toBe(true);
+    });
+
+    it('clears all filters at once', async () => {
+      await setup();
+      await openFilters();
+      await setPlayers('9');
+      findByText<HTMLButtonElement>(fixture, 'button', 'Clear').click();
+      await settle(fixture);
+
+      expect(text(fixture)).toContain('No filters set — all 4 games match');
+      expect(query<HTMLInputElement>(fixture, '#filter-players').value).toBe('');
+      expect(fixture.nativeElement.textContent).not.toContain('Clear');
+    });
+
+    it('serves only from the matching games and labels the pick', async () => {
+      await setup();
+      await openFilters();
+      await setPlayers('5');
+
+      vi.spyOn(Math, 'random').mockReturnValue(0.99);
+      matchButton().click();
+      await settle(fixture);
+
+      expect(query(fixture, 'h2').textContent).toContain('Terraforming Mars');
+      expect(text(fixture)).toContain("Tonight's pick · from your matches");
+    });
+
+    it('the whole-collection button ignores the filters', async () => {
+      await setup();
+      await openFilters();
+      await setPlayers('5');
+
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      serveButton().click();
+      await settle(fixture);
+
+      expect(query(fixture, 'h2').textContent).toContain('Catan'); // not a match for 5 players
+      expect(text(fixture)).toContain("Tonight's pick");
+      expect(text(fixture)).not.toContain('from your matches');
+    });
   });
 
   it('shows the feature chips', async () => {

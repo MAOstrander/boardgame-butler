@@ -92,7 +92,8 @@ export class GameStore {
   }
 
   private seed() {
-    this.http.get<RawGame[]>('/games.json').subscribe({
+    // Relative so it resolves against <base href> when hosted under a sub-path.
+    this.http.get<RawGame[]>('games.json').subscribe({
       next: games => {
         this.commit(assignIds(games));
         this._ready.set(true);

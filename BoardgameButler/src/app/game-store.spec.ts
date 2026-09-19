@@ -27,7 +27,7 @@ describe('GameStore', () => {
       expect(store.ready()).toBe(false);
       expect(store.games()).toEqual([]);
 
-      http.expectOne('/games.json').flush(SAMPLE_GAMES);
+      http.expectOne('games.json').flush(SAMPLE_GAMES);
 
       expect(store.ready()).toBe(true);
       expect(store.games()).toEqual(SAMPLE_GAMES);
@@ -36,7 +36,7 @@ describe('GameStore', () => {
 
     it('reports an error but still becomes ready when the seed cannot be loaded', () => {
       const store = TestBed.inject(GameStore);
-      http.expectOne('/games.json').flush('nope', { status: 500, statusText: 'Server Error' });
+      http.expectOne('games.json').flush('nope', { status: 500, statusText: 'Server Error' });
 
       expect(store.ready()).toBe(true);
       expect(store.games()).toEqual([]);
@@ -46,14 +46,14 @@ describe('GameStore', () => {
     it('re-seeds when the saved value is corrupt', () => {
       localStorage.setItem(STORAGE_KEY, '{ not json');
       const store = TestBed.inject(GameStore);
-      http.expectOne('/games.json').flush(SAMPLE_GAMES);
+      http.expectOne('games.json').flush(SAMPLE_GAMES);
       expect(store.games()).toEqual(SAMPLE_GAMES);
     });
 
     it('re-seeds when the saved value is not an array', () => {
       localStorage.setItem(STORAGE_KEY, '{"title":"Catan"}');
       const store = TestBed.inject(GameStore);
-      http.expectOne('/games.json').flush(SAMPLE_GAMES);
+      http.expectOne('games.json').flush(SAMPLE_GAMES);
       expect(store.games()).toEqual(SAMPLE_GAMES);
     });
   });
@@ -63,7 +63,7 @@ describe('GameStore', () => {
 
     it('assigns ids to seed data that has none', () => {
       const store = TestBed.inject(GameStore);
-      http.expectOne('/games.json').flush([noId, { ...noId, title: 'Other' }]);
+      http.expectOne('games.json').flush([noId, { ...noId, title: 'Other' }]);
 
       const ids = store.games().map(g => g.id);
       expect(ids.every(id => typeof id === 'string' && id.length > 0)).toBe(true);
@@ -74,7 +74,7 @@ describe('GameStore', () => {
     it('assigns ids to a saved collection from before ids existed, and re-saves it', () => {
       localStorage.setItem(STORAGE_KEY, JSON.stringify([noId]));
       const store = TestBed.inject(GameStore);
-      http.expectNone('/games.json');
+      http.expectNone('games.json');
 
       expect(store.games()[0].id).toEqual(expect.any(String));
       expect(savedGames()![0].id).toBe(store.games()[0].id);
@@ -104,7 +104,7 @@ describe('GameStore', () => {
 
     it('loads from localStorage without touching the network', () => {
       const store = TestBed.inject(GameStore);
-      http.expectNone('/games.json');
+      http.expectNone('games.json');
       expect(store.ready()).toBe(true);
       expect(store.games()).toEqual(SAMPLE_GAMES);
     });

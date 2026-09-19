@@ -45,7 +45,7 @@ describe('Collection', () => {
     expect(text(fixture)).toContain('Loading...');
     expect(fixture.nativeElement.querySelector('table')).toBeNull();
 
-    http.expectOne('/games.json').flush(SAMPLE_GAMES);
+    http.expectOne('games.json').flush(SAMPLE_GAMES);
     await settle(fixture);
     expect(text(fixture)).not.toContain('Loading...');
     expect(queryAll(fixture, 'tbody tr').length).toBe(4);
@@ -83,7 +83,7 @@ describe('Collection', () => {
 
   it('shows an error when the starter collection cannot be loaded', async () => {
     await load(null);
-    http.expectOne('/games.json').flush('nope', { status: 500, statusText: 'Server Error' });
+    http.expectOne('games.json').flush('nope', { status: 500, statusText: 'Server Error' });
     await settle(fixture);
     expect(text(fixture)).toContain('Could not load the starter collection.');
     expect(fixture.nativeElement.querySelector('table')).toBeNull();

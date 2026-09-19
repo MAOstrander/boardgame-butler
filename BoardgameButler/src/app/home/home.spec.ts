@@ -38,7 +38,7 @@ describe('Home', () => {
     expect(text(fixture)).toContain('Loading game library...');
     expect(serveButton().disabled).toBe(true);
 
-    http.expectOne('/games.json').flush(SAMPLE_GAMES);
+    http.expectOne('games.json').flush(SAMPLE_GAMES);
     await settle(fixture);
 
     expect(text(fixture)).not.toContain('Loading game library...');
@@ -47,7 +47,7 @@ describe('Home', () => {
 
   it('is ready immediately from the saved collection', async () => {
     await setup();
-    http.expectNone('/games.json');
+    http.expectNone('games.json');
     expect(text(fixture)).not.toContain('Loading game library...');
     expect(serveButton().disabled).toBe(false);
   });

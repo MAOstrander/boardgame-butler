@@ -39,6 +39,9 @@ Two facts drive everything below:
 | PC, prod build on `localhost` | Part 2 | ✓ | ✓ |
 | Phone, LAN over HTTP | Part 3 | ✗ (iOS "Add to Home Screen" still works as a shortcut) | ✗ |
 | Phone, LAN over HTTPS | Part 4 | ✓ | ✓ |
+| **Phone, deployed site** | none — open https://mathewostrander.com/boardgame-butler/ | ✓ | ✓ |
+
+> **Shortcut:** since the app is deployed to GitHub Pages over real HTTPS, testing install and offline behaviour on a phone no longer needs the LAN certificate setup in Part 4 — just open the deployed URL. Part 4 is still the way to test a change that hasn't been pushed yet.
 
 ---
 
@@ -260,6 +263,8 @@ Quickest way to try the UI on a real phone. Everything works except install-as-a
 ---
 
 ## Part 4 — Phone over the LAN, HTTPS (full install & offline)
+
+Only needed for **unreleased** changes; for anything already on `main`, open the deployed URL on the phone instead and skip to the Install/Offline checks below.
 
 The service worker needs a trusted HTTPS origin. [mkcert](https://github.com/FiloSottile/mkcert) makes a locally-trusted certificate authority; you install its root on the phone once.
 

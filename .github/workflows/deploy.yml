@@ -1,0 +1,67 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Let a newer push supersede an in-flight deploy, but never cancel one halfway.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: BoardgameButler
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: BoardgameButler/package-lock.json
+
+      - run: npm ci
+
+      - name: Test
+        run: npm test
+
+      # The app is served from https://mathewostrander.com/boardgame-butler/, so the
+      # base href has to match or every asset request goes to the domain root.
+      - name: Build
+        run: npx ng build --base-href /boardgame-butler/
+
+      # GitHub Pages has no rewrite rules, so a deep link or refresh on
+      # /boardgame-butler/collection would 404. Serving index.html for unknown
+      # paths lets the router take over. (The service worker handles this itself
+      # once the app is installed; this covers first visits.)
+      - name: Add SPA fallback
+        run: cp dist/BoardgameButler/browser/index.html dist/BoardgameButler/browser/404.html
+
+      # Stop Pages running the output through Jekyll.
+      - name: Disable Jekyll
+        run: touch dist/BoardgameButler/browser/.nojekyll
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          # Not affected by `defaults.run.working-directory`, so spell out the full path.
+          path: BoardgameButler/dist/BoardgameButler/browser
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

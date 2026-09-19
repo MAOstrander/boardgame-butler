@@ -556,10 +556,49 @@ npm run build      # production build → dist/BoardgameButler/browser
 npm test           # vitest
 ```
 
-The production build is a folder of static files. Host it on anything that serves static content over HTTPS (GitHub Pages, Netlify, Cloudflare Pages, an S3 bucket, nginx…). Two things to configure on the host:
+The production build is a folder of static files, hosted on GitHub Pages at:
 
-- **SPA fallback:** unknown paths like `/collection` must serve `index.html` so deep links and refreshes work. Most static hosts have a setting for this; on GitHub Pages the usual trick is copying `index.html` to `404.html`.
-- **Base path:** if the app is served from a sub-path (e.g. `https://user.github.io/boardgame-butler/`), build with `ng build --base-href /boardgame-butler/`.
+**https://mathewostrander.com/boardgame-butler/**
+
+### How the deploy works
+
+`.github/workflows/deploy.yml` runs on every push to `main` (and on demand via *Actions → Deploy to GitHub Pages → Run workflow*). It installs dependencies, runs the test suite, builds, and publishes `BoardgameButler/dist/BoardgameButler/browser` to Pages. A failing test fails the deploy.
+
+Three details the build needs to work under a sub-path:
+
+| Step | Why |
+|---|---|
+| `ng build --base-href /boardgame-butler/` | Rewrites `<base href>` so every relative asset request lands under the sub-path instead of the domain root |
+| `cp index.html 404.html` | Pages has no rewrite rules, so a deep link or refresh on `/boardgame-butler/collection` would 404. Serving `index.html` for unknown paths hands control to the router. (The service worker does this itself once installed; this covers first visits.) |
+| `touch .nojekyll` | Stops Pages running the output through Jekyll |
+
+**Asset paths must stay relative.** The seed fetch (`games.json` in `GameStore`) and the background image in `home.html` are deliberately written without a leading slash so they resolve against `<base href>`. An absolute `/games.json` works at the domain root and breaks under the sub-path — the same applies to anything added later.
+
+**Why this URL needs no DNS.** `MAOstrander/MAOstrander.github.io` is a *user* site with a custom domain (`CNAME` = `mathewostrander.com`), and GitHub serves every project site on the account under that domain at `/<repo-name>/`. Renaming the repo changes the path; moving to a subdomain instead would need a `CNAME` DNS record and a custom domain on this repo.
+
+### One-time repository setup
+
+**Settings → Pages → Build and deployment → Source: GitHub Actions.** Without this the deploy job fails — Pages defaults to serving a branch.
+
+### Building for the sub-path locally
+
+```bash
+ng build --base-href /boardgame-butler/
+```
+
+On Windows **Git Bash** this needs `MSYS_NO_PATHCONV=1` in front, or the shell rewrites the argument into a Windows path and the base href comes out as `C:/Program Files/Git/boardgame-butler/`. PowerShell and CI are unaffected.
+
+To check the result the way Pages serves it, put the build in a folder of that name and serve the parent:
+
+```bash
+mkdir -p /tmp/pagesroot/boardgame-butler
+cp -r dist/BoardgameButler/browser/. /tmp/pagesroot/boardgame-butler/
+npx serve -s /tmp/pagesroot -l 4455    # then open /boardgame-butler/
+```
+
+### Hosting elsewhere
+
+Any static host works — the same three concerns apply: a matching base href, an `index.html` fallback for unknown paths, and HTTPS (which the service worker requires).
 
 ### Tests
 

@@ -6,14 +6,28 @@
         <a routerLink="/" class="text-amber-400 hover:text-amber-300 text-sm font-medium transition-colors">
           &larr; Back to Butler
         </a>
+        <a routerLink="/collection" class="text-gray-500 hover:text-amber-400 text-sm transition-colors">
+          View collection
+        </a>
         <a routerLink="/manage" class="text-gray-500 hover:text-amber-400 text-sm transition-colors">
           Manage collection
         </a>
       </div>
-      <h1 class="mt-4 text-3xl font-bold text-white tracking-tight">Add a Game</h1>
-      <p class="mt-1 text-gray-400">Add a game to your collection.</p>
+      @if (editing()) {
+        <h1 class="mt-4 text-3xl font-bold text-white tracking-tight">Edit Game</h1>
+        <p class="mt-1 text-gray-400">Update the details for {{ game()?.title ?? 'this game' }}.</p>
+      } @else {
+        <h1 class="mt-4 text-3xl font-bold text-white tracking-tight">Add a Game</h1>
+        <p class="mt-1 text-gray-400">Add a game to your collection.</p>
+      }
     </div>
 
+    @if (notFound()) {
+      <div class="p-6 rounded-2xl bg-gray-900 border border-gray-800 text-center">
+        <p class="text-gray-400 mb-4">That game isn't in your collection any more.</p>
+        <a routerLink="/collection" class="text-amber-400 hover:text-amber-300 font-medium transition-colors">Back to your collection</a>
+      </div>
+    } @else {
     <form [formGroup]="form" (ngSubmit)="submit()" class="flex flex-col gap-5">
 
       <div class="flex flex-col gap-1.5">
@@ -27,6 +41,9 @@
         />
         @if (form.controls.title.touched && form.controls.title.errors?.['required']) {
           <p class="text-red-400 text-xs">Title is required.</p>
+        }
+        @if (form.controls.title.errors?.['duplicate']) {
+          <p class="text-red-400 text-xs">You already have a game called "{{ form.controls.title.value.trim() }}".</p>
         }
       </div>
 
@@ -103,13 +120,57 @@
 
       <button
         type="submit"
-        [disabled]="form.invalid || submitting()"
+        [disabled]="form.invalid"
         class="mt-2 px-6 py-3 bg-amber-500 hover:bg-amber-400 active:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-base rounded-xl shadow-lg transition-colors duration-200 cursor-pointer"
       >
-        {{ submitting() ? 'Saving...' : 'Add to Collection' }}
+        {{ editing() ? 'Save Changes' : 'Add to Collection' }}
       </button>
 
+      @if (editing()) {
+        <a routerLink="/collection" class="text-center text-sm text-gray-500 hover:text-amber-400 transition-colors">Cancel</a>
+      }
+
     </form>
+
+    @if (editing() && game()) {
+      <section aria-label="Delete game" class="mt-10 pt-6 border-t border-gray-800">
+        @if (!confirmingDelete()) {
+          <button
+            type="button"
+            (click)="askDelete()"
+            class="text-sm text-red-400 hover:text-red-300 transition-colors cursor-pointer"
+          >
+            Delete this game
+          </button>
+        } @else {
+          <div class="p-4 rounded-xl bg-red-950/40 border border-red-800 flex flex-col gap-3">
+            <p class="text-sm text-red-200">
+              Remove <span class="font-semibold text-white">{{ game()!.title }}</span> from your collection? This can't be undone.
+              @if (playCount() > 0) {
+                <span class="block mt-1 text-red-200/80">Its {{ playCount() }} logged play{{ playCount() === 1 ? '' : 's' }} will stay in your history.</span>
+              }
+            </p>
+            <div class="flex gap-3">
+              <button
+                type="button"
+                (click)="confirmDelete()"
+                class="px-4 py-2 bg-red-600 hover:bg-red-500 active:bg-red-700 text-white text-sm font-semibold rounded-lg transition-colors cursor-pointer"
+              >
+                Yes, delete it
+              </button>
+              <button
+                type="button"
+                (click)="cancelDelete()"
+                class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm font-semibold rounded-lg transition-colors cursor-pointer"
+              >
+                Keep it
+              </button>
+            </div>
+          </div>
+        }
+      </section>
+    }
+    }
   </div>
 
 </div>

@@ -25,17 +25,129 @@
       }
     </div>
 
-    <button
-      (click)="serveGame()"
-      [disabled]="games().length === 0"
-      class="px-8 py-4 bg-amber-500 hover:bg-amber-400 active:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xl rounded-2xl shadow-2xl transition-colors duration-200 cursor-pointer"
-    >
-      Serve me a game!
-    </button>
+    <!-- Quick pick: whole collection -->
+    <div class="flex flex-col items-center gap-3">
+      <button
+        (click)="serveGame()"
+        [disabled]="games().length === 0"
+        class="px-8 py-4 bg-amber-500 hover:bg-amber-400 active:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xl rounded-2xl shadow-2xl transition-colors duration-200 cursor-pointer"
+      >
+        Serve me a game!
+      </button>
+      <button
+        type="button"
+        (click)="toggleFilters()"
+        [disabled]="games().length === 0"
+        class="text-sm text-white/60 hover:text-amber-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+        [attr.aria-expanded]="filtersOpen()"
+      >
+        {{ filtersOpen() ? '▴ Hide filters' : '▾ Narrow it down' }}
+      </button>
+    </div>
+
+    <!-- Quick pick: filtered -->
+    @if (filtersOpen()) {
+      <section
+        aria-label="Filters"
+        class="w-full max-w-md p-5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 text-white text-left flex flex-col gap-4"
+      >
+        <div class="grid grid-cols-2 gap-4">
+          <label class="flex flex-col gap-1.5 text-sm">
+            <span class="text-white/70">Players tonight</span>
+            <input
+              id="filter-players"
+              type="number"
+              min="1"
+              placeholder="Any"
+              [value]="filters().players ?? ''"
+              (input)="setPlayers($event)"
+              class="px-3 py-2 rounded-lg bg-black/30 border border-white/20 text-white placeholder-white/40 focus:outline-none focus:border-amber-400 transition-colors"
+            />
+          </label>
+
+          <label class="flex flex-col gap-1.5 text-sm">
+            <span class="text-white/70">Time available</span>
+            <select
+              id="filter-time"
+              [value]="filters().maxMinutes ?? ''"
+              (change)="setMaxMinutes($event)"
+              class="px-3 py-2 rounded-lg bg-black/30 border border-white/20 text-white focus:outline-none focus:border-amber-400 transition-colors"
+            >
+              <option value="">Any</option>
+              @for (minutes of timeOptions; track minutes) {
+                <option [value]="minutes">Up to {{ minutes }} min</option>
+              }
+            </select>
+          </label>
+        </div>
+
+        <div class="flex flex-col gap-1.5 text-sm">
+          <span class="text-white/70">Complexity</span>
+          <div class="flex gap-2" role="group" aria-label="Complexity">
+            @for (complexity of complexityOptions; track complexity) {
+              <button
+                type="button"
+                (click)="toggleComplexity(complexity)"
+                [attr.aria-pressed]="isComplexitySelected(complexity)"
+                class="flex-1 px-3 py-2 rounded-lg border text-sm font-medium transition-colors cursor-pointer"
+                [class]="isComplexitySelected(complexity)
+                  ? 'bg-amber-500 border-amber-400 text-white'
+                  : 'bg-black/30 border-white/20 text-white/80 hover:border-amber-400'"
+              >
+                {{ complexity }}
+              </button>
+            }
+          </div>
+        </div>
+
+        <label class="flex flex-col gap-1.5 text-sm">
+          <span class="text-white/70">Minimum rating</span>
+          <select
+            id="filter-rating"
+            [value]="filters().minRating ?? ''"
+            (change)="setMinRating($event)"
+            class="px-3 py-2 rounded-lg bg-black/30 border border-white/20 text-white focus:outline-none focus:border-amber-400 transition-colors"
+          >
+            <option value="">Any</option>
+            @for (rating of ratingOptions; track rating) {
+              <option [value]="rating">{{ rating }}+ / 10</option>
+            }
+          </select>
+        </label>
+
+        <div class="flex items-center justify-between gap-3 pt-1 border-t border-white/10">
+          <p class="text-sm text-white/70" aria-live="polite">
+            @if (!filtersActive()) {
+              No filters set — all {{ games().length }} games match
+            } @else if (matches().length === 0) {
+              No games match these filters
+            } @else {
+              <span class="text-amber-400 font-semibold">{{ matches().length }}</span>
+              of {{ games().length }} games match
+            }
+          </p>
+          @if (filtersActive()) {
+            <button type="button" (click)="clearFilters()" class="text-xs text-white/60 hover:text-amber-400 transition-colors cursor-pointer">
+              Clear
+            </button>
+          }
+        </div>
+
+        <button
+          (click)="serveMatch()"
+          [disabled]="matches().length === 0"
+          class="px-6 py-3 bg-amber-500 hover:bg-amber-400 active:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-lg rounded-xl shadow-lg transition-colors duration-200 cursor-pointer"
+        >
+          Serve me a match!
+        </button>
+      </section>
+    }
 
     @if (selectedGame(); as game) {
       <div class="p-6 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 text-white max-w-sm w-full">
-        <p class="text-xs uppercase tracking-widest text-amber-400 font-semibold mb-1">Tonight's pick</p>
+        <p class="text-xs uppercase tracking-widest text-amber-400 font-semibold mb-1">
+          {{ pickedFromMatches() ? 'Tonight\'s pick · from your matches' : 'Tonight\'s pick' }}
+        </p>
         <h2 class="text-3xl font-bold mb-4">{{ game.title }}</h2>
         <div class="flex flex-wrap gap-2 justify-center">
           <span class="px-3 py-1 rounded-full bg-white/20 text-sm">{{ game.players }} players</span>
@@ -45,19 +157,43 @@
             <span class="px-3 py-1 rounded-full bg-white/20 text-sm">{{ game.rating }}/10</span>
           }
         </div>
+        <a
+          routerLink="/log-play"
+          [queryParams]="{ game: game.id }"
+          class="mt-5 inline-block px-4 py-2 rounded-xl bg-white/15 hover:bg-amber-500 border border-white/20 text-sm font-semibold transition-colors"
+        >
+          We played this →
+        </a>
       </div>
     }
 
-    @if (games().length === 0) {
+    @if (!ready()) {
       <p class="text-white/40 text-sm">Loading game library...</p>
+    } @else if (games().length === 0) {
+      <p class="text-white/40 text-sm">Your collection is empty — add a game to get started.</p>
     }
 
-    <div class="flex gap-6 mt-4">
+    <div class="flex flex-wrap justify-center gap-x-6 gap-y-2 mt-4">
+      <a routerLink="/collection" class="text-white/50 hover:text-amber-400 text-sm transition-colors">
+        &#x1F4DA; View collection
+      </a>
       <a routerLink="/add-game" class="text-white/50 hover:text-amber-400 text-sm transition-colors">
         + Add a game
       </a>
       <a routerLink="/manage" class="text-white/50 hover:text-amber-400 text-sm transition-colors">
         &#x2699; Manage collection
+      </a>
+      <a routerLink="/tools" class="text-white/50 hover:text-amber-400 text-sm transition-colors">
+        &#x1F3B2; Table tools
+      </a>
+      <a routerLink="/players" class="text-white/50 hover:text-amber-400 text-sm transition-colors">
+        &#x1F465; Players
+      </a>
+      <a routerLink="/history" class="text-white/50 hover:text-amber-400 text-sm transition-colors">
+        &#x1F4D6; History
+      </a>
+      <a routerLink="/stats" class="text-white/50 hover:text-amber-400 text-sm transition-colors">
+        &#x1F4CA; Stats
       </a>
     </div>
 

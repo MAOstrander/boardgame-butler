@@ -1,0 +1,119 @@
+<div class="min-h-screen bg-gray-950 flex flex-col items-center px-4 py-12">
+  <div class="w-full max-w-lg">
+
+    <div class="mb-8">
+      <div class="flex items-center gap-4">
+        <a routerLink="/" class="text-amber-400 hover:text-amber-300 text-sm font-medium transition-colors">
+          &larr; Back to Butler
+        </a>
+        <a routerLink="/collection" class="text-gray-500 hover:text-amber-400 text-sm transition-colors">
+          View collection
+        </a>
+        <a routerLink="/manage" class="text-gray-500 hover:text-amber-400 text-sm transition-colors">
+          Manage collection
+        </a>
+      </div>
+      <h1 class="mt-4 text-3xl font-bold text-white tracking-tight">Players</h1>
+      <p class="mt-1 text-gray-400">The people you play with. Play statistics will be grouped by these names.</p>
+    </div>
+
+    @if (error()) {
+      <p class="mb-6 text-red-400 text-sm bg-red-950/50 border border-red-800 rounded-lg px-4 py-3">{{ error() }}</p>
+    }
+
+    <!-- Add -->
+    <form (submit)="$event.preventDefault(); add()" class="mb-6 flex flex-col gap-1.5">
+      <label for="new-player" class="text-sm font-medium text-gray-300">Add a player</label>
+      <div class="flex gap-2">
+        <input
+          id="new-player"
+          type="text"
+          placeholder="e.g. Sam"
+          autocomplete="off"
+          [value]="newName()"
+          (input)="onNewName($event)"
+          class="flex-1 px-4 py-2.5 rounded-lg bg-gray-800 border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 transition-colors"
+        />
+        <button
+          type="submit"
+          [disabled]="!newName().trim() || addError()"
+          class="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 active:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl shadow transition-colors duration-200 cursor-pointer"
+        >
+          Add
+        </button>
+      </div>
+      @if (addError(); as message) {
+        <p class="text-red-400 text-xs">{{ message }}</p>
+      }
+    </form>
+
+    <!-- List -->
+    @if (players().length === 0) {
+      <div class="p-10 rounded-2xl bg-gray-900 border border-gray-800 text-center">
+        <p class="text-gray-400">No players yet. Add the people you usually play with.</p>
+      </div>
+    } @else {
+      <p class="text-sm text-gray-500 mb-2">{{ players().length }} player{{ players().length === 1 ? '' : 's' }}</p>
+      <ul class="rounded-2xl bg-gray-900 border border-gray-800 divide-y divide-gray-800">
+        @for (player of players(); track player.id) {
+          <li class="px-4 py-3 text-sm">
+            @if (editingId() === player.id) {
+              <form (submit)="$event.preventDefault(); saveEdit()" class="flex flex-col gap-1.5">
+                <div class="flex gap-2">
+                  <input
+                    type="text"
+                    [attr.aria-label]="'New name for ' + player.name"
+                    autocomplete="off"
+                    [value]="editName()"
+                    (input)="onEditName($event)"
+                    class="flex-1 px-3 py-1.5 rounded-lg bg-gray-800 border border-gray-700 text-white focus:outline-none focus:border-amber-500 transition-colors"
+                  />
+                  <button type="submit" [disabled]="!editName().trim() || editError()"
+                    class="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-lg transition-colors cursor-pointer">
+                    Save
+                  </button>
+                  <button type="button" (click)="cancelEdit()"
+                    class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-semibold rounded-lg transition-colors cursor-pointer">
+                    Cancel
+                  </button>
+                </div>
+                @if (editError(); as message) {
+                  <p class="text-red-400 text-xs">{{ message }}</p>
+                }
+              </form>
+            } @else if (confirmingId() === player.id) {
+              <div class="flex flex-wrap items-center justify-between gap-3">
+                <span class="text-red-200">Remove <span class="font-semibold text-white">{{ player.name }}</span>?</span>
+                <div class="flex gap-2">
+                  <button type="button" (click)="confirmDelete()"
+                    class="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white text-xs font-semibold rounded-lg transition-colors cursor-pointer">
+                    Yes, remove
+                  </button>
+                  <button type="button" (click)="cancelDelete()"
+                    class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-semibold rounded-lg transition-colors cursor-pointer">
+                    Keep
+                  </button>
+                </div>
+              </div>
+            } @else {
+              <div class="flex items-center justify-between gap-3">
+                <span class="text-white font-medium" data-testid="player-name">{{ player.name }}</span>
+                <div class="flex gap-3">
+                  <button type="button" (click)="startEdit(player.id, player.name)" [attr.aria-label]="'Rename ' + player.name"
+                    class="text-xs text-gray-500 hover:text-amber-400 font-medium transition-colors cursor-pointer">
+                    Rename
+                  </button>
+                  <button type="button" (click)="askDelete(player.id)" [attr.aria-label]="'Remove ' + player.name"
+                    class="text-xs text-gray-500 hover:text-red-400 font-medium transition-colors cursor-pointer">
+                    Remove
+                  </button>
+                </div>
+              </div>
+            }
+          </li>
+        }
+      </ul>
+    }
+
+  </div>
+</div>

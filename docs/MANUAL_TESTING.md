@@ -32,6 +32,7 @@ Two facts drive everything below:
 
 1. **The collection lives in the browser's `localStorage`, keyed by origin.** `http://localhost:4200`, `http://localhost:8080` and `http://192.168.1.50:8080` are three different origins with three independent collections. Don't be surprised when switching ports "loses" your games — see [Resetting](#resetting-between-test-runs).
 2. **The service worker (install + offline) only runs in a production build on a secure origin.** `ng serve` never registers it. `localhost` counts as secure; a LAN IP over plain HTTP does not.
+3. **A fresh device starts with sample data** — 11 games, 5 players and 15 plays, seeded from `public/*.json` (see *Sample data* in FEATURES.md). The steps below assume it. **To test the empty states**, don't clear site data (that re-seeds): instead use Manage → import a backup whose sections are `[]`, or delete the entries through the UI — an empty list is remembered and won't re-seed.
 
 | Scenario | Command | Install prompt | Offline |
 |---|---|---|---|
@@ -59,7 +60,7 @@ Open http://localhost:4200. Work through the checklist in order — later steps 
 - [ ] First ever load: *"Loading game library..."* appears briefly, then disappears. **Serve me a game!** becomes enabled.
 - [ ] Click **Serve me a game!** — a *Tonight's pick* card appears with title, `N players`, `N min`, and complexity.
 - [ ] Click again several times — the pick changes (it's random; repeats are allowed).
-- [ ] Seed games have no rating, so no `/10` badge shows yet.
+- [ ] Most seed games are rated, so the card usually shows an `/10` badge; Gloomhaven and Scythe are unrated and show none.
 - [ ] Three links at the bottom: **View collection**, **+ Add a game**, **Manage collection**.
 
 ### Home — filtered pick
@@ -68,7 +69,7 @@ Open http://localhost:4200. Work through the checklist in order — later steps 
 - [ ] Players tonight `5` → *N of 11 games match* drops to only games whose range includes 5 (e.g. Terraforming Mars 1-5, Ticket to Ride 2-5, Wingspan 1-5).
 - [ ] Time available *Up to 60 min* → *3 of 11 games match* — only games whose **longest** time is ≤ 60 (Azul, 7 Wonders, Codenames). Catan (60-120) and Ticket to Ride (45-90) must *not* match.
 - [ ] Click **Hard** → count changes; click **Easy** too → count grows (either complexity matches); click **Hard** again to deselect.
-- [ ] Minimum rating *5+* → *No games match these filters* (seed games are unrated) and **Serve me a match!** is disabled.
+- [ ] Minimum rating *9+* → only the 9-rated games match (Terraforming Mars, Wingspan, Codenames); the two unrated games are excluded. Set it with Players `7` → *No games match these filters* and **Serve me a match!** is disabled.
 - [ ] Click **Clear** → back to *all 11 games match*, inputs reset, **Clear** link disappears.
 - [ ] Set Players `2` and Time *Up to 45 min* → *3 of 11 games match* (Azul, 7 Wonders, Codenames). Click **Serve me a match!** repeatedly → only those three are ever served; the card says *Tonight's pick · from your matches*.
 - [ ] With those filters still set, click the big **Serve me a game!** → any game from the whole collection can come up (e.g. Catan) and the card just says *Tonight's pick*.
@@ -80,7 +81,7 @@ Open http://localhost:4200. Work through the checklist in order — later steps 
 - [ ] **View collection** → table of the 11 starter games, subtitle *11 games*.
 - [ ] Rows are sorted by title A→Z; the **Title** header is amber with ▲.
 - [ ] Complexity pills are green (Easy), amber (Medium), red (Hard).
-- [ ] Rating column shows `—` for every row (starter games are unrated).
+- [ ] Rating column shows a value for most rows and `—` for Gloomhaven and Scythe.
 - [ ] Click **Title** → order reverses, indicator becomes ▼.
 - [ ] Click **Complexity** → Easy games first; click again → Hard first.
 - [ ] Click **Players** → `1-x` games first. Click **Minutes** → shortest first.
@@ -98,14 +99,14 @@ Open http://localhost:4200. Work through the checklist in order — later steps 
 - [ ] Fill in: Title `Cascadia`, Players `1-4`, Duration `30-45`, Complexity `Easy`, Rating `8`. Button enables.
 - [ ] Click **Add to Collection** → returns to Home.
 - [ ] **View collection** → *12 games*; Cascadia is there with rating `8/10`.
-- [ ] Click **Rating** header → Cascadia is first (only rated game); unrated games follow. Click again → Cascadia still first, unrated still last.
+- [ ] Click **Rating** header → highest first, and the two unrated games are last. Click again → lowest first, unrated still last.
 - [ ] Home → **Serve me a game!** until Cascadia comes up → card shows the `8/10` badge.
 - [ ] **Persistence:** press F5. Collection still has 12 games. Close the tab, reopen — still 12.
 
 ### Edit a Game
 
-- [ ] **View collection** → click **Edit** on Catan → *Edit Game* page, subtitle *Update the details for Catan.*, every field pre-filled (3-4, 60-120, Medium; rating slider unset because the seed is unrated), button reads **Save Changes**, disabled until a rating is chosen.
-- [ ] Set rating `6`, change Duration to `75-100`, Complexity to `Hard` → **Save Changes** → back on the collection; Catan's row shows `75-100`, a red *Hard* pill and `6/10`. Row count is still 12.
+- [ ] **View collection** → click **Edit** on Catan → *Edit Game* page, subtitle *Update the details for Catan.*, every field pre-filled (3-4, 60-120, Medium, rating 7), button reads **Save Changes**. (Editing **Gloomhaven** instead shows the unrated case: the slider is unset and **Save Changes** stays disabled until a rating is chosen.)
+- [ ] Change rating to `6`, Duration to `75-100`, Complexity to `Hard` → **Save Changes** → back on the collection; Catan's row shows `75-100`, a red *Hard* pill and `6/10`. Row count is still 12.
 - [ ] Press F5 → the changes survived.
 - [ ] **Edit** Catan again → change the title to `azul` → *You already have a game called "azul".*, button disabled. Change it back to `Catan` → error clears. Change it to `Catan (base)` → **Save Changes** → the row is renamed; sort by Title still works.
 - [ ] **Edit** any game → click **Cancel** → back on the collection with nothing changed.
@@ -117,36 +118,37 @@ Open http://localhost:4200. Work through the checklist in order — later steps 
 
 ### Players
 
-- [ ] Home → **👥 Players** → empty state *No players yet.*
-- [ ] Type `  Sam ` → **Add** → row *Sam* (trimmed), box cleared, *1 player*. Add `Alex` and `Jo` with Enter → list reads Alex, Jo, Sam (alphabetical), *3 players*.
+- [ ] Home → **👥 Players** → the five seeded players, alphabetical: Alex, Jo, Morgan, Riley, Sam — *5 players*.
+- [ ] Type `  Casey ` → **Add** → row *Casey* (trimmed), box cleared, *6 players*. Enter also submits.
 - [ ] Type `sam` → red *You already have a player called "sam".*, **Add** disabled. Clear it.
 - [ ] **Rename** on Jo → inline box pre-filled. Type `alex` → duplicate error, **Save** disabled. Type `Jo` → allowed. Type `Joanna` → **Save** → list shows Joanna. **Rename** again → **Cancel** → unchanged.
-- [ ] **Remove** on Alex → *Remove Alex?* → **Keep** → still there. **Remove** → **Yes, remove** → gone, *2 players*.
+- [ ] **Remove** on Casey → *Remove Casey?* → **Keep** → still there. **Remove** → **Yes, remove** → gone, *5 players*.
 - [ ] While *Remove Sam?* is showing, click **Rename** on Joanna → the confirmation closes and the editor opens.
 - [ ] F5 → players persist.
 
 ### Play History
 
+- [ ] Home → **📖 History** → the 15 seeded plays, newest first, the most recent a couple of days ago. Cards show winners with 🏆, other players, durations, fun ratings and notes; the Codenames plays show an *8 players* / *6 players* chip, and the Pandemic loss shows no 🏆.
 - [ ] Home → **Serve me a game!** → the pick card has **We played this →**. Click it → *Log a Play* with that game pre-selected and today's date.
 - [ ] **Who played:** chips for every player; tap Sam and Alex → a **Who won** row appears with just those two. Tap Alex there → 🏆 Alex. Un-tap Alex in *Who played* → the winners row loses Alex (or disappears if nobody's left).
 - [ ] **How many played** shows placeholder `2` and *Will be saved as 2 — the players picked above.* Type `1` → *You picked 2 players above.* and **Log Play** is disabled; type `4` (two friends not in your list) → allowed. Leave it at 4.
 - [ ] Enter 75 minutes, drag *How fun* to 8 (label reads *8 / 10*; **clear** resets to *not rated*), type a note → **Log Play** → *Play History* shows one card: date, game, 🏆 winner, others, *4 players*, *75 min*, *fun 8/10*, note. (A play whose head-count equals the named players shows no *N players* chip.)
 - [ ] Table Tools → start the **Stopwatch**, wait a minute, pause. Back to **+ Log a play** → a **Use stopwatch (1 min)** button fills the duration.
 - [ ] Collection → **Log play** on a row → that game is pre-selected. Log it with no players and no extras → the card shows *no players recorded* and nothing else.
-- [ ] Log a third play dated yesterday → History lists newest date first; two plays on the same date show the most recently logged first.
+- [ ] Log another play dated yesterday → it appears above the seeded ones; two plays on the same date show the most recently logged first.
 - [ ] **Edit** a play → everything pre-filled, **Save Changes** → card updates. **Delete** → *Delete this play of …?* → **Keep** keeps; **Yes, delete** removes and the count drops.
 - [ ] **Snapshots:** Players → **Remove** Alex. History still shows Alex's name on the old play. Edit that play → the chip reads *Alex (removed)* and is still selected. Collection → Edit the game you logged twice → **Delete this game** → the confirmation says *Its 2 logged plays will stay in your history.* Confirm → History still lists them; editing one offers *Catan (no longer in collection)*.
 - [ ] F5 → history persists.
 
 ### Statistics
 
-- [ ] With no plays logged (fresh device, or after deleting them all) → **📊 Stats** shows *No plays logged yet* and a **Log your first play** button.
-- [ ] After the Play History steps above → four tiles: **Plays** (with *N in the last 30 days*), **Games played** as *played / total* with *N never played*, **Hours at the table** (e.g. `2.1`), **Most played**.
-- [ ] **Games** table: played games only, most plays first; a **Players** column with the average head-count — log the same game at two different table sizes with different durations and a breakdown like *3p ×1 · 60 min, 4p ×1 · 100 min* appears under the average; a game always played at one size shows just the number; last-played date; average time with *in range* / *+N min over* (red) / *N min under* (blue) against the listed duration; average fun. Games you never recorded a duration or rating for show `—`.
-- [ ] **Never played (N)** chips below the table; click one → *Log a Play* with that game pre-selected.
-- [ ] **Players** table: plays, wins, win rate (green at 50 %+), most played with ×count, last played. A player with no plays is dimmed with dashes.
+- [ ] **📊 Stats** on a freshly seeded device → **Plays** `15` with *8 in the last 30 days*, **Games played** *7 / 11* with *4 never played*, **Hours at the table** `19`, **Most played** *Catan* (4 plays).
+- [ ] Delete every play through History → Stats shows *No plays logged yet* and a **Log your first play** button.
+- [ ] **Games** table: played games only, most plays first (Catan, Azul, then the rest). Catan's **Players** column reads `3.5` with the breakdown *3p ×2 · 75 min, 4p ×2 · 142.5 min* — the four-player games take nearly twice as long. Pandemic, always four-handed, shows just `4`. Terraforming Mars shows *215 min* with a red *+35 min over*; last-played date; average time with *in range* / *+N min over* (red) / *N min under* (blue) against the listed duration; average fun. Games you never recorded a duration or rating for show `—`.
+- [ ] **Never played (4)** chips — Arkham Horror, Gloomhaven, Scythe, Wingspan; click one → *Log a Play* with that game pre-selected.
+- [ ] **Players** table: Riley's win rate is green (56 %), the others below 50 % are not. Most-played shows a game with ×count. Add a new player and they appear dimmed with dashes.
 - [ ] Log a co-op play with two players and **no winner** → both players' *Plays* go up but *Win rate* is unchanged (the footnote explains why).
-- [ ] The game you deleted earlier still appears with *(no longer in collection)*; the removed player still appears with *(removed)*.
+- [ ] The game you deleted earlier still appears with *(no longer in collection)*; a removed player who has plays still appears with *(removed)*.
 - [ ] Log a play dated 40 days ago → **Plays** tile total goes up, *in the last 30 days* does not.
 
 ### Table Tools
@@ -162,20 +164,20 @@ Open http://localhost:4200. Work through the checklist in order — later steps 
 
 ### Manage — export
 
-- [ ] **Manage collection** → Export section says *(12 games)*, *(2 players)* and your play count.
-- [ ] Click **Download boardgame-butler.json** → browser downloads `boardgame-butler.json`. Open it: an object with `"version": 3`, `"exportedAt"`, a `"games"` array of 12 (each with an `"id"`, Cascadia last with `"rating": 8`), a `"players"` array of 2 and a `"plays"` array.
+- [ ] **Manage collection** → Export section says *(12 games)*, *(6 players)* and your play count.
+- [ ] Click **Download boardgame-butler.json** → browser downloads `boardgame-butler.json`. Open it: an object with `"version": 3`, `"exportedAt"`, a `"games"` array of 12 (each with an `"id"`, Cascadia last with `"rating": 8`), a `"players"` array and a `"plays"` array whose entries have real `"playedAt"` dates (the `daysAgo` form is seed-only).
 
 ### Manage — import
 
-- [ ] Edit the downloaded file: delete a few games, change a title, add a third player, save.
-- [ ] Click the drop-zone, choose the edited file → three ticked sections: *Replace games with N games* with a preview list, *Replace players with 3 players* with name chips, and *Merge N plays into your history — 0 new, N already here*; the drop-zone disappears.
+- [ ] Edit the downloaded file: delete a few games, change a title, add another player, save.
+- [ ] Click the drop-zone, choose the edited file → three ticked sections: *Replace games with N games* with a preview list, *Replace players with N players* with name chips, and *Merge N plays into your history — 0 new, N already here*; the drop-zone disappears.
 - [ ] Click **Cancel** → preview gone, drop-zone back, collection unchanged (check View collection).
-- [ ] Choose the file again → **Confirm Import** → green *Imported N games, 3 players, 0 new plays.*; Export section counts update.
-- [ ] **View collection** shows exactly what was in the file; **Players** shows the three from the file.
+- [ ] Choose the file again → **Confirm Import** → green *Imported N games, N players, 0 new plays.*; Export section counts update.
+- [ ] **View collection** shows exactly what was in the file; **Players** shows the ones from the file.
 - [ ] **Plays merge, never shrink:** log one more play, then import the same file again → *Merge N plays — 0 new, N already here* → Confirm → History still has the extra play. Now edit the file to delete all but one play and import → *0 new, 1 already here* → Confirm → nothing lost.
 - [ ] **Per-section apply:** choose the file, untick **Replace games** and **Merge plays**, leaving players → Confirm → *Imported 3 players.*; games and history unchanged. Untick everything → **Confirm Import** is disabled.
-- [ ] **Older format:** copy just the `"games"` array from the file into a new file (so it starts with `[`). Import it → only a games checkbox, plus *This is an older games-only file — your 3 players will be kept.* and *This file has no play history — your N logged plays will be kept.* Confirm → games replaced, players and history untouched.
-- [ ] Import a backup whose `"players"` is `[]` → *and 0 players — your current players will be removed*. Confirm → Players page is empty. Re-add a couple for later steps.
+- [ ] **Older format:** copy just the `"games"` array from the file into a new file (so it starts with `[`). Import it → only a games checkbox, plus *This is an older games-only file — your N players will be kept.* and *This file has no play history — your N logged plays will be kept.* Confirm → games replaced, players and history untouched.
+- [ ] Import a backup whose `"players"` is `[]` → *and 0 players — your current players will be removed*. Confirm → Players page is empty, **and stays empty on reload** (an empty list is remembered, not re-seeded). Re-add a couple for later steps.
 - [ ] **Duplicates in a file:** open the exported file and paste a copy of the Catan entry at the end, changing its `"rating"` to `9` and its `"title"` to `"catan"`. Choose it → summary reads *Ready to import 12 games (1 duplicate will be skipped)*, an amber note explains first-wins, and the last row is greyed out and struck through: *skipped — duplicate of Catan · differs: rating 9*. **Confirm Import** → collection has 12 games, one Catan, with its original rating.
 - [ ] Create a text file containing `{ not json` → choose it → red *Could not parse file — make sure it is valid JSON.*
 - [ ] Create a file containing `{"title":"Catan"}` → *File must contain a JSON array of games, or a backup exported by this app.*
@@ -226,8 +228,8 @@ Open http://localhost:8080 in **Chrome or Edge**.
 ### Fresh-device simulation
 
 - [ ] Application → Storage → **Clear site data** (all boxes). Reload.
-- [ ] Watch Network: a request to `games.json` fires, the 11 starter games appear, and `localStorage` now has the key `boardgame-butler.games`.
-- [ ] Go offline, clear site data again, reload → the starter games still appear, because the service worker cached `games.json`.
+- [ ] Watch Network: requests to `games.json`, `players.json` and `plays.json` fire, the sample data appears, and `localStorage` now has `boardgame-butler.games`, `.players` and `.plays`.
+- [ ] Go offline, clear site data again, reload → the samples still appear, because the service worker cached all three seed files.
 
 ### Uninstall
 
@@ -309,7 +311,7 @@ Allow Node through the firewall if prompted. On the phone open `https://192.168.
 ### Fresh-install seeding
 
 - [ ] Uninstall the app and clear the site's data in the browser (Android: Chrome → Settings → Site settings → the site → Clear & reset. iOS: Settings → Safari → Advanced → Website Data → remove the site).
-- [ ] Reinstall from the HTTPS address, then go into Airplane mode *before* opening it for the first time. Open it → the 11 starter games are there, because `games.json` was cached during install.
+- [ ] Reinstall from the HTTPS address, then go into Airplane mode *before* opening it for the first time. Open it → the 11 starter games, 5 players and 15 plays are there, because the seed files were cached during install.
 
 ---
 
@@ -339,7 +341,7 @@ Because data is per-origin, "start from scratch" means clearing that origin's st
 | iOS Safari | Settings → Safari → Advanced → Website Data → swipe to delete the address |
 | Any | In the app: Manage → import a file containing `[]` (clears the collection but not the service worker) |
 
-The next load re-seeds from `games.json`.
+The next load re-seeds from `games.json`, `players.json` and `plays.json`.
 
 To just uninstall the app but keep data: Android — long-press icon → Uninstall; iOS — long-press → Remove App; PC — ⋮ → Uninstall inside the app window.
 

@@ -1,0 +1,230 @@
+[
+  {
+    "id": "seed-play-1",
+    "gameId": "seed-azul",
+    "gameTitle": "Azul",
+    "daysAgo": 2,
+    "players": [
+      { "id": "seed-sam", "name": "Sam" },
+      { "id": "seed-jo", "name": "Jo" }
+    ],
+    "winnerIds": ["seed-sam"],
+    "durationMinutes": 35,
+    "funRating": 8
+  },
+  {
+    "id": "seed-play-2",
+    "gameId": "seed-catan",
+    "gameTitle": "Catan",
+    "daysAgo": 5,
+    "players": [
+      { "id": "seed-sam", "name": "Sam" },
+      { "id": "seed-alex", "name": "Alex" },
+      { "id": "seed-jo", "name": "Jo" }
+    ],
+    "winnerIds": ["seed-jo"],
+    "durationMinutes": 80,
+    "funRating": 7,
+    "notes": "Three players moves along nicely."
+  },
+  {
+    "id": "seed-play-3",
+    "gameId": "seed-codenames",
+    "gameTitle": "Codenames",
+    "daysAgo": 9,
+    "players": [
+      { "id": "seed-sam", "name": "Sam" },
+      { "id": "seed-alex", "name": "Alex" },
+      { "id": "seed-jo", "name": "Jo" },
+      { "id": "seed-riley", "name": "Riley" }
+    ],
+    "playerCount": 8,
+    "winnerIds": ["seed-sam", "seed-jo", "seed-riley"],
+    "durationMinutes": 30,
+    "funRating": 9,
+    "notes": "Two teams of four — a few friends joined who aren't in the player list."
+  },
+  {
+    "id": "seed-play-4",
+    "gameId": "seed-pandemic",
+    "gameTitle": "Pandemic",
+    "daysAgo": 12,
+    "players": [
+      { "id": "seed-sam", "name": "Sam" },
+      { "id": "seed-alex", "name": "Alex" },
+      { "id": "seed-riley", "name": "Riley" },
+      { "id": "seed-morgan", "name": "Morgan" }
+    ],
+    "winnerIds": [],
+    "durationMinutes": 65,
+    "funRating": 8,
+    "notes": "Lost to an outbreak in Cairo — co-op, so nobody wins."
+  },
+  {
+    "id": "seed-play-5",
+    "gameId": "seed-catan",
+    "gameTitle": "Catan",
+    "daysAgo": 16,
+    "players": [
+      { "id": "seed-sam", "name": "Sam" },
+      { "id": "seed-alex", "name": "Alex" },
+      { "id": "seed-jo", "name": "Jo" },
+      { "id": "seed-riley", "name": "Riley" }
+    ],
+    "winnerIds": ["seed-alex"],
+    "durationMinutes": 150,
+    "funRating": 6,
+    "notes": "Four players really drags this one out."
+  },
+  {
+    "id": "seed-play-6",
+    "gameId": "seed-ticket-to-ride",
+    "gameTitle": "Ticket to Ride",
+    "daysAgo": 21,
+    "players": [
+      { "id": "seed-alex", "name": "Alex" },
+      { "id": "seed-jo", "name": "Jo" },
+      { "id": "seed-morgan", "name": "Morgan" }
+    ],
+    "winnerIds": ["seed-morgan"],
+    "durationMinutes": 60,
+    "funRating": 7
+  },
+  {
+    "id": "seed-play-7",
+    "gameId": "seed-azul",
+    "gameTitle": "Azul",
+    "daysAgo": 26,
+    "players": [
+      { "id": "seed-alex", "name": "Alex" },
+      { "id": "seed-riley", "name": "Riley" }
+    ],
+    "winnerIds": ["seed-riley"],
+    "durationMinutes": 40,
+    "funRating": 8
+  },
+  {
+    "id": "seed-play-8",
+    "gameId": "seed-terraforming-mars",
+    "gameTitle": "Terraforming Mars",
+    "daysAgo": 28,
+    "players": [
+      { "id": "seed-sam", "name": "Sam" },
+      { "id": "seed-alex", "name": "Alex" },
+      { "id": "seed-jo", "name": "Jo" },
+      { "id": "seed-riley", "name": "Riley" },
+      { "id": "seed-morgan", "name": "Morgan" }
+    ],
+    "winnerIds": ["seed-sam"],
+    "durationMinutes": 215,
+    "funRating": 9,
+    "notes": "Ran well over the box time with five."
+  },
+  {
+    "id": "seed-play-9",
+    "gameId": "seed-catan",
+    "gameTitle": "Catan",
+    "daysAgo": 35,
+    "players": [
+      { "id": "seed-sam", "name": "Sam" },
+      { "id": "seed-alex", "name": "Alex" },
+      { "id": "seed-jo", "name": "Jo" }
+    ],
+    "winnerIds": ["seed-sam"],
+    "durationMinutes": 70,
+    "funRating": 8
+  },
+  {
+    "id": "seed-play-10",
+    "gameId": "seed-pandemic",
+    "gameTitle": "Pandemic",
+    "daysAgo": 44,
+    "players": [
+      { "id": "seed-sam", "name": "Sam" },
+      { "id": "seed-jo", "name": "Jo" },
+      { "id": "seed-riley", "name": "Riley" },
+      { "id": "seed-morgan", "name": "Morgan" }
+    ],
+    "winnerIds": ["seed-sam", "seed-jo", "seed-riley", "seed-morgan"],
+    "durationMinutes": 70,
+    "funRating": 9,
+    "notes": "Cured all four diseases with one card left."
+  },
+  {
+    "id": "seed-play-11",
+    "gameId": "seed-codenames",
+    "gameTitle": "Codenames",
+    "daysAgo": 58,
+    "players": [
+      { "id": "seed-alex", "name": "Alex" },
+      { "id": "seed-jo", "name": "Jo" },
+      { "id": "seed-riley", "name": "Riley" },
+      { "id": "seed-morgan", "name": "Morgan" }
+    ],
+    "playerCount": 6,
+    "winnerIds": ["seed-alex", "seed-riley"],
+    "durationMinutes": 25,
+    "funRating": 8
+  },
+  {
+    "id": "seed-play-12",
+    "gameId": "seed-azul",
+    "gameTitle": "Azul",
+    "daysAgo": 70,
+    "players": [
+      { "id": "seed-sam", "name": "Sam" },
+      { "id": "seed-alex", "name": "Alex" },
+      { "id": "seed-jo", "name": "Jo" },
+      { "id": "seed-morgan", "name": "Morgan" }
+    ],
+    "winnerIds": ["seed-jo"],
+    "durationMinutes": 55,
+    "funRating": 7
+  },
+  {
+    "id": "seed-play-13",
+    "gameId": "seed-catan",
+    "gameTitle": "Catan",
+    "daysAgo": 88,
+    "players": [
+      { "id": "seed-sam", "name": "Sam" },
+      { "id": "seed-jo", "name": "Jo" },
+      { "id": "seed-riley", "name": "Riley" },
+      { "id": "seed-morgan", "name": "Morgan" }
+    ],
+    "winnerIds": ["seed-riley"],
+    "durationMinutes": 135
+  },
+  {
+    "id": "seed-play-14",
+    "gameId": "seed-ticket-to-ride",
+    "gameTitle": "Ticket to Ride",
+    "daysAgo": 105,
+    "players": [
+      { "id": "seed-sam", "name": "Sam" },
+      { "id": "seed-alex", "name": "Alex" },
+      { "id": "seed-jo", "name": "Jo" },
+      { "id": "seed-riley", "name": "Riley" },
+      { "id": "seed-morgan", "name": "Morgan" }
+    ],
+    "winnerIds": ["seed-jo"],
+    "durationMinutes": 85,
+    "funRating": 7
+  },
+  {
+    "id": "seed-play-15",
+    "gameId": "seed-7-wonders",
+    "gameTitle": "7 Wonders",
+    "daysAgo": 140,
+    "players": [
+      { "id": "seed-sam", "name": "Sam" },
+      { "id": "seed-alex", "name": "Alex" },
+      { "id": "seed-jo", "name": "Jo" },
+      { "id": "seed-riley", "name": "Riley" },
+      { "id": "seed-morgan", "name": "Morgan" }
+    ],
+    "winnerIds": ["seed-morgan"],
+    "durationMinutes": 40,
+    "funRating": 8
+  }
+]

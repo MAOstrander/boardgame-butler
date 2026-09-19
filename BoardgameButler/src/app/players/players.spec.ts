@@ -1,5 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { Players } from './players';
 import { SAMPLE_PLAYERS, findByText, query, queryAll, savedPlayers, seedPlayers, setInputValue, settle, text } from '../../testing/helpers';
 
@@ -11,7 +13,7 @@ describe('Players', () => {
     seedPlayers(seed);
     await TestBed.configureTestingModule({
       imports: [Players],
-      providers: [provideRouter([])],
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
     }).compileComponents();
     fixture = TestBed.createComponent(Players);
     await settle(fixture);
@@ -38,6 +40,25 @@ describe('Players', () => {
     await setup([]);
     expect(text(fixture)).toContain('No players yet.');
     expect(fixture.nativeElement.querySelector('ul')).toBeNull();
+  });
+
+  it('shows a loading line instead of the empty state while seeding', async () => {
+    localStorage.clear();
+    await TestBed.configureTestingModule({
+      imports: [Players],
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+    }).compileComponents();
+    const http = TestBed.inject(HttpTestingController);
+    fixture = TestBed.createComponent(Players);
+    await settle(fixture);
+
+    expect(text(fixture)).toContain('Loading players...');
+    expect(text(fixture)).not.toContain('No players yet.');
+
+    http.expectOne('players.json').flush(SAMPLE_PLAYERS);
+    await settle(fixture);
+    expect(names()).toEqual(['Alex', 'Jo', 'Sam']);
+    http.verify();
   });
 
   describe('adding', () => {

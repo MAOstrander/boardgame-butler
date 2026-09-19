@@ -1,65 +1,84 @@
 [
   {
+    "id": "seed-catan",
     "title": "Catan",
     "players": "3-4",
     "duration": "60-120",
-    "complexity": "Medium"
+    "complexity": "Medium",
+    "rating": 7
   },
   {
+    "id": "seed-ticket-to-ride",
     "title": "Ticket to Ride",
     "players": "2-5",
     "duration": "45-90",
-    "complexity": "Easy"
+    "complexity": "Easy",
+    "rating": 7
   },
   {
+    "id": "seed-pandemic",
     "title": "Pandemic",
     "players": "2-4",
     "duration": "45-75",
-    "complexity": "Medium"
+    "complexity": "Medium",
+    "rating": 8
   },
   {
+    "id": "seed-terraforming-mars",
     "title": "Terraforming Mars",
     "players": "1-5",
     "duration": "120-180",
-    "complexity": "Hard"
+    "complexity": "Hard",
+    "rating": 9
   },
   {
+    "id": "seed-azul",
     "title": "Azul",
     "players": "2-4",
     "duration": "30-45",
-    "complexity": "Easy"
+    "complexity": "Easy",
+    "rating": 8
   },
   {
+    "id": "seed-wingspan",
     "title": "Wingspan",
     "players": "1-5",
     "duration": "40-70",
-    "complexity": "Medium"
+    "complexity": "Medium",
+    "rating": 9
   },
   {
+    "id": "seed-gloomhaven",
     "title": "Gloomhaven",
     "players": "1-4",
     "duration": "60-120",
     "complexity": "Hard"
   },
   {
+    "id": "seed-7-wonders",
     "title": "7 Wonders",
     "players": "2-7",
     "duration": "30-45",
-    "complexity": "Medium"
+    "complexity": "Medium",
+    "rating": 8
   },
   {
+    "id": "seed-codenames",
     "title": "Codenames",
     "players": "2-8",
     "duration": "15-30",
-    "complexity": "Easy"
+    "complexity": "Easy",
+    "rating": 9
   },
   {
+    "id": "seed-scythe",
     "title": "Scythe",
     "players": "1-5",
     "duration": "90-150",
     "complexity": "Hard"
   },
   {
+    "id": "seed-arkham-horror",
     "title": "Arkham Horror (2nd Edition)",
     "players": "1-8",
     "duration": "120–240 Min",

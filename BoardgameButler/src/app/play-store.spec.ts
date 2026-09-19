@@ -1,6 +1,9 @@
 import { TestBed } from '@angular/core/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { PLAYS_STORAGE_KEY, PlayStore } from './play-store';
-import { PlayDetails } from './play';
+import { PlayDetails, SeedPlay } from './play';
+import { shiftDate, todayIso } from './stats';
 import { SAMPLE_PLAYS, savedPlays, seedPlays } from '../testing/helpers';
 
 const details: PlayDetails = {
@@ -14,30 +17,96 @@ const details: PlayDetails = {
 };
 
 describe('PlayStore', () => {
-  beforeEach(() => localStorage.clear());
+  let http: HttpTestingController;
+
+  beforeEach(() => {
+    localStorage.clear();
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    });
+    http = TestBed.inject(HttpTestingController);
+  });
+
   afterEach(() => {
+    http.verify();
     localStorage.clear();
     vi.restoreAllMocks();
   });
 
-  it('starts empty when nothing is saved', () => {
-    const store = TestBed.inject(PlayStore);
-    expect(store.plays()).toEqual([]);
-    expect(store.recent()).toEqual([]);
+  describe('first run', () => {
+    const seedPlay: SeedPlay = {
+      id: 'seed-1',
+      gameId: 'g-azul',
+      gameTitle: 'Azul',
+      daysAgo: 3,
+      players: [{ id: 'p-sam', name: 'Sam' }],
+      winnerIds: ['p-sam'],
+      durationMinutes: 35,
+    };
+
+    it('seeds from plays.json, turning daysAgo into a date', () => {
+      const store = TestBed.inject(PlayStore);
+      expect(store.ready()).toBe(false);
+
+      http.expectOne('plays.json').flush([seedPlay]);
+
+      expect(store.ready()).toBe(true);
+      const { daysAgo: _drop, ...rest } = seedPlay;
+      expect(store.plays()).toEqual([{ ...rest, playedAt: shiftDate(todayIso(), -3) }]);
+      expect(savedPlays()![0].playedAt).toBe(shiftDate(todayIso(), -3));
+    });
+
+    it('treats daysAgo 0 as today and ignores a negative value', () => {
+      const store = TestBed.inject(PlayStore);
+      http.expectOne('plays.json').flush([
+        { ...seedPlay, id: 'a', daysAgo: 0 },
+        { ...seedPlay, id: 'b', daysAgo: -5 },
+      ]);
+
+      expect(store.find('a')!.playedAt).toBe(todayIso());
+      expect(store.find('b')!.playedAt).toBe(shiftDate(todayIso(), -5));
+    });
+
+    it('assigns ids to seed plays that lack them', () => {
+      const { id: _drop, ...noId } = seedPlay;
+      const store = TestBed.inject(PlayStore);
+      http.expectOne('plays.json').flush([noId]);
+      expect(store.plays()[0].id).toEqual(expect.any(String));
+    });
+
+    it('reports an error but still becomes ready when the seed cannot be loaded', () => {
+      const store = TestBed.inject(PlayStore);
+      http.expectOne('plays.json').flush('nope', { status: 500, statusText: 'Server Error' });
+
+      expect(store.ready()).toBe(true);
+      expect(store.plays()).toEqual([]);
+      expect(store.error()).toBe('Could not load the starter play history.');
+    });
+
+    it('treats an empty saved log as a decision, not a missing one', () => {
+      seedPlays([]);
+      const store = TestBed.inject(PlayStore);
+      http.expectNone('plays.json');
+      expect(store.plays()).toEqual([]);
+      expect(store.ready()).toBe(true);
+    });
   });
 
   it('loads saved plays and assigns missing ids', () => {
     const { id: _drop, ...noId } = SAMPLE_PLAYS[0];
     localStorage.setItem(PLAYS_STORAGE_KEY, JSON.stringify([noId, SAMPLE_PLAYS[1]]));
     const store = TestBed.inject(PlayStore);
+    http.expectNone('plays.json');
 
     expect(store.plays()[0]).toEqual({ ...noId, id: expect.any(String) });
     expect(store.plays()[1]).toEqual(SAMPLE_PLAYS[1]);
   });
 
-  it('ignores corrupt saved data', () => {
+  it('re-seeds when the saved data is corrupt', () => {
     localStorage.setItem(PLAYS_STORAGE_KEY, '{ nope');
-    expect(TestBed.inject(PlayStore).plays()).toEqual([]);
+    const store = TestBed.inject(PlayStore);
+    http.expectOne('plays.json').flush([]);
+    expect(store.plays()).toEqual([]);
   });
 
   describe('with plays', () => {

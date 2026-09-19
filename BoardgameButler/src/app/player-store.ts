@@ -1,4 +1,5 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 import { assignIds, newId } from './ids';
 import { normalizeKey } from './normalize';
 import { Player, RawPlayer } from './player';
@@ -6,21 +7,32 @@ import { Player, RawPlayer } from './player';
 export const PLAYERS_STORAGE_KEY = 'boardgame-butler.players';
 
 /**
- * The people you play with. Kept as entities (not free text) so future play
+ * The people you play with. Kept as entities (not free text) so play
  * statistics can group by player without "Matt" and "matt" splitting.
- * Stored in localStorage alongside the games, under its own key.
+ * Stored in localStorage alongside the games, under its own key, and seeded
+ * from the bundled players.json on a device that has never saved any.
  */
 @Injectable({ providedIn: 'root' })
 export class PlayerStore {
+  private http = inject(HttpClient);
+
   private readonly _players = signal<Player[]>([]);
+  private readonly _ready = signal(false);
   private readonly _error = signal<string | null>(null);
 
   readonly players = this._players.asReadonly();
+  /** False until the players have been loaded from storage or seeded. */
+  readonly ready = this._ready.asReadonly();
   readonly error = this._error.asReadonly();
 
   constructor() {
     const saved = this.read();
-    if (saved) this._players.set(assignIds(saved));
+    if (saved) {
+      this.commit(assignIds(saved));
+      this._ready.set(true);
+    } else {
+      this.seed();
+    }
   }
 
   find(id: string): Player | undefined {
@@ -49,6 +61,20 @@ export class PlayerStore {
 
   replaceAll(players: RawPlayer[]) {
     this.commit(assignIds(players));
+  }
+
+  private seed() {
+    // Relative so it resolves against <base href> when hosted under a sub-path.
+    this.http.get<RawPlayer[]>('players.json').subscribe({
+      next: players => {
+        this.commit(assignIds(players));
+        this._ready.set(true);
+      },
+      error: () => {
+        this._error.set('Could not load the starter players.');
+        this._ready.set(true);
+      },
+    });
   }
 
   private commit(players: Player[]) {

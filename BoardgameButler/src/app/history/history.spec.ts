@@ -1,5 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { History } from './history';
 import { SAMPLE_PLAYS, findByText, query, queryAll, savedPlays, seedPlays, settle, text } from '../../testing/helpers';
 
@@ -11,7 +13,7 @@ describe('History', () => {
     seedPlays(plays);
     await TestBed.configureTestingModule({
       imports: [History],
-      providers: [provideRouter([])],
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
     }).compileComponents();
     fixture = TestBed.createComponent(History);
     await settle(fixture);
@@ -27,6 +29,25 @@ describe('History', () => {
     expect(text(fixture)).toContain('Nothing logged yet.');
     expect(text(fixture)).toContain('Log a play after your next game night');
     expect(findByText<HTMLAnchorElement>(fixture, 'a', 'Log a play').getAttribute('href')).toBe('/log-play');
+  });
+
+  it('shows a loading line instead of the empty state while seeding', async () => {
+    localStorage.clear();
+    await TestBed.configureTestingModule({
+      imports: [History],
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+    }).compileComponents();
+    const http = TestBed.inject(HttpTestingController);
+    fixture = TestBed.createComponent(History);
+    await settle(fixture);
+
+    expect(text(fixture)).toContain('Loading history...');
+    expect(text(fixture)).not.toContain('Nothing logged yet.');
+
+    http.expectOne('plays.json').flush([]);
+    await settle(fixture);
+    expect(text(fixture)).toContain('Nothing logged yet.');
+    http.verify();
   });
 
   it('lists plays newest first with a count', async () => {

@@ -22,6 +22,7 @@ This document describes the features that exist today. Items shown as "planned" 
   - [Play History & Log a Play](#play-history--log-a-play)
   - [Statistics](#statistics)
 - [Data storage](#data-storage)
+- [Sample data](#sample-data)
 - [Backup file format](#backup-file-format)
 - [Progressive web app (install & offline)](#progressive-web-app-install--offline)
 - [Running and deploying](#running-and-deploying)
@@ -37,7 +38,7 @@ This document describes the features that exist today. Items shown as "planned" 
 | Frontend | Angular 21 (standalone components, signals, new control flow, zoneless) |
 | Styling | Tailwind CSS 4 |
 | Backend | None — static files only |
-| Persistence | `localStorage` on each device — games (seeded from a bundled `games.json`), players and plays under separate keys |
+| Persistence | `localStorage` on each device — games, players and plays under separate keys, each seeded from a bundled JSON file |
 | Offline / install | `@angular/service-worker` + web app manifest |
 | Tests | Vitest + jsdom — functional component specs for every page (`npm test`) |
 
@@ -88,7 +89,7 @@ Notes:
 - `rating` is required when adding a game through the UI, but the seed data and imported files may leave it out. The UI treats a missing rating as "no rating" and hides the badge.
 - The import preview list is keyed by `title` because imported rows may not have ids yet.
 
-The starter collection in `public/games.json` contains 11 games (Catan, Ticket to Ride, Pandemic, Terraforming Mars, Azul, Wingspan, Gloomhaven, …). It is only used to seed a device that has never saved a collection — see [Data storage](#data-storage).
+The starter collection in `public/games.json` contains 11 games (Catan, Ticket to Ride, Pandemic, Terraforming Mars, Azul, Wingspan, Gloomhaven, …), most with a rating and two deliberately without. It is only used to seed a device that has never saved a collection — see [Sample data](#sample-data).
 
 ---
 
@@ -103,7 +104,7 @@ interface Player {
 
 Players exist so that future play statistics can group by person without "Matt" and "matt" splitting into two people. A `RawPlayer` (optional `id`) is what arrives from a backup file. Names follow the same uniqueness rule as game titles — `normalizeKey()` in `src/app/normalize.ts`, shared by both stores and the import de-duplication.
 
-There are no players in the seed data; the list starts empty on a new device.
+A new device is seeded with five sample players from `public/players.json` — see [Sample data](#sample-data).
 
 ---
 
@@ -484,13 +485,44 @@ There is no backend. The collection is owned by `GameStore` (`src/app/game-store
 
 **First run**
 
-When the store is constructed and finds nothing saved (or something unparseable / not an array), it fetches the bundled `/games.json`, stores the result, and flips `ready`. The service worker caches `games.json` so this works even if the first launch after install happens offline. If the fetch fails, `ready` still becomes `true` with an empty collection and `error` set to *"Could not load the starter collection."*
+All three stores behave the same way: when one finds nothing saved for its key (or something unparseable / not an array), it fetches its bundled seed file — `games.json`, `players.json` or `plays.json` — stores the result, and flips `ready`. The service worker caches all three, so this works even if the first launch after install happens offline. If a fetch fails, `ready` still becomes `true` with that section empty and `error` set (*"Could not load the starter collection / players / play history."*).
+
+An **empty saved list is a decision, not a missing one**: if you delete every game, player or play, the store saves `[]` and will not re-seed on the next launch. Only clearing site data brings the samples back.
 
 **Implications**
 
 - Each browser / device has its own independent collection. Use export → import on Manage to move it.
 - Clearing site data in the browser deletes the collection; the next launch re-seeds from the starter list.
 - Nothing is ever sent to a server.
+
+---
+
+## Sample data
+
+A device that has never used the app is seeded from three files in `public/`, so the deployed site demonstrates every feature rather than opening empty:
+
+| File | Contents |
+|---|---|
+| `games.json` | 11 games with stable `seed-*` ids; most rated, two unrated, four never played |
+| `players.json` | 5 players — Sam, Alex, Jo, Riley, Morgan |
+| `plays.json` | 15 plays across 7 of the games |
+
+**Relative dates.** Seed plays carry `daysAgo` instead of `playedAt`, and `PlayStore` converts it at seed time (`SeedPlay` in `play.ts`). A fixed date would make the demo age badly — the *last 30 days* tile would drift to zero and every game would look abandoned. With offsets, a visitor always sees a plausible recent history.
+
+**What the samples deliberately cover**, so no feature renders as an empty case on the deployed site:
+
+- Games at **different head-counts with different durations** — Catan at 3 players averages 75 min, at 4 players 142.5 min, which is exactly what the stats breakdown is for.
+- A game that **runs over its listed range** (Terraforming Mars, 215 min against a listed 120–180) so the red *over* label appears.
+- A **co-op loss** with no winner and a **co-op win** with all four players, so win rate over *decided* plays is visible.
+- A **team game with a head-count above the named players** (Codenames at 8 and 6), which shows the *N players* chip and the optional head-count field.
+- A play with **no fun rating** and games with **no user rating**, so the `—` cases render.
+- Plays **inside and outside** the 30-day window.
+- Four **never-played** games, for that list on the Stats page.
+- Win rates that **straddle 50 %**, so the green styling appears (Riley at 56 %).
+
+`src/app/seed-data.spec.ts` asserts all of this plus referential integrity — unique ids, plays pointing at games and players that exist, snapshots matching the entities they name, winners who actually took part. The data is hand-written, so those checks are what stop a typo shipping.
+
+**Changing the samples.** Editing these files only affects devices that haven't saved anything yet — including your own. Existing users keep what they have; see [Data storage](#data-storage). To ship an empty app instead, make each file `[]`.
 
 ---
 
@@ -510,7 +542,7 @@ Defined in `src/app/export-format.ts`.
 }
 ```
 
-**Version 2** — the same without `plays`. **Version 1** — a bare JSON array of games, as exported before players existed and as the bundled `games.json` is written.
+**Version 2** — the same without `plays`. **Version 1** — a bare JSON array of games, as exported before players existed and as the bundled `games.json` is written. (The seed files are not backups: they are three separate arrays, and `plays.json` uses `daysAgo` rather than `playedAt`. Import does not read them.)
 
 Import accepts all three. `parseImport()` decides the version by shape (array ⇒ v1; object with a `games` array ⇒ v2; with a `plays` array too ⇒ v3), so a hand-written file without a `version` field also works. A section the file doesn't have is reported as `null` and left alone on the device. Ids in the file are preserved on import; missing ones are generated.
 
@@ -612,13 +644,14 @@ Each page has a functional spec next to it (`*.spec.ts`) that drives the rendere
 | `collection.spec.ts` | Seeding/empty/error states, row rendering, complexity pills, search, every sort column and direction, Log play and Edit links |
 | `game-form.spec.ts` | Add: defaults, required errors, live rating label, what gets saved (with id), trimming, duplicate-title rejection (case/whitespace, forced submit, clears on change), storage failure. Edit: pre-fill, save in place keeping id, own title allowed / other title rejected, rename, rating required for unrated, unknown id. Delete: hidden when adding, confirm step (mentions kept plays), keep, confirm removes game but not its plays, storage failure |
 | `import-plan.spec.ts` | First-wins de-duplication for games: case/whitespace matching, kept order, difference reporting (incl. missing rating), untitled rows; and for players by name |
-| `player-store.spec.ts` | Empty start, load, id assignment for legacy data, corrupt data, add (trimmed, new id), rename, remove, replaceAll, `hasName`, storage failure |
+| `player-store.spec.ts` | Seeding from `players.json` (id assignment, failure, empty-list-is-a-decision), load without a fetch, id assignment for legacy data, re-seed on corrupt data, add (trimmed, new id), rename, remove, replaceAll, `hasName`, storage failure |
 | `players.spec.ts` | Alphabetical list and count, empty state, add (disabled until typed, trimmed, Enter, duplicate rejected, storage error keeps input), rename (inline editor, save, own name allowed / other rejected, cancel), remove (confirm, keep, confirm removes, opening rename closes confirm), nav links |
 | `export-format.spec.ts` | `buildExport` shape and timestamp; `parseImport` for v1 arrays, v2 and v3 objects, missing players, bad `games`/`players`/`plays` entries, and non-backup values |
-| `play-store.spec.ts` | Empty start, load with id assignment, corrupt data, `recent` ordering, add/update/remove, `forGame`, `merge`/`countNew` (skips existing ids, treats id-less as new, no write when nothing is new), storage failure |
+| `play-store.spec.ts` | Seeding from `plays.json` including `daysAgo` → `playedAt` conversion (0 and negative values), id assignment, failure, empty-log-is-a-decision, re-seed on corrupt data, load with id assignment, `recent` ordering, add/update/remove, `forGame`, `merge`/`countNew` (skips existing ids, treats id-less as new, no write when nothing is new), storage failure |
 | `play-form.spec.ts` | Log: defaults, alphabetical games with `?game` pre-select (unknown ignored), player chips and winners only for selected players, deselect un-wins, head-count defaults / raised / no named players / refuses fewer than chips or zero, stopwatch shortcut, full and minimal saves with snapshots, clear rating, empty-players / empty-collection hints, storage error. Edit: pre-fill (head-count shown only when it exceeds the chips), save in place, deleted game and removed player stay selectable, unknown id |
 | `history.spec.ts` | Empty state, newest-first list and count, card contents (date, winners, others, duration, fun, notes), no-winner and no-players cases, head-count chip only when it exceeds named players, edit links, delete confirm/keep/confirm |
 | `stats.spec.ts` (`src/app/`) | `shiftDate` across month/leap boundaries; `overview` totals, 30-day window edges, tie-breaking, empty log; `gameRows` ordering, averages and rounding, nulls, deleted games with latest snapshot, open-ended ranges, `headCount` precedence, duration-by-head-count breakdown; `playerRows` ordering, win rate over decided plays only, most-played ties, players with no plays, removed players with latest snapshot |
+| `seed-data.spec.ts` | The bundled samples: unique ids, parseable ranges, valid complexity/ratings, plays referencing existing games and players with matching snapshots, winners who took part, sane dates/head-counts/durations, and coverage of the showcase cases listed under [Sample data](#sample-data) |
 | `stats.spec.ts` (`src/app/stats/`) | Empty state, overview tiles, hours rounding, games table contents and over/under/in-range labels, players column with breakdown only when head-counts vary, dashes, never-played links, deleted-game label, players table contents, dimmed no-play rows, removed label, no-players hint, nav links |
 | `manage.spec.ts` | Export counts and download (v3 Blob contents, filename), invalid/unrecognised/bad-entry file errors, games preview with duplicates greyed and reasons, v1 file keeps players and plays, v2 file previews and imports players (duplicates first-wins, empty list warns) and keeps plays, v3 plays preview with new/already-here counts, merge adds only new plays, old backup can't delete newer plays, per-section checkboxes (default ticked, unticked sections untouched, Confirm disabled when none, only present sections offered), cancel, storage-failure handling |
 | `dice.spec.ts` | Random-source mapping onto 1..sides, totals, count clamping, range check across all die types |
@@ -690,6 +723,7 @@ The full candidate scope for the project, grouped by area. Nothing here has been
 
 Every item in the MVP and the play-assistance group is done. Natural next steps, none of them prioritised:
 
+- An **in-app install button**: listen for `beforeinstallprompt`, stash the event, and show an "Install app" button on the home page that calls it — hidden when already installed (`display-mode: standalone`) or unsupported (iOS). Chrome no longer shows an automatic install banner, so today the only route is its kebab menu.
 - A **"never played" filter** on the home-page quick-pick, now that the data exists.
 - **History filters** (by game, by player, by date range) and a per-game detail view.
 - **Backup nudges** — "last exported N days ago" on Manage, since history is now the most valuable data on the device.

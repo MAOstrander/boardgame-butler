@@ -63,12 +63,22 @@ Open http://localhost:4200. Work through the checklist in order — later steps 
 - [ ] Most seed games are rated, so the card usually shows an `/10` badge; Gloomhaven and Scythe are unrated and show none.
 - [ ] Three links at the bottom: **View collection**, **+ Add a game**, **Manage collection**.
 
+### Home — install button
+
+- [ ] **Desktop Chrome/Edge, production build over `localhost` or HTTPS:** an **📲 Install app** button appears above the bottom links. Click it → the browser's own install dialog opens. Accept → the app installs and the button disappears.
+- [ ] Open the installed app → no install button (it knows it is already installed).
+- [ ] Dismiss the dialog instead → the button disappears for that page load (the browser only offers the event once); reload to get it back.
+- [ ] **`ng serve`, or iOS Safari:** no button at all — expected, since no install event is fired. iOS still installs via Share → *Add to Home Screen*.
+
 ### Home — filtered pick
 
 - [ ] Click **▾ Narrow it down** → a filter panel appears reading *No filters set — all 11 games match*; the link now says **▴ Hide filters**.
 - [ ] Players tonight `5` → *N of 11 games match* drops to only games whose range includes 5 (e.g. Terraforming Mars 1-5, Ticket to Ride 2-5, Wingspan 1-5).
 - [ ] Time available *Up to 60 min* → *3 of 11 games match* — only games whose **longest** time is ≤ 60 (Azul, 7 Wonders, Codenames). Catan (60-120) and Ticket to Ride (45-90) must *not* match.
 - [ ] Click **Hard** → count changes; click **Easy** too → count grows (either complexity matches); click **Hard** again to deselect.
+- [ ] **Overdue a turn** reads *Never played (4 games)* on a freshly seeded device. Toggle it → the count drops to those four; **Serve me a match!** only ever returns Wingspan, Gloomhaven, Scythe or Arkham Horror. Combine with Players `2` → fewer still.
+- [ ] Log a play of each of those four (or import a backup where every game has a play) → the toggle now reads *Least played · N play(s) (M games)* instead.
+- [ ] **Clear** turns the toggle off along with everything else.
 - [ ] Minimum rating *9+* → only the 9-rated games match (Terraforming Mars, Wingspan, Codenames); the two unrated games are excluded. Set it with Players `7` → *No games match these filters* and **Serve me a match!** is disabled.
 - [ ] Click **Clear** → back to *all 11 games match*, inputs reset, **Clear** link disappears.
 - [ ] Set Players `2` and Time *Up to 45 min* → *3 of 11 games match* (Azul, 7 Wonders, Codenames). Click **Serve me a match!** repeatedly → only those three are ever served; the card says *Tonight's pick · from your matches*.

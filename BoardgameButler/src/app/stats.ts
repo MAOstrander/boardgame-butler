@@ -61,6 +61,33 @@ export interface PlayerRow {
   lastPlayed: string | null;
 }
 
+/** The collection games tied for the fewest plays. */
+export interface LeastPlayed {
+  /** The lowest play count in the collection; 0 when something has never been played. */
+  minPlays: number;
+  /** Ids of every game on that count. */
+  ids: Set<string>;
+}
+
+/**
+ * "Show me what we never play." Once everything has been played at least
+ * once, "never" has no answer, so this generalises to the lowest count there
+ * is — the games most overdue a turn either way.
+ */
+export function leastPlayed(games: Game[], plays: Play[]): LeastPlayed {
+  if (games.length === 0) return { minPlays: 0, ids: new Set() };
+
+  const counts = new Map<string, number>(games.map(g => [g.id, 0]));
+  for (const play of plays) {
+    const current = counts.get(play.gameId);
+    if (current !== undefined) counts.set(play.gameId, current + 1);
+  }
+
+  const minPlays = Math.min(...counts.values());
+  const ids = new Set([...counts].filter(([, n]) => n === minPlays).map(([id]) => id));
+  return { minPlays, ids };
+}
+
 export function overview(games: Game[], plays: Play[], today: string): Overview {
   const cutoff = shiftDate(today, -29);
   const playedIds = new Set(plays.map(p => p.gameId));

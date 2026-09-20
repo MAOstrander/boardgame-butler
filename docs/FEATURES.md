@@ -152,8 +152,9 @@ The landing page shows a full-bleed background image (`public/DiceButler.jpg`) w
    - `rating/10` (only if the game has a rating)
 4. Clicking the button again re-rolls. The same game can be picked twice in a row — there is no history or exclusion.
 5. **▾ Narrow it down** opens a filter panel (see below). **Serve me a match!** inside it picks at random from only the games that pass the filters, and the card is labelled *"Tonight's pick · from your matches"*. The main button always ignores the filters, so both options are available at once.
-6. The *Tonight's pick* card has a **We played this →** link to `/log-play?game=<id>`.
-7. Links at the bottom go to **📚 View collection**, **+ Add a game**, **⚙ Manage collection**, **🎲 Table tools**, **👥 Players**, **📖 History** and **📊 Stats**.
+6. An **📲 Install app** button appears above the links when the browser offers an install (see [Progressive web app](#progressive-web-app-install--offline)).
+7. The *Tonight's pick* card has a **We played this →** link to `/log-play?game=<id>`.
+8. Links at the bottom go to **📚 View collection**, **+ Add a game**, **⚙ Manage collection**, **🎲 Table tools**, **👥 Players**, **📖 History** and **📊 Stats**.
 
 **Filters**
 
@@ -163,7 +164,9 @@ The landing page shows a full-bleed background image (`public/DiceButler.jpg`) w
 | Time available | select: Any / up to 30, 45, 60, 90, 120, 180 min | the game's **longest** listed duration fits — `45-90` does *not* match "up to 60", so you're never served a game that might run over |
 | Complexity | Easy / Medium / Hard toggle buttons | its complexity is one of the selected ones; none selected means any |
 | Minimum rating | select: Any / 5+ … 9+ | its rating is at or above the minimum; **unrated games are excluded** when this is set |
+| Overdue a turn | one toggle | it is tied for the fewest plays in the collection. The label says what that currently means — *Never played (4 games)* while anything is unplayed, or *Least played · 2 plays (3 games)* once everything has had a turn |
 
+- The "overdue a turn" toggle is the one filter that depends on the play log rather than a game's own fields, so it lives in `leastPlayed()` in `src/app/stats.ts` rather than `game-filter.ts`. It generalises "never played": once every game has been played, there is no answer to *never*, so it falls back to the lowest count there is.
 - Filters combine with AND. The panel shows a live count: *"No filters set — all N games match"*, *"K of N games match"*, or *"No games match these filters"* (the match button is disabled in that case).
 - **Clear** resets every filter. Hiding the panel keeps the filters; they reset on a full page reload.
 - Player and duration ranges are parsed from the free-text fields (`"2-4"`, `"60-120"`, `"2"`, `"3+"`, `"2 to 6"`). A game whose text can't be parsed is excluded by that filter, since the app can't tell whether it fits. The parsing and matching logic is in `src/app/game-filter.ts`.
@@ -563,7 +566,14 @@ The app is installable on phones and desktops and works with no network once ins
 
 **Installing**
 
-- **Android / Chrome / Edge:** open the site, use the browser's *Install app* / *Add to Home screen* prompt.
+The home page shows its own **📲 Install app** button, backed by `InstallService` (`src/app/install.ts`). Chrome stopped showing an install banner of its own years ago — it fires `beforeinstallprompt` and expects the page to offer the choice — so the service captures that event (calling `preventDefault()`) and replays it when the button is pressed. The event is single-use, so the button disappears once used or dismissed, and never appears at all when:
+
+- the app is **already installed** (detected via `display-mode: standalone`, or Safari's `navigator.standalone`), or
+- the browser **never fires the event** — notably **iOS Safari**, where installing is Share → *Add to Home Screen* and no API exists.
+
+The browser's own routes still work regardless:
+
+- **Android / Chrome / Edge:** the ⋮ menu's *Install app* / *Add to Home screen*. Note that *Install* creates a real app (own icon, no browser UI, works offline) while *Create shortcut* only makes a bookmark.
 - **iOS Safari:** Share → *Add to Home Screen*.
 - **Desktop Chrome / Edge:** the install icon in the address bar.
 
@@ -639,8 +649,9 @@ Each page has a functional spec next to it (`*.spec.ts`) that drives the rendere
 | Spec | Covers |
 |---|---|
 | `game-store.spec.ts` | First-run seeding (incl. corrupt / non-array saved data), seed failure, load from storage, id assignment (seed, legacy saved data, import, duplicate ids), add / update / remove / replaceAll persistence, `find`, `hasTitle`, `toJson`, storage write failure |
+| `install.spec.ts` | No offer until `beforeinstallprompt`, `preventDefault` on capture, already-standalone suppression, missing `matchMedia`, prompt accept/dismiss/throw/unavailable, single use, `appinstalled` |
 | `game-filter.spec.ts` | Range parsing (`2-4`, `2`, `3+`, `2 to 6`, en dash, garbage), each filter's matching rule, AND-combination, `filterGames` |
-| `home.spec.ts` | Loading state while seeding, ready from storage, empty-collection hint, random pick and re-roll, rating badge, filter panel toggle, every filter's live count, no-match state, clear, filtered pick vs. whole-collection pick, nav links |
+| `home.spec.ts` | Loading state while seeding, ready from storage, empty-collection hint, random pick and re-roll, rating badge, filter panel toggle, every filter's live count, no-match state, clear, filtered pick vs. whole-collection pick, the overdue-a-turn toggle (label in both modes, combining with other filters, serving from it, clearing), the install button appearing and prompting, nav links |
 | `collection.spec.ts` | Seeding/empty/error states, row rendering, complexity pills, search, every sort column and direction, Log play and Edit links |
 | `game-form.spec.ts` | Add: defaults, required errors, live rating label, what gets saved (with id), trimming, duplicate-title rejection (case/whitespace, forced submit, clears on change), storage failure. Edit: pre-fill, save in place keeping id, own title allowed / other title rejected, rename, rating required for unrated, unknown id. Delete: hidden when adding, confirm step (mentions kept plays), keep, confirm removes game but not its plays, storage failure |
 | `import-plan.spec.ts` | First-wins de-duplication for games: case/whitespace matching, kept order, difference reporting (incl. missing rating), untitled rows; and for players by name |
@@ -650,7 +661,7 @@ Each page has a functional spec next to it (`*.spec.ts`) that drives the rendere
 | `play-store.spec.ts` | Seeding from `plays.json` including `daysAgo` → `playedAt` conversion (0 and negative values), id assignment, failure, empty-log-is-a-decision, re-seed on corrupt data, load with id assignment, `recent` ordering, add/update/remove, `forGame`, `merge`/`countNew` (skips existing ids, treats id-less as new, no write when nothing is new), storage failure |
 | `play-form.spec.ts` | Log: defaults, alphabetical games with `?game` pre-select (unknown ignored), player chips and winners only for selected players, deselect un-wins, head-count defaults / raised / no named players / refuses fewer than chips or zero, stopwatch shortcut, full and minimal saves with snapshots, clear rating, empty-players / empty-collection hints, storage error. Edit: pre-fill (head-count shown only when it exceeds the chips), save in place, deleted game and removed player stay selectable, unknown id |
 | `history.spec.ts` | Empty state, newest-first list and count, card contents (date, winners, others, duration, fun, notes), no-winner and no-players cases, head-count chip only when it exceeds named players, edit links, delete confirm/keep/confirm |
-| `stats.spec.ts` (`src/app/`) | `shiftDate` across month/leap boundaries; `overview` totals, 30-day window edges, tie-breaking, empty log; `gameRows` ordering, averages and rounding, nulls, deleted games with latest snapshot, open-ended ranges, `headCount` precedence, duration-by-head-count breakdown; `playerRows` ordering, win rate over decided plays only, most-played ties, players with no plays, removed players with latest snapshot |
+| `stats.spec.ts` (`src/app/`) | `leastPlayed` (never-played while any exist, fallback to the lowest count, nothing played, plays of deleted games, empty collection); `shiftDate` across month/leap boundaries; `overview` totals, 30-day window edges, tie-breaking, empty log; `gameRows` ordering, averages and rounding, nulls, deleted games with latest snapshot, open-ended ranges, `headCount` precedence, duration-by-head-count breakdown; `playerRows` ordering, win rate over decided plays only, most-played ties, players with no plays, removed players with latest snapshot |
 | `seed-data.spec.ts` | The bundled samples: unique ids, parseable ranges, valid complexity/ratings, plays referencing existing games and players with matching snapshots, winners who took part, sane dates/head-counts/durations, and coverage of the showcase cases listed under [Sample data](#sample-data) |
 | `stats.spec.ts` (`src/app/stats/`) | Empty state, overview tiles, hours rounding, games table contents and over/under/in-range labels, players column with breakdown only when head-counts vary, dashes, never-played links, deleted-game label, players table contents, dimmed no-play rows, removed label, no-players hint, nav links |
 | `manage.spec.ts` | Export counts and download (v3 Blob contents, filename), invalid/unrecognised/bad-entry file errors, games preview with duplicates greyed and reasons, v1 file keeps players and plays, v2 file previews and imports players (duplicates first-wins, empty list warns) and keeps plays, v3 plays preview with new/already-here counts, merge adds only new plays, old backup can't delete newer plays, per-section checkboxes (default ticked, unticked sections untouched, Confirm disabled when none, only present sections offered), cancel, storage-failure handling |
@@ -723,8 +734,7 @@ The full candidate scope for the project, grouped by area. Nothing here has been
 
 Every item in the MVP and the play-assistance group is done. Natural next steps, none of them prioritised:
 
-- An **in-app install button**: listen for `beforeinstallprompt`, stash the event, and show an "Install app" button on the home page that calls it — hidden when already installed (`display-mode: standalone`) or unsupported (iOS). Chrome no longer shows an automatic install banner, so today the only route is its kebab menu.
-- A **"never played" filter** on the home-page quick-pick, now that the data exists.
 - **History filters** (by game, by player, by date range) and a per-game detail view.
 - **Backup nudges** — "last exported N days ago" on Manage, since history is now the most valuable data on the device.
+- **Logging a game that isn't in the collection** — a friend's copy, or something played at a café. Today the game dropdown only offers collection games; an "Something else…" option with a title box would cover it, and the Stats page already renders plays for games outside the collection.
 - Beyond that, the roadmap's *nice-to-have* group (auth, sync, sharing, scheduling) all imply a backend and remain a deliberate architectural decision rather than an incremental one.

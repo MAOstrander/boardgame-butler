@@ -343,6 +343,107 @@ describe('Home', () => {
     });
   });
 
+  describe('best at this count', () => {
+    // SAMPLE_PLAYS has no game with fun recorded at two different table sizes,
+    // so these supply their own: Catan is most fun with three.
+    const RATED: Play[] = [
+      { ...SAMPLE_PLAYS[0], id: 'b1', gameId: 'g-catan', playerCount: 3, funRating: 9 },
+      { ...SAMPLE_PLAYS[0], id: 'b2', gameId: 'g-catan', playerCount: 4, funRating: 6 },
+    ];
+
+    const toggle = () => query<HTMLButtonElement>(fixture, '#filter-best-at-count');
+
+    async function openFilters() {
+      findByText<HTMLButtonElement>(fixture, 'button', 'Narrow it down').click();
+      await settle(fixture);
+    }
+
+    async function setPlayers(value: string) {
+      setInputValue(query<HTMLInputElement>(fixture, '#filter-players'), value);
+      await settle(fixture);
+    }
+
+    it('is disabled until a player count is chosen', async () => {
+      await setup(SAMPLE_GAMES, RATED);
+      await openFilters();
+
+      expect(toggle().disabled).toBe(true);
+      expect(toggle().textContent).toContain('Set a player count first');
+
+      await setPlayers('3');
+      expect(toggle().disabled).toBe(false);
+    });
+
+    it('says how many games suit that count', async () => {
+      await setup(SAMPLE_GAMES, RATED);
+      await openFilters();
+
+      await setPlayers('3');
+      expect(toggle().textContent).toContain('Best with 3 (1 game)');
+
+      await setPlayers('4');
+      expect(toggle().textContent).toContain('Best with 4 (0 games)');
+    });
+
+    it('restricts the matches to games that play best at that count', async () => {
+      await setup(SAMPLE_GAMES, RATED);
+      await openFilters();
+      await setPlayers('3');
+
+      // Every sample game seats three, so the count only drops once the toggle is on.
+      expect(text(fixture)).toContain('4 of 4 games match');
+
+      toggle().click();
+      await settle(fixture);
+
+      expect(toggle().getAttribute('aria-pressed')).toBe('true');
+      expect(text(fixture)).toContain('1 of 4 games match');
+
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      findByText<HTMLButtonElement>(fixture, 'button', 'Serve me a match!').click();
+      await settle(fixture);
+      expect(query(fixture, 'h2').textContent).toContain('Catan');
+    });
+
+    it('can leave nothing matching', async () => {
+      await setup(SAMPLE_GAMES, RATED);
+      await openFilters();
+      await setPlayers('4');
+      toggle().click();
+      await settle(fixture);
+
+      expect(text(fixture)).toContain('No games match these filters');
+    });
+
+    it('switches off when the player count is cleared', async () => {
+      await setup(SAMPLE_GAMES, RATED);
+      await openFilters();
+      await setPlayers('3');
+      toggle().click();
+      await settle(fixture);
+      expect(toggle().getAttribute('aria-pressed')).toBe('true');
+
+      await setPlayers('');
+      expect(toggle().getAttribute('aria-pressed')).toBe('false');
+      expect(toggle().disabled).toBe(true);
+      expect(text(fixture)).toContain('No filters set');
+    });
+
+    it('is cleared along with the other filters', async () => {
+      await setup(SAMPLE_GAMES, RATED);
+      await openFilters();
+      await setPlayers('3');
+      toggle().click();
+      await settle(fixture);
+
+      findByText<HTMLButtonElement>(fixture, 'button', 'Clear').click();
+      await settle(fixture);
+
+      expect(toggle().getAttribute('aria-pressed')).toBe('false');
+      expect(text(fixture)).toContain('No filters set');
+    });
+  });
+
   describe('install button', () => {
     const installButton = () =>
       queryAll<HTMLButtonElement>(fixture, 'button').find(b => b.textContent?.includes('Install app'));

@@ -40,10 +40,12 @@ export class Stats {
     return new Date(y, m - 1, d).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
   }
 
-  /** "3p ×2 · 70 min" — one entry per head-count that occurs. */
+  /** "3p ×2 · 70 min · fun 8" — one line per head-count that occurs. */
   protected breakdown(entry: HeadCountBreakdown): string {
-    const plays = `${entry.players}p ×${entry.plays}`;
-    return entry.avgMinutes != null ? `${plays} · ${entry.avgMinutes} min` : plays;
+    const parts = [`${entry.players}p ×${entry.plays}`];
+    if (entry.avgMinutes != null) parts.push(`${entry.avgMinutes} min`);
+    if (entry.avgFun != null) parts.push(`fun ${entry.avgFun}`);
+    return parts.join(' · ');
   }
 
   /** How the average recorded time compares with the listed range: "in range", "+12 min", "−5 min". */

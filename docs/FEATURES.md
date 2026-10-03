@@ -164,9 +164,10 @@ The landing page shows a full-bleed background image (`public/hero.webp`) under 
 | Time available | select: Any / up to 30, 45, 60, 90, 120, 180 min | the game's **longest** listed duration fits — `45-90` does *not* match "up to 60", so you're never served a game that might run over |
 | Complexity | Easy / Medium / Hard toggle buttons | its complexity is one of the selected ones; none selected means any |
 | Minimum rating | select: Any / 5+ … 9+ | its rating is at or above the minimum; **unrated games are excluded** when this is set |
+| Plays best at that count | one toggle, needs *Players tonight* set | your fun ratings say it scores highest at exactly that table size (see [Statistics](#statistics)). Disabled until a count is chosen, and switched off automatically if you clear it. The label counts the qualifying games — *Best with 4 (3 games)* |
 | Overdue a turn | one toggle | it is tied for the fewest plays in the collection. The label says what that currently means — *Never played (4 games)* while anything is unplayed, or *Least played · 2 plays (3 games)* once everything has had a turn |
 
-- The "overdue a turn" toggle is the one filter that depends on the play log rather than a game's own fields, so it lives in `leastPlayed()` in `src/app/stats.ts` rather than `game-filter.ts`. It generalises "never played": once every game has been played, there is no answer to *never*, so it falls back to the lowest count there is.
+- "Overdue a turn" and "plays best at that count" are the two filters that depend on the play log rather than a game's own fields, so they live in `src/app/stats.ts` (`leastPlayed()` and `gameRows().bestPlayers`) rather than `game-filter.ts`. It generalises "never played": once every game has been played, there is no answer to *never*, so it falls back to the lowest count there is.
 - Filters combine with AND. The panel shows a live count: *"No filters set — all N games match"*, *"K of N games match"*, or *"No games match these filters"* (the match button is disabled in that case).
 - **Clear** resets every filter. Hiding the panel keeps the filters; they reset on a full page reload.
 - Player and duration ranges are parsed from the free-text fields (`"2-4"`, `"60-120"`, `"2"`, `"3+"`, `"2 to 6"`). A game whose text can't be parsed is excluded by that filter, since the app can't tell whether it fits. The parsing and matching logic is in `src/app/game-filter.ts`.
@@ -426,7 +427,20 @@ Everything is computed on the fly from the play log — nothing is stored. With 
 
 One row per game that has been played, most plays first: **Plays**, **Players**, **Last played**, **Avg time** and **Avg fun**. Averages use only plays that recorded the value and are rounded to one decimal; `—` when none did.
 
-**Players** is the average head-count — each play's *How many played* if it was set, otherwise the number of named players; plays with neither are left out. When the head-count varied, a breakdown of **duration by head-count** appears beneath it, e.g. *3p ×2 · 70 min, 4p ×3 · 95 min* — how many plays at each table size and the average recorded time at that size. That's the quickest way to see whether a game's length really depends on how many are playing. A game always played at the same size shows just the number.
+**Players** is the average head-count — each play's *How many played* if it was set, otherwise the number of named players; plays with neither are left out. A game always played at the same table size shows just that number.
+
+When the head-count varied, a **breakdown by table size** appears beneath it — one line per size with the number of plays, the average recorded duration and the average fun rating:
+
+```
+3.5
+★ best with 3
+3p ×2 · 75 min · fun 7.5
+4p ×2 · 142.5 min · fun 6
+```
+
+**★ best with N** names the table size the game scored highest fun at, and that line is highlighted green in the breakdown. This is the point where logging pays off: the example above says Catan takes nearly twice as long with four players *and* rates a point and a half lower — which is exactly the kind of thing you forget between game nights.
+
+It only appears when fun was recorded at **two or more different table sizes**. With one, there is nothing to compare against, and announcing a "best" from a single data point would be misleading. Ties go to the size with more plays behind it, then to the smaller table. The play counts are shown on every line so you can judge how much to trust it.
 
 Under the average time, a comparison with the game's listed duration range: *in range*, *+30 min over* (red) or *10 min under* (blue). Games with an open-ended listed range (`60+`) get no comparison.
 
@@ -447,7 +461,7 @@ Pure functions, all snapshot-aware:
 | Function | Returns |
 |---|---|
 | `overview(games, plays, today)` | The four tiles' numbers |
-| `gameRows(games, plays)` | One `GameRow` per collection game plus one per deleted game with plays, including `avgPlayers` and a `byPlayers` duration breakdown; sorted by plays desc, then title |
+| `gameRows(games, plays)` | One `GameRow` per collection game plus one per deleted game with plays, including `avgPlayers`, a `byPlayers` breakdown of duration and fun per table size, and `bestPlayers`; sorted by plays desc, then title |
 | `headCount(play)` | Explicit `playerCount`, else named players; null when unknown |
 | `playerRows(players, plays)` | One `PlayerRow` per player plus one per removed player with plays; sorted by plays desc, then name |
 | `shiftDate(iso, days)`, `todayIso()` | Date helpers that avoid timezone drift |
@@ -456,6 +470,7 @@ Pure functions, all snapshot-aware:
 
 - No time-range selection (e.g. "this year") — the 30-day figure is the only windowed number.
 - No head-to-head (player vs. player) breakdowns.
+- "Best with N" compares raw averages with no weighting for sample size, so two plays can outvote five. The play counts are shown so you can discount it yourself.
 - Tables are fixed-order; no sorting controls.
 
 ---
@@ -651,7 +666,7 @@ Each page has a functional spec next to it (`*.spec.ts`) that drives the rendere
 | `game-store.spec.ts` | First-run seeding (incl. corrupt / non-array saved data), seed failure, load from storage, id assignment (seed, legacy saved data, import, duplicate ids), add / update / remove / replaceAll persistence, `find`, `hasTitle`, `toJson`, storage write failure |
 | `install.spec.ts` | No offer until `beforeinstallprompt`, `preventDefault` on capture, already-standalone suppression, missing `matchMedia`, prompt accept/dismiss/throw/unavailable, single use, `appinstalled` |
 | `game-filter.spec.ts` | Range parsing (`2-4`, `2`, `3+`, `2 to 6`, en dash, garbage), each filter's matching rule, AND-combination, `filterGames` |
-| `home.spec.ts` | Loading state while seeding, ready from storage, empty-collection hint, random pick and re-roll, rating badge, filter panel toggle, every filter's live count, no-match state, clear, filtered pick vs. whole-collection pick, the overdue-a-turn toggle (label in both modes, combining with other filters, serving from it, clearing), the install button appearing and prompting, nav links |
+| `home.spec.ts` | Loading state while seeding, ready from storage, empty-collection hint, random pick and re-roll, rating badge, filter panel toggle, every filter's live count, no-match state, clear, filtered pick vs. whole-collection pick, the overdue-a-turn toggle (label in both modes, combining with other filters, serving from it, clearing), the best-at-count toggle (disabled without a count, qualifying-game count in the label, restricting matches, no-match case, switching off when the count is cleared), the install button appearing and prompting, nav links |
 | `collection.spec.ts` | Seeding/empty/error states, row rendering, complexity pills, search, every sort column and direction, Log play and Edit links |
 | `game-form.spec.ts` | Add: defaults, required errors, live rating label, what gets saved (with id), trimming, duplicate-title rejection (case/whitespace, forced submit, clears on change), storage failure. Edit: pre-fill, save in place keeping id, own title allowed / other title rejected, rename, rating required for unrated, unknown id. Delete: hidden when adding, confirm step (mentions kept plays), keep, confirm removes game but not its plays, storage failure |
 | `import-plan.spec.ts` | First-wins de-duplication for games: case/whitespace matching, kept order, difference reporting (incl. missing rating), untitled rows; and for players by name |
@@ -661,9 +676,9 @@ Each page has a functional spec next to it (`*.spec.ts`) that drives the rendere
 | `play-store.spec.ts` | Seeding from `plays.json` including `daysAgo` → `playedAt` conversion (0 and negative values), id assignment, failure, empty-log-is-a-decision, re-seed on corrupt data, load with id assignment, `recent` ordering, add/update/remove, `forGame`, `merge`/`countNew` (skips existing ids, treats id-less as new, no write when nothing is new), storage failure |
 | `play-form.spec.ts` | Log: defaults, alphabetical games with `?game` pre-select (unknown ignored), player chips and winners only for selected players, deselect un-wins, head-count defaults / raised / no named players / refuses fewer than chips or zero, stopwatch shortcut, full and minimal saves with snapshots, clear rating, empty-players / empty-collection hints, storage error. Edit: pre-fill (head-count shown only when it exceeds the chips), save in place, deleted game and removed player stay selectable, unknown id |
 | `history.spec.ts` | Empty state, newest-first list and count, card contents (date, winners, others, duration, fun, notes), no-winner and no-players cases, head-count chip only when it exceeds named players, edit links, delete confirm/keep/confirm |
-| `stats.spec.ts` (`src/app/`) | `leastPlayed` (never-played while any exist, fallback to the lowest count, nothing played, plays of deleted games, empty collection); `shiftDate` across month/leap boundaries; `overview` totals, 30-day window edges, tie-breaking, empty log; `gameRows` ordering, averages and rounding, nulls, deleted games with latest snapshot, open-ended ranges, `headCount` precedence, duration-by-head-count breakdown; `playerRows` ordering, win rate over decided plays only, most-played ties, players with no plays, removed players with latest snapshot |
+| `stats.spec.ts` (`src/app/`) | `leastPlayed` (never-played while any exist, fallback to the lowest count, nothing played, plays of deleted games, empty collection); `shiftDate` across month/leap boundaries; `overview` totals, 30-day window edges, tie-breaking, empty log; `gameRows` ordering, averages and rounding, nulls, deleted games with latest snapshot, open-ended ranges, `headCount` precedence, duration-and-fun breakdown by table size, `bestPlayers` (highest fun, needs two rated sizes, tie-breaks on plays then smaller table, ignores unrated sizes); `playerRows` ordering, win rate over decided plays only, most-played ties, players with no plays, removed players with latest snapshot |
 | `seed-data.spec.ts` | The bundled samples: unique ids, parseable ranges, valid complexity/ratings, plays referencing existing games and players with matching snapshots, winners who took part, sane dates/head-counts/durations, and coverage of the showcase cases listed under [Sample data](#sample-data) |
-| `stats.spec.ts` (`src/app/stats/`) | Empty state, overview tiles, hours rounding, games table contents and over/under/in-range labels, players column with breakdown only when head-counts vary, dashes, never-played links, deleted-game label, players table contents, dimmed no-play rows, removed label, no-players hint, nav links |
+| `stats.spec.ts` (`src/app/stats/`) | Empty state, overview tiles, hours rounding, games table contents and over/under/in-range labels, players column with breakdown only when head-counts vary, the best-with line and its green highlight, dashes, never-played links, deleted-game label, players table contents, dimmed no-play rows, removed label, no-players hint, nav links |
 | `manage.spec.ts` | Export counts and download (v3 Blob contents, filename), invalid/unrecognised/bad-entry file errors, games preview with duplicates greyed and reasons, v1 file keeps players and plays, v2 file previews and imports players (duplicates first-wins, empty list warns) and keeps plays, v3 plays preview with new/already-here counts, merge adds only new plays, old backup can't delete newer plays, per-section checkboxes (default ticked, unticked sections untouched, Confirm disabled when none, only present sections offered), cancel, storage-failure handling |
 | `dice.spec.ts` | Random-source mapping onto 1..sides, totals, count clamping, range check across all die types |
 | `timer.spec.ts` | `formatDuration`; Stopwatch start/pause/resume/reset, timestamp-based elapsed (throttled-tab case), `onTick`, `destroy`; Countdown remaining/finished, `onFinish` fires once, pause/resume, reset, `setDuration` |

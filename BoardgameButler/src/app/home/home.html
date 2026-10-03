@@ -116,6 +116,24 @@
         </label>
 
         <div class="flex flex-col gap-1.5 text-sm">
+          <span class="text-white/70">Plays best at that count</span>
+          <button
+            type="button"
+            id="filter-best-at-count"
+            (click)="toggleBestAtCount()"
+            [disabled]="filters().players == null"
+            [attr.aria-pressed]="bestAtCountOnly()"
+            class="px-3 py-2 rounded-lg border text-sm font-medium transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+            [class]="bestAtCountOnly()
+              ? 'bg-green-600 border-green-500 text-white'
+              : 'bg-black/30 border-white/20 text-white/80 hover:border-green-500'"
+          >
+            {{ bestAtCountLabel() }}
+          </button>
+          <p class="text-xs text-white/40">Uses your fun ratings to find which table size suits each game.</p>
+        </div>
+
+        <div class="flex flex-col gap-1.5 text-sm">
           <span class="text-white/70">Overdue a turn</span>
           <button
             type="button"

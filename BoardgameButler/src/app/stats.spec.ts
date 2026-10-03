@@ -78,9 +78,11 @@ describe('gameRows', () => {
       lastPlayed: '2026-09-10',
       avgPlayers: 2.5, // 2 named on pl-1, 3 on pl-3
       byPlayers: [
-        { players: 2, plays: 1, avgMinutes: 90 },
-        { players: 3, plays: 1, avgMinutes: null },
+        { players: 2, plays: 1, avgMinutes: 90, avgFun: 7 },
+        { players: 3, plays: 1, avgMinutes: null, avgFun: null },
       ],
+      bestPlayers: null, // only the 2-player games recorded fun, so nothing to compare
+
       avgMinutes: 90, // only pl-1 recorded a duration
       listedMinutes: { min: 60, max: 120 },
       avgFun: 7,
@@ -107,8 +109,8 @@ describe('gameRows', () => {
 
       expect(catan.avgPlayers).toBe(3.5);
       expect(catan.byPlayers).toEqual([
-        { players: 3, plays: 2, avgMinutes: 70 },
-        { players: 4, plays: 2, avgMinutes: 110 },
+        { players: 3, plays: 2, avgMinutes: 70, avgFun: 7 },
+        { players: 4, plays: 2, avgMinutes: 110, avgFun: 7 },
       ]);
       expect(catan.avgMinutes).toBe(73.8); // the unknown-head-count play still counts toward the overall average
     });
@@ -116,6 +118,50 @@ describe('gameRows', () => {
     it('is null / empty when no play has a known head-count', () => {
       const plays = [{ ...SAMPLE_PLAYS[0], players: [], winnerIds: [] }];
       expect(gameRows(SAMPLE_GAMES, plays)[0]).toMatchObject({ avgPlayers: null, byPlayers: [] });
+    });
+  });
+
+  describe('best head-count', () => {
+    const at = (n: number, fun: number, id: string): Play => ({
+      ...SAMPLE_PLAYS[0],
+      id,
+      playerCount: n,
+      funRating: fun,
+    });
+
+    it('picks the head-count with the highest average fun', () => {
+      const plays = [at(3, 9, 'a'), at(3, 8, 'b'), at(5, 6, 'c')];
+      const catan = gameRows(SAMPLE_GAMES, plays)[0];
+      expect(catan.bestPlayers).toBe(3);
+      expect(catan.byPlayers.find(b => b.players === 3)!.avgFun).toBe(8.5);
+    });
+
+    it('needs fun at two or more counts before claiming a best', () => {
+      // Plenty of plays, but all at one table size: nothing to compare against.
+      expect(gameRows(SAMPLE_GAMES, [at(4, 9, 'a'), at(4, 8, 'b')])[0].bestPlayers).toBeNull();
+      // Fun recorded at only one of two counts.
+      const mixed = [at(3, 9, 'a'), { ...at(5, 9, 'b'), funRating: undefined }];
+      expect(gameRows(SAMPLE_GAMES, mixed)[0].bestPlayers).toBeNull();
+    });
+
+    it('is null when no play recorded fun at all', () => {
+      const plays = [{ ...at(3, 9, 'a'), funRating: undefined }, { ...at(4, 9, 'b'), funRating: undefined }];
+      expect(gameRows(SAMPLE_GAMES, plays)[0].bestPlayers).toBeNull();
+    });
+
+    it('breaks a tie on fun by the count with more plays behind it', () => {
+      const plays = [at(3, 8, 'a'), at(5, 8, 'b'), at(5, 8, 'c')];
+      expect(gameRows(SAMPLE_GAMES, plays)[0].bestPlayers).toBe(5);
+    });
+
+    it('breaks a tie on fun and plays by preferring the smaller table', () => {
+      const plays = [at(3, 8, 'a'), at(5, 8, 'b')];
+      expect(gameRows(SAMPLE_GAMES, plays)[0].bestPlayers).toBe(3);
+    });
+
+    it('ignores counts with no fun data when choosing', () => {
+      const plays = [at(2, 5, 'a'), at(3, 9, 'b'), { ...at(6, 9, 'c'), funRating: undefined }];
+      expect(gameRows(SAMPLE_GAMES, plays)[0].bestPlayers).toBe(3);
     });
   });
 
@@ -132,7 +178,9 @@ describe('gameRows', () => {
 
   it('leaves averages null when nothing was recorded', () => {
     const gloom = gameRows(SAMPLE_GAMES, SAMPLE_PLAYS).find(r => r.title === 'Gloomhaven')!;
-    expect(gloom).toMatchObject({ plays: 0, lastPlayed: null, avgPlayers: null, byPlayers: [], avgMinutes: null, avgFun: null });
+    expect(gloom).toMatchObject({
+      plays: 0, lastPlayed: null, avgPlayers: null, byPlayers: [], bestPlayers: null, avgMinutes: null, avgFun: null,
+    });
   });
 
   it('includes deleted games that still have plays, using the latest title snapshot', () => {

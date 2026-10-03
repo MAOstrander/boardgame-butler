@@ -76,6 +76,7 @@ Open http://localhost:4200. Work through the checklist in order — later steps 
 - [ ] Players tonight `5` → *N of 11 games match* drops to only games whose range includes 5 (e.g. Terraforming Mars 1-5, Ticket to Ride 2-5, Wingspan 1-5).
 - [ ] Time available *Up to 60 min* → *3 of 11 games match* — only games whose **longest** time is ≤ 60 (Azul, 7 Wonders, Codenames). Catan (60-120) and Ticket to Ride (45-90) must *not* match.
 - [ ] Click **Hard** → count changes; click **Easy** too → count grows (either complexity matches); click **Hard** again to deselect.
+- [ ] **Plays best at that count** is greyed out and reads *Set a player count first* until *Players tonight* has a value. Enter `3` → it reads *Best with 3 (2 games)* (Catan and Ticket to Ride). Toggle it on → the match count drops to those two, and **Serve me a match!** only ever returns one of them. Change the count to `2` → *Best with 2 (1 game)* (Azul). Clear the count → the toggle switches itself off and goes grey.
 - [ ] **Overdue a turn** reads *Never played (4 games)* on a freshly seeded device. Toggle it → the count drops to those four; **Serve me a match!** only ever returns Wingspan, Gloomhaven, Scythe or Arkham Horror. Combine with Players `2` → fewer still.
 - [ ] Log a play of each of those four (or import a backup where every game has a play) → the toggle now reads *Least played · N play(s) (M games)* instead.
 - [ ] **Clear** turns the toggle off along with everything else.
@@ -154,10 +155,12 @@ Open http://localhost:4200. Work through the checklist in order — later steps 
 
 - [ ] **📊 Stats** on a freshly seeded device → **Plays** `15` with *8 in the last 30 days*, **Games played** *7 / 11* with *4 never played*, **Hours at the table** `19`, **Most played** *Catan* (4 plays).
 - [ ] Delete every play through History → Stats shows *No plays logged yet* and a **Log your first play** button.
-- [ ] **Games** table: played games only, most plays first (Catan, Azul, then the rest). Catan's **Players** column reads `3.5` with the breakdown *3p ×2 · 75 min, 4p ×2 · 142.5 min* — the four-player games take nearly twice as long. Pandemic, always four-handed, shows just `4`. Terraforming Mars shows *215 min* with a red *+35 min over*; last-played date; average time with *in range* / *+N min over* (red) / *N min under* (blue) against the listed duration; average fun. Games you never recorded a duration or rating for show `—`.
+- [ ] **Games** table: played games only, most plays first (Catan, Azul, then the rest). Catan's **Players** column reads `3.5`, then a green *★ best with 3*, then one line per table size: *3p ×2 · 75 min · fun 7.5* (highlighted green) and *4p ×2 · 142.5 min · fun 6* — four players takes nearly twice as long and rates lower. Pandemic, always four-handed, shows just `4` with no best line. Terraforming Mars shows *215 min* with a red *+35 min over*; last-played date; average time with *in range* / *+N min over* (red) / *N min under* (blue) against the listed duration; average fun. Games you never recorded a duration or rating for show `—`.
 - [ ] **Never played (4)** chips — Arkham Horror, Gloomhaven, Scythe, Wingspan; click one → *Log a Play* with that game pre-selected.
 - [ ] **Players** table: Riley's win rate is green (56 %), the others below 50 % are not. Most-played shows a game with ×count. Add a new player and they appear dimmed with dashes.
 - [ ] Log a co-op play with two players and **no winner** → both players' *Plays* go up but *Win rate* is unchanged (the footnote explains why).
+- [ ] Seeded games that show a best size: Catan (3), Azul (2), Codenames (8), Ticket to Ride (3 — a tie on fun broken toward the smaller table). Pandemic, Terraforming Mars and 7 Wonders show none, having only ever been played at one size.
+- [ ] Log a single play of Gloomhaven with a fun rating → still no best line, since one table size cannot be compared. Log a second at a different size with a different rating → the best line appears.
 - [ ] The game you deleted earlier still appears with *(no longer in collection)*; a removed player who has plays still appears with *(removed)*.
 - [ ] Log a play dated 40 days ago → **Plays** tile total goes up, *in the last 30 days* does not.
 

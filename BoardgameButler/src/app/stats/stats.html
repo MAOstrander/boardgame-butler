@@ -86,10 +86,16 @@
                   <td class="px-4 py-3 text-center text-gray-300" data-testid="players-cell">
                     @if (row.avgPlayers != null) {
                       <span class="text-white tabular-nums">{{ row.avgPlayers }}</span>
+                      @if (row.bestPlayers != null) {
+                        <span class="block text-xs text-green-400 font-medium whitespace-nowrap">★ best with {{ row.bestPlayers }}</span>
+                      }
                       @if (row.byPlayers.length > 1) {
-                        <span class="block text-xs text-gray-500 whitespace-nowrap">
-                          @for (entry of row.byPlayers; track entry.players; let last = $last) {
-                            {{ breakdown(entry) }}@if (!last) {<span class="text-gray-700">, </span>}
+                        <span class="block mt-1 text-xs text-gray-500">
+                          @for (entry of row.byPlayers; track entry.players) {
+                            <span
+                              class="block whitespace-nowrap"
+                              [class.text-green-400]="entry.players === row.bestPlayers"
+                            >{{ breakdown(entry) }}</span>
                           }
                         </span>
                       }

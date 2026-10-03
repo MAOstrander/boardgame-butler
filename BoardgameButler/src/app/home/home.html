@@ -115,6 +115,21 @@
           </select>
         </label>
 
+        <div class="flex flex-col gap-1.5 text-sm">
+          <span class="text-white/70">Overdue a turn</span>
+          <button
+            type="button"
+            (click)="toggleLeastPlayed()"
+            [attr.aria-pressed]="leastPlayedOnly()"
+            class="px-3 py-2 rounded-lg border text-sm font-medium transition-colors cursor-pointer text-left"
+            [class]="leastPlayedOnly()
+              ? 'bg-amber-500 border-amber-400 text-white'
+              : 'bg-black/30 border-white/20 text-white/80 hover:border-amber-400'"
+          >
+            {{ leastPlayedLabel() }}
+          </button>
+        </div>
+
         <div class="flex items-center justify-between gap-3 pt-1 border-t border-white/10">
           <p class="text-sm text-white/70" aria-live="polite">
             @if (!filtersActive()) {
@@ -171,6 +186,16 @@
       <p class="text-white/40 text-sm">Loading game library...</p>
     } @else if (games().length === 0) {
       <p class="text-white/40 text-sm">Your collection is empty — add a game to get started.</p>
+    }
+
+    @if (canInstall()) {
+      <button
+        type="button"
+        (click)="installApp()"
+        class="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-amber-500 backdrop-blur-sm border border-white/30 text-white text-sm font-semibold transition-colors cursor-pointer"
+      >
+        &#x1F4F2; Install app
+      </button>
     }
 
     <div class="flex flex-wrap justify-center gap-x-6 gap-y-2 mt-4">

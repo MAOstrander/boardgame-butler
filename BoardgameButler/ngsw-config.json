@@ -11,6 +11,8 @@
           "/index.html",
           "/manifest.webmanifest",
           "/games.json",
+          "/plays.json",
+          "/players.json",
           "/*.css",
           "/*.js"
         ]

@@ -48,7 +48,9 @@
     </form>
 
     <!-- List -->
-    @if (players().length === 0) {
+    @if (!ready()) {
+      <p class="text-sm text-gray-500">Loading players...</p>
+    } @else if (players().length === 0) {
       <div class="p-10 rounded-2xl bg-gray-900 border border-gray-800 text-center">
         <p class="text-gray-400">No players yet. Add the people you usually play with.</p>
       </div>

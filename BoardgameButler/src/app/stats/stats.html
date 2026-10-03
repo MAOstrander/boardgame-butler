@@ -17,7 +17,9 @@
       <p class="mt-1 text-gray-400">What actually hits the table, and who keeps winning.</p>
     </div>
 
-    @if (!hasPlays()) {
+    @if (!ready()) {
+      <p class="text-sm text-gray-500">Loading statistics...</p>
+    } @else if (!hasPlays()) {
       <div class="p-10 rounded-2xl bg-gray-900 border border-gray-800 text-center">
         <p class="text-gray-400 mb-4">No plays logged yet — statistics appear once there's some history.</p>
         <a

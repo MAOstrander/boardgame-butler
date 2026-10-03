@@ -13,7 +13,7 @@ import { Players } from './players/players';
 import { History } from './history/history';
 import { Stats } from './stats/stats';
 import { PlayForm } from './play-form/play-form';
-import { SAMPLE_GAMES, SAMPLE_PLAYS, seedPlays, seedStorage } from '../testing/helpers';
+import { SAMPLE_GAMES, SAMPLE_PLAYERS, SAMPLE_PLAYS, seedPlayers, seedPlays, seedStorage } from '../testing/helpers';
 
 describe('App routing', () => {
   let harness: RouterTestingHarness;
@@ -22,6 +22,7 @@ describe('App routing', () => {
   beforeEach(async () => {
     localStorage.clear();
     seedStorage(SAMPLE_GAMES);
+    seedPlayers(SAMPLE_PLAYERS);
     seedPlays(SAMPLE_PLAYS);
 
     // Use the real app providers (router config, input binding, …) so routing

@@ -13,6 +13,7 @@ export class History {
 
   protected plays = this.store.recent;
   protected error = this.store.error;
+  protected ready = this.store.ready;
   protected confirmingId = signal<string | null>(null);
 
   protected count = computed(() => this.plays().length);

@@ -1,5 +1,5 @@
 import { Play } from './play';
-import { gameRows, headCount, overview, playerRows, shiftDate } from './stats';
+import { gameRows, headCount, leastPlayed, overview, playerRows, shiftDate } from './stats';
 import { SAMPLE_GAMES, SAMPLE_PLAYERS, SAMPLE_PLAYS } from '../testing/helpers';
 
 // SAMPLE_PLAYS recap:
@@ -145,6 +145,43 @@ describe('gameRows', () => {
   it('ignores an open-ended listed range', () => {
     const games = [{ ...SAMPLE_GAMES[0], duration: '60+' }];
     expect(gameRows(games, SAMPLE_PLAYS)[0].listedMinutes).toBeNull();
+  });
+});
+
+describe('leastPlayed', () => {
+  it('picks the never-played games while any exist', () => {
+    const { minPlays, ids } = leastPlayed(SAMPLE_GAMES, SAMPLE_PLAYS);
+    expect(minPlays).toBe(0);
+    expect([...ids]).toEqual(['g-gloom', 'g-tm']);
+  });
+
+  it('falls back to the lowest count once everything has been played', () => {
+    // Catan 2, Azul 1, Gloomhaven 1, Terraforming Mars 1
+    const plays = [
+      ...SAMPLE_PLAYS,
+      { ...SAMPLE_PLAYS[0], id: 'x', gameId: 'g-gloom' },
+      { ...SAMPLE_PLAYS[0], id: 'y', gameId: 'g-tm' },
+    ];
+    const { minPlays, ids } = leastPlayed(SAMPLE_GAMES, plays);
+    expect(minPlays).toBe(1);
+    expect([...ids].sort()).toEqual(['g-azul', 'g-gloom', 'g-tm']);
+  });
+
+  it('returns every game when nothing has been played', () => {
+    const { minPlays, ids } = leastPlayed(SAMPLE_GAMES, []);
+    expect(minPlays).toBe(0);
+    expect(ids.size).toBe(SAMPLE_GAMES.length);
+  });
+
+  it('ignores plays of games that are no longer in the collection', () => {
+    const games = SAMPLE_GAMES.filter(g => g.id !== 'g-catan');
+    const { minPlays, ids } = leastPlayed(games, SAMPLE_PLAYS);
+    expect(minPlays).toBe(0);
+    expect(ids.has('g-catan')).toBe(false);
+  });
+
+  it('handles an empty collection', () => {
+    expect(leastPlayed([], SAMPLE_PLAYS)).toEqual({ minPlays: 0, ids: new Set() });
   });
 });
 

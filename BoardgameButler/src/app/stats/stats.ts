@@ -15,6 +15,7 @@ export class Stats {
   private players = inject(PlayerStore);
   private plays = inject(PlayStore);
 
+  protected ready = computed(() => this.plays.ready() && this.games.ready());
   protected hasPlays = computed(() => this.plays.plays().length > 0);
   protected overview = computed(() => overview(this.games.games(), this.plays.plays(), todayIso()));
   protected gameRows = computed(() => gameRows(this.games.games(), this.plays.plays()));

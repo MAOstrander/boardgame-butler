@@ -32,5 +32,12 @@ export interface Play {
 /** A play as it may arrive from a backup file — `id` is optional there. */
 export type RawPlay = Omit<Play, 'id'> & { id?: string };
 
+/**
+ * A play in the bundled seed file. Dates are relative (`daysAgo`) rather than
+ * fixed so the sample history stays plausible however long after release the
+ * app is first opened.
+ */
+export type SeedPlay = Omit<RawPlay, 'playedAt'> & { daysAgo: number };
+
 /** The editable fields of a play. */
 export type PlayDetails = Omit<Play, 'id'>;

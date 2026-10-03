@@ -14,6 +14,7 @@ export class Players {
     [...this.store.players()].sort((a, b) => a.name.localeCompare(b.name)),
   );
   protected error = this.store.error;
+  protected ready = this.store.ready;
 
   // --- Add
   protected newName = signal('');

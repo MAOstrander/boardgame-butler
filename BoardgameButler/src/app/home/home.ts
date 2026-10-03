@@ -2,6 +2,9 @@ import { Component, signal, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Game } from '../game';
 import { GameStore } from '../game-store';
+import { PlayStore } from '../play-store';
+import { InstallService } from '../install';
+import { leastPlayed } from '../stats';
 import { EMPTY_FILTERS, GameFilters, filterGames, hasActiveFilters } from '../game-filter';
 
 @Component({
@@ -11,6 +14,8 @@ import { EMPTY_FILTERS, GameFilters, filterGames, hasActiveFilters } from '../ga
 })
 export class Home {
   private store = inject(GameStore);
+  private plays = inject(PlayStore);
+  private install = inject(InstallService);
 
   protected games = this.store.games;
   protected ready = this.store.ready;
@@ -20,8 +25,29 @@ export class Home {
 
   protected filtersOpen = signal(false);
   protected filters = signal<GameFilters>(EMPTY_FILTERS);
-  protected filtersActive = computed(() => hasActiveFilters(this.filters()));
-  protected matches = computed(() => filterGames(this.games(), this.filters()));
+  /** Restrict to the games tied for fewest plays. Kept apart from `filters`
+   *  because it depends on the play log, not on a game's own fields. */
+  protected leastPlayedOnly = signal(false);
+
+  protected leastPlayed = computed(() => leastPlayed(this.games(), this.plays.plays()));
+  protected filtersActive = computed(() => hasActiveFilters(this.filters()) || this.leastPlayedOnly());
+  protected matches = computed(() => {
+    const matching = filterGames(this.games(), this.filters());
+    if (!this.leastPlayedOnly()) return matching;
+    const { ids } = this.leastPlayed();
+    return matching.filter(g => ids.has(g.id));
+  });
+
+  /** Says what "least played" currently means, so the toggle isn't a mystery. */
+  protected leastPlayedLabel = computed(() => {
+    const { minPlays, ids } = this.leastPlayed();
+    const games = `${ids.size} game${ids.size === 1 ? '' : 's'}`;
+    return minPlays === 0
+      ? `Never played (${games})`
+      : `Least played · ${minPlays} play${minPlays === 1 ? '' : 's'} (${games})`;
+  });
+
+  protected canInstall = this.install.canInstall;
 
   protected readonly complexityOptions = ['Easy', 'Medium', 'Hard'];
   protected readonly timeOptions = [30, 45, 60, 90, 120, 180];
@@ -51,6 +77,15 @@ export class Home {
 
   protected clearFilters() {
     this.filters.set(EMPTY_FILTERS);
+    this.leastPlayedOnly.set(false);
+  }
+
+  protected toggleLeastPlayed() {
+    this.leastPlayedOnly.update(on => !on);
+  }
+
+  protected installApp() {
+    void this.install.prompt();
   }
 
   protected setPlayers(event: Event) {

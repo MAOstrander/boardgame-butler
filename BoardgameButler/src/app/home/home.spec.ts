@@ -4,16 +4,32 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { Home } from './home';
 import { Game } from '../game';
-import { SAMPLE_GAMES, findByText, query, queryAll, seedStorage, setInputValue, settle, text } from '../../testing/helpers';
+import {
+  SAMPLE_GAMES,
+  SAMPLE_PLAYS,
+  findByText,
+  query,
+  queryAll,
+  seedPlayers,
+  seedPlays,
+  seedStorage,
+  setInputValue,
+  settle,
+  text,
+} from '../../testing/helpers';
+import { Play } from '../play';
+import { InstallService } from '../install';
 
 describe('Home', () => {
   let fixture: ComponentFixture<Home>;
   let http: HttpTestingController;
 
   /** Pass `null` to start with nothing saved so the store has to seed over HTTP. */
-  async function setup(saved: Game[] | null = SAMPLE_GAMES) {
+  async function setup(saved: Game[] | null = SAMPLE_GAMES, plays: Play[] = SAMPLE_PLAYS) {
     localStorage.clear();
     if (saved) seedStorage(saved);
+    seedPlayers([]);
+    seedPlays(plays);
 
     await TestBed.configureTestingModule({
       imports: [Home],
@@ -248,6 +264,106 @@ describe('Home', () => {
       expect(query(fixture, 'h2').textContent).toContain('Catan'); // not a match for 5 players
       expect(text(fixture)).toContain("Tonight's pick");
       expect(text(fixture)).not.toContain('from your matches');
+    });
+  });
+
+  describe('least played', () => {
+    const toggle = () => findByText<HTMLButtonElement>(fixture, 'section button', 'played');
+
+    async function openFilters() {
+      findByText<HTMLButtonElement>(fixture, 'button', 'Narrow it down').click();
+      await settle(fixture);
+    }
+
+    it('offers the never-played games while any exist', async () => {
+      await setup();
+      await openFilters();
+      // SAMPLE_PLAYS covers Catan and Azul; Gloomhaven and Terraforming Mars are untouched.
+      expect(toggle().textContent).toContain('Never played (2 games)');
+    });
+
+    it('becomes "least played" once everything has been played', async () => {
+      await setup(SAMPLE_GAMES, [
+        ...SAMPLE_PLAYS,
+        { ...SAMPLE_PLAYS[0], id: 'x', gameId: 'g-gloom' },
+        { ...SAMPLE_PLAYS[0], id: 'y', gameId: 'g-tm' },
+      ]);
+      await openFilters();
+      expect(toggle().textContent).toContain('Least played · 1 play (3 games)');
+    });
+
+    it('restricts the matches and counts as an active filter', async () => {
+      await setup();
+      await openFilters();
+      expect(text(fixture)).toContain('No filters set');
+
+      toggle().click();
+      await settle(fixture);
+
+      expect(toggle().getAttribute('aria-pressed')).toBe('true');
+      expect(text(fixture)).toContain('2 of 4 games match');
+    });
+
+    it('combines with the other filters', async () => {
+      await setup();
+      await openFilters();
+      toggle().click();
+      await settle(fixture);
+      // Of the two never-played games, only Terraforming Mars seats 5.
+      setInputValue(query<HTMLInputElement>(fixture, '#filter-players'), '5');
+      await settle(fixture);
+      expect(text(fixture)).toContain('1 of 4 games match');
+    });
+
+    it('serves only from the least-played games', async () => {
+      await setup();
+      await openFilters();
+      toggle().click();
+      await settle(fixture);
+
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      findByText<HTMLButtonElement>(fixture, 'button', 'Serve me a match!').click();
+      await settle(fixture);
+
+      expect(query(fixture, 'h2').textContent).toContain('Gloomhaven');
+      expect(text(fixture)).toContain('from your matches');
+    });
+
+    it('is cleared along with the other filters', async () => {
+      await setup();
+      await openFilters();
+      toggle().click();
+      await settle(fixture);
+
+      findByText<HTMLButtonElement>(fixture, 'button', 'Clear').click();
+      await settle(fixture);
+
+      expect(toggle().getAttribute('aria-pressed')).toBe('false');
+      expect(text(fixture)).toContain('No filters set');
+    });
+  });
+
+  describe('install button', () => {
+    const installButton = () =>
+      queryAll<HTMLButtonElement>(fixture, 'button').find(b => b.textContent?.includes('Install app'));
+
+    it('is hidden until the browser offers an install', async () => {
+      await setup();
+      expect(installButton()).toBeUndefined();
+    });
+
+    it('appears when an install is available and asks the service to prompt', async () => {
+      await setup();
+      const install = TestBed.inject(InstallService);
+      vi.spyOn(install, 'canInstall').mockReturnValue(true);
+      const prompt = vi.spyOn(install, 'prompt').mockResolvedValue('accepted');
+
+      fixture = TestBed.createComponent(Home);
+      await settle(fixture);
+
+      installButton()!.click();
+      await settle(fixture);
+      expect(prompt).toHaveBeenCalledTimes(1);
     });
   });
 

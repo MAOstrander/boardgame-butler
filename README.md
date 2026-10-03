@@ -97,4 +97,4 @@ The workflow also copies `index.html` to `404.html` (GitHub Pages has no rewrite
 
 [MIT](LICENSE) © 2026 Mathew Ostrander.
 
-The background artwork in `public/DiceButler.jpg` is a third-party stock image and is not covered by that licence.
+The artwork in `public/` — the hero background and the icons derived from it — was supplied by the project author.

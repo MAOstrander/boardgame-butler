@@ -138,7 +138,7 @@ interface Play {
 **Route:** `/`
 **Files:** `src/app/home/home.ts`, `src/app/home/home.html`
 
-The landing page shows a full-bleed background image (`public/DiceButler.jpg`) with a dark overlay, the app title and tagline, and a row of feature "chips".
+The landing page shows a full-bleed background image (`public/hero.webp`) under a 60% black overlay, the app title and tagline, and a row of feature "chips".
 
 **What it does**
 

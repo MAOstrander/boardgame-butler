@@ -12,9 +12,9 @@ import { ImportPlan, PlayerImportPlan, planImport, planPlayerImport } from '../i
 interface Preview {
   version: 1 | 2 | 3;
   games: ImportPlan;
-  /** null when the file has no players section (v1) — the device's players are kept. */
+  /** null when the file has no players section (v1) - the device's players are kept. */
   players: PlayerImportPlan | null;
-  /** null when the file has no plays section (v1/v2) — the device's history is kept. */
+  /** null when the file has no plays section (v1/v2) - the device's history is kept. */
   plays: { incoming: RawPlay[]; fresh: number } | null;
 }
 
@@ -65,7 +65,7 @@ export class Manage {
       try {
         data = JSON.parse(reader.result as string);
       } catch {
-        this.importError.set('Could not parse file — make sure it is valid JSON.');
+        this.importError.set('Could not parse file - make sure it is valid JSON.');
         return;
       }
 

@@ -44,7 +44,7 @@ export interface GameRow {
   byPlayers: HeadCountBreakdown[];
   /**
    * The head-count this game was most fun at, or null when there isn't enough
-   * to compare — fun must have been recorded at two or more different counts.
+   * to compare - fun must have been recorded at two or more different counts.
    */
   bestPlayers: number | null;
   /** Mean of recorded durations, or null if none recorded. */
@@ -79,7 +79,7 @@ export interface LeastPlayed {
 /**
  * "Show me what we never play." Once everything has been played at least
  * once, "never" has no answer, so this generalises to the lowest count there
- * is — the games most overdue a turn either way.
+ * is - the games most overdue a turn either way.
  */
 export function leastPlayed(games: Game[], plays: Play[]): LeastPlayed {
   if (games.length === 0) return { minPlays: 0, ids: new Set() };
@@ -186,7 +186,7 @@ function row(gameId: string, title: string, inCollection: boolean, list: Play[],
 
 /**
  * Which head-count was most fun. Needs fun recorded at two or more different
- * counts — with only one there is nothing to compare against, and claiming a
+ * counts - with only one there is nothing to compare against, and claiming a
  * "best" from a single data point would be misleading. Ties go to the count
  * with more plays behind it, then to the smaller table.
  */

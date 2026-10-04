@@ -5,7 +5,7 @@ import { SAMPLE_GAMES, SAMPLE_PLAYERS, SAMPLE_PLAYS } from '../testing/helpers';
 // SAMPLE_PLAYS recap:
 //   pl-1  Catan  2026-09-01  Sam, Alex        winner Alex   90 min  fun 7
 //   pl-2  Azul   2026-09-10  Sam, Jo          winner Sam    35 min  fun 9
-//   pl-3  Catan  2026-09-10  Sam, Alex, Jo    no winner     —       —
+//   pl-3  Catan  2026-09-10  Sam, Alex, Jo    no winner     -       -
 
 const TODAY = '2026-09-18';
 

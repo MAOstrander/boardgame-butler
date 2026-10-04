@@ -40,7 +40,7 @@ export class Stats {
     return new Date(y, m - 1, d).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
   }
 
-  /** "3p ×2 · 70 min · fun 8" — one line per head-count that occurs. */
+  /** "3p ×2 · 70 min · fun 8" - one line per head-count that occurs. */
   protected breakdown(entry: HeadCountBreakdown): string {
     const parts = [`${entry.players}p ×${entry.plays}`];
     if (entry.avgMinutes != null) parts.push(`${entry.avgMinutes} min`);

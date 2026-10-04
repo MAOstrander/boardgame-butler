@@ -8,7 +8,7 @@ export const STALE_AFTER_DAYS = 30;
 /**
  * Remembers when the collection was last exported.
  *
- * Nothing here protects any data by itself — it exists so the app can say
+ * Nothing here protects any data by itself - it exists so the app can say
  * "last backed up 47 days ago" rather than leaving backup as a decision the
  * user has to remember to make.
  */

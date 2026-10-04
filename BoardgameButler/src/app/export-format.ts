@@ -4,9 +4,9 @@ import { Play, RawPlay } from './play';
 
 /**
  * The backup file format.
- *   v1 — a bare array of games
- *   v2 — { version, games, players }
- *   v3 — adds a plays section
+ *   v1 - a bare array of games
+ *   v2 - { version, games, players }
+ *   v3 - adds a plays section
  * Import accepts all of them; a section a file doesn't have is left alone on
  * the device.
  */
@@ -23,9 +23,9 @@ export interface ExportFile {
 export interface ParsedImport {
   version: 1 | 2 | 3;
   games: RawGame[];
-  /** null when the file predates players (v1) — the device's players are left untouched. */
+  /** null when the file predates players (v1) - the device's players are left untouched. */
   players: RawPlayer[] | null;
-  /** null when the file predates plays (v1/v2) — the device's history is left untouched. */
+  /** null when the file predates plays (v1/v2) - the device's history is left untouched. */
   plays: RawPlay[] | null;
 }
 

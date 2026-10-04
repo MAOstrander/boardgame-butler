@@ -94,7 +94,7 @@ export class PlayForm implements OnInit {
     return typed < selected ? `You picked ${selected} players above.` : null;
   });
 
-  /** Minutes on the stopwatch, if it has been used — offered as a shortcut. */
+  /** Minutes on the stopwatch, if it has been used - offered as a shortcut. */
   protected stopwatchMinutes = computed(() => Math.round(this.timers.stopwatch.elapsedMs() / 60_000));
 
   protected valid = computed(
@@ -157,7 +157,7 @@ export class PlayForm implements OnInit {
     }
   }
 
-  /** Deselect everyone — quicker than un-tapping a suggested line-up one by one. */
+  /** Deselect everyone - quicker than un-tapping a suggested line-up one by one. */
   protected clearPlayers() {
     this.prefilledLineup.set(false);
     this.participantIds.set([]);

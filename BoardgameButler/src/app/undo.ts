@@ -9,7 +9,7 @@ export interface UndoOffer {
 export const UNDO_WINDOW_MS = 8000;
 
 /**
- * A single pending "that's gone — unless you say otherwise".
+ * A single pending "that's gone - unless you say otherwise".
  *
  * Deleting a game, player or play is immediate and there is no server copy to
  * fall back on, so every delete hands its reversal here and the app shows a

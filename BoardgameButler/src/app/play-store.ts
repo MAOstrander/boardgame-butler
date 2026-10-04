@@ -8,7 +8,7 @@ export const PLAYS_STORAGE_KEY = 'boardgame-butler.plays';
 
 /**
  * The play log. Plays are append-only events, so a backup is *merged* by id
- * rather than replacing what's here — importing an old file can never lose
+ * rather than replacing what's here - importing an old file can never lose
  * history. Stored in localStorage under its own key, and seeded from the
  * bundled plays.json on a device that has never logged any.
  */

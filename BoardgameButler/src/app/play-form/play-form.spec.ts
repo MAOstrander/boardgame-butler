@@ -204,7 +204,7 @@ describe('PlayForm', () => {
         chip('Who played', 'Jo').click();
         await settle(fixture);
         expect(countInput().placeholder).toBe('2');
-        expect(text(fixture)).toContain('Will be saved as 2 — the players picked above.');
+        expect(text(fixture)).toContain('Will be saved as 2 - the players picked above.');
       });
 
       it('can be raised above the selected players, for people not in the list', async () => {

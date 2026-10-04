@@ -8,7 +8,7 @@ export interface Game {
   rating?: number;
 }
 
-/** A game as it may arrive from an imported or bundled JSON file — `id` is optional there. */
+/** A game as it may arrive from an imported or bundled JSON file - `id` is optional there. */
 export type RawGame = Omit<Game, 'id'> & { id?: string };
 
 /** The editable fields of a game. */

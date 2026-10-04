@@ -66,7 +66,14 @@
 
       <!-- Players -->
       <div class="flex flex-col gap-1.5">
-        <span class="text-sm font-medium text-gray-300">Who played</span>
+        <div class="flex items-center justify-between gap-3">
+          <span class="text-sm font-medium text-gray-300">Who played</span>
+          @if (selectedPlayers().length > 0) {
+            <button type="button" (click)="clearPlayers()" class="text-xs text-gray-500 hover:text-amber-400 transition-colors cursor-pointer">
+              Clear
+            </button>
+          }
+        </div>
         @if (playerChoices().length === 0) {
           <p class="text-xs text-gray-500">No players yet — <a routerLink="/players" class="text-amber-400 hover:text-amber-300">add some</a> to record who played and who won.</p>
         } @else {
@@ -85,6 +92,9 @@
               </button>
             }
           </div>
+          @if (prefilledLineup()) {
+            <p class="text-xs text-gray-500">Carried over from your last play — change it if tonight's group is different.</p>
+          }
         }
       </div>
 

@@ -372,12 +372,14 @@ One form for logging and editing, like the game form. Reached from the pick card
 |---|---|---|
 | Game | select, alphabetical | **required**; pre-selected from `?game=<id>`. Empty collection → link to Add a game |
 | Date | date input | **required**; defaults to today (local time) |
-| Who played | toggle chips of every player, alphabetical | no players → link to the Players page |
+| Who played | toggle chips of every player, alphabetical | **pre-selected with whoever played most recently**, since game nights tend to repeat; a **Clear** action empties the lot. No players → link to the Players page |
 | How many played | number, optional | defaults to the number of chips selected (the placeholder shows it, and a note says *Will be saved as N*); raise it when someone not in your Players list joined. Can't be lower than the chips selected or below 1 |
 | Who won | toggle chips of the *selected* players only | appears once someone is selected; deselecting a player also un-wins them; leave empty for a loss or draw |
 | How long | minutes | if the Table Tools **stopwatch** has time on it, a **Use stopwatch (N min)** button fills it in |
 | How fun was it? | 1–10 slider, optional | shows *not rated* until moved; **clear** unsets it |
 | Notes | textarea | trimmed; dropped if empty |
+
+**Carried-over line-up.** When logging something new, the players from the most recent play start selected, with a note saying so that disappears as soon as you change the selection. The line-up is read from the play log rather than stored separately (`PlayStore.lastLineup()`), so there is no extra state to keep in sync and it survives export/import for free. Three deliberate limits: it is taken by **date**, so back-filling an old session doesn't change who the app thinks you currently play with; anyone **since removed** from the player list is dropped; and only the people carry over, **not** the head-count or the winners, which are specific to a session rather than to a group.
 
 **Log Play** saves to `PlayStore` with the game title and player names snapshotted, then goes to `/history`. Editing (`/log-play/:id`) pre-fills everything, says **Save Changes**, offers **Cancel**, and keeps the play's id. A deleted game or removed player stays selectable with its snapshot, labelled *(no longer in collection)* / *(removed)*. Unknown id → *"That play isn't in your history any more."*
 
@@ -394,6 +396,7 @@ One form for logging and editing, like the game form. Reached from the pick card
 | `plays` | Read-only signal, storage order |
 | `recent` | Computed: newest first |
 | `find(id)`, `forGame(gameId)` | Lookups |
+| `lastLineup` | Computed: the players of the most recent play, for pre-filling the next |
 | `add(details)`, `update(id, details)`, `remove(id)` | Persisting edits |
 | `merge(incoming)` | Add plays whose id isn't already here; returns how many were added |
 | `countNew(incoming)` | What `merge` would add, for the import preview |
@@ -404,6 +407,7 @@ Stored under `boardgame-butler.plays`.
 
 - No filtering or search on the History page.
 - Logging is manual; nothing is recorded automatically from the quick-pick or timers.
+- The carried-over line-up comes from the single most recent play, not from the group you play with most often.
 
 ---
 
@@ -673,8 +677,8 @@ Each page has a functional spec next to it (`*.spec.ts`) that drives the rendere
 | `player-store.spec.ts` | Seeding from `players.json` (id assignment, failure, empty-list-is-a-decision), load without a fetch, id assignment for legacy data, re-seed on corrupt data, add (trimmed, new id), rename, remove, replaceAll, `hasName`, storage failure |
 | `players.spec.ts` | Alphabetical list and count, empty state, add (disabled until typed, trimmed, Enter, duplicate rejected, storage error keeps input), rename (inline editor, save, own name allowed / other rejected, cancel), remove (confirm, keep, confirm removes, opening rename closes confirm), nav links |
 | `export-format.spec.ts` | `buildExport` shape and timestamp; `parseImport` for v1 arrays, v2 and v3 objects, missing players, bad `games`/`players`/`plays` entries, and non-backup values |
-| `play-store.spec.ts` | Seeding from `plays.json` including `daysAgo` → `playedAt` conversion (0 and negative values), id assignment, failure, empty-log-is-a-decision, re-seed on corrupt data, load with id assignment, `recent` ordering, add/update/remove, `forGame`, `merge`/`countNew` (skips existing ids, treats id-less as new, no write when nothing is new), storage failure |
-| `play-form.spec.ts` | Log: defaults, alphabetical games with `?game` pre-select (unknown ignored), player chips and winners only for selected players, deselect un-wins, head-count defaults / raised / no named players / refuses fewer than chips or zero, stopwatch shortcut, full and minimal saves with snapshots, clear rating, empty-players / empty-collection hints, storage error. Edit: pre-fill (head-count shown only when it exceeds the chips), save in place, deleted game and removed player stay selectable, unknown id |
+| `play-store.spec.ts` | `lastLineup` (most recent play, unaffected by back-fill, empty log); seeding from `plays.json` including `daysAgo` → `playedAt` conversion (0 and negative values), id assignment, failure, empty-log-is-a-decision, re-seed on corrupt data, load with id assignment, `recent` ordering, add/update/remove, `forGame`, `merge`/`countNew` (skips existing ids, treats id-less as new, no write when nothing is new), storage failure |
+| `play-form.spec.ts` | Log: defaults, alphabetical games with `?game` pre-select (unknown ignored), player chips and winners only for selected players, deselect un-wins, head-count defaults / raised / no named players / refuses fewer than chips or zero, stopwatch shortcut, full and minimal saves with snapshots, clear rating, empty-players / empty-collection hints, storage error. Carry-over: pre-selects the last line-up with its note, nothing to carry when the log is empty, drops removed players, people only (not head-count or winners), note clears on change, Clear empties selection and wins, saves when untouched, never overrides a play being edited. Edit: pre-fill (head-count shown only when it exceeds the chips), save in place, deleted game and removed player stay selectable, unknown id |
 | `history.spec.ts` | Empty state, newest-first list and count, card contents (date, winners, others, duration, fun, notes), no-winner and no-players cases, head-count chip only when it exceeds named players, edit links, delete confirm/keep/confirm |
 | `stats.spec.ts` (`src/app/`) | `leastPlayed` (never-played while any exist, fallback to the lowest count, nothing played, plays of deleted games, empty collection); `shiftDate` across month/leap boundaries; `overview` totals, 30-day window edges, tie-breaking, empty log; `gameRows` ordering, averages and rounding, nulls, deleted games with latest snapshot, open-ended ranges, `headCount` precedence, duration-and-fun breakdown by table size, `bestPlayers` (highest fun, needs two rated sizes, tie-breaks on plays then smaller table, ignores unrated sizes); `playerRows` ordering, win rate over decided plays only, most-played ties, players with no plays, removed players with latest snapshot |
 | `seed-data.spec.ts` | The bundled samples: unique ids, parseable ranges, valid complexity/ratings, plays referencing existing games and players with matching snapshots, winners who took part, sane dates/head-counts/durations, and coverage of the showcase cases listed under [Sample data](#sample-data) |

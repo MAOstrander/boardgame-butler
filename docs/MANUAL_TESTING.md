@@ -141,7 +141,9 @@ Open http://localhost:4200. Work through the checklist in order — later steps 
 
 - [ ] Home → **📖 History** → the 15 seeded plays, newest first, the most recent a couple of days ago. Cards show winners with 🏆, other players, durations, fun ratings and notes; the Codenames plays show an *8 players* / *6 players* chip, and the Pandemic loss shows no 🏆.
 - [ ] Home → **Serve me a game!** → the pick card has **We played this →**. Click it → *Log a Play* with that game pre-selected and today's date.
-- [ ] **Who played:** chips for every player; tap Sam and Alex → a **Who won** row appears with just those two. Tap Alex there → 🏆 Alex. Un-tap Alex in *Who played* → the winners row loses Alex (or disappears if nobody's left).
+- [ ] **Who played:** on a freshly seeded device the players from the most recent logged play start selected, with *Carried over from your last play* beneath them. Tap any chip → the note disappears. **Clear** deselects everyone (and any winners). The head-count box and the winners are *not* carried over.
+- [ ] Log a play with a different group, then start another → the new group is the one carried over.
+- [ ] **Who played:** tap Sam and Alex → a **Who won** row appears with just those two. Tap Alex there → 🏆 Alex. Un-tap Alex in *Who played* → the winners row loses Alex (or disappears if nobody's left).
 - [ ] **How many played** shows placeholder `2` and *Will be saved as 2 — the players picked above.* Type `1` → *You picked 2 players above.* and **Log Play** is disabled; type `4` (two friends not in your list) → allowed. Leave it at 4.
 - [ ] Enter 75 minutes, drag *How fun* to 8 (label reads *8 / 10*; **clear** resets to *not rated*), type a note → **Log Play** → *Play History* shows one card: date, game, 🏆 winner, others, *4 players*, *75 min*, *fun 8/10*, note. (A play whose head-count equals the named players shows no *N players* chip.)
 - [ ] Table Tools → start the **Stopwatch**, wait a minute, pause. Back to **+ Log a play** → a **Use stopwatch (1 min)** button fills the duration.

@@ -43,6 +43,13 @@ export class PlayStore {
     }
   }
 
+  /**
+   * The line-up from the most recent play, for pre-filling the next one. Taken
+   * by date rather than by insertion order, so back-filling an old session
+   * doesn't change who the app thinks you're currently playing with.
+   */
+  readonly lastLineup = computed(() => this.recent()[0]?.players ?? []);
+
   find(id: string): Play | undefined {
     return this._plays().find(p => p.id === id);
   }

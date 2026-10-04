@@ -22,6 +22,8 @@ import {
   text,
 } from '../../testing/helpers';
 import { buildExport } from '../export-format';
+import { BackupService, LAST_EXPORT_KEY } from '../backup';
+import { PersistentStorageService } from '../persistent-storage';
 
 describe('Manage', () => {
   let fixture: ComponentFixture<Manage>;
@@ -61,6 +63,38 @@ describe('Manage', () => {
   }
 
   describe('export', () => {
+    it('says it has never been backed up, and flags that as stale', () => {
+      expect(query(fixture, '[data-testid="last-backup"]').textContent).toContain('never');
+      expect(query(fixture, '[data-testid="last-backup"]').className).toContain('text-amber-400');
+    });
+
+    it('records the export, so the page stops nagging', async () => {
+      Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:x'), revokeObjectURL: vi.fn() });
+      vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+      findByText<HTMLButtonElement>(fixture, 'button', 'Download boardgame-butler.json').click();
+      await settle(fixture);
+
+      expect(localStorage.getItem(LAST_EXPORT_KEY)).toEqual(expect.any(String));
+      expect(TestBed.inject(BackupService).describe()).toBe('today');
+      expect(query(fixture, '[data-testid="last-backup"]').textContent).toContain('today');
+      expect(query(fixture, '[data-testid="last-backup"]').className).not.toContain('text-amber-400');
+    });
+
+    it('mentions eviction risk only when the browser refuses persistent storage', async () => {
+      expect(fixture.nativeElement.querySelector('[data-testid="persistence-note"]')).toBeNull();
+
+      Object.defineProperty(navigator, 'storage', {
+        configurable: true,
+        value: { persist: vi.fn().mockResolvedValue(false), persisted: vi.fn().mockResolvedValue(false) },
+      });
+      await TestBed.inject(PersistentStorageService).ensure();
+      await settle(fixture);
+
+      expect(fixture.nativeElement.querySelector('[data-testid="persistence-note"]')).not.toBeNull();
+      delete (navigator as { storage?: unknown }).storage;
+    });
+
     it('shows how many games, players and plays will be exported', () => {
       expect(text(fixture)).toContain('(4 games)');
       expect(text(fixture)).toContain('(3 players)');

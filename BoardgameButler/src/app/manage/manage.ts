@@ -3,6 +3,8 @@ import { RouterLink } from '@angular/router';
 import { GameStore } from '../game-store';
 import { PlayerStore } from '../player-store';
 import { PlayStore } from '../play-store';
+import { BackupService } from '../backup';
+import { PersistentStorageService } from '../persistent-storage';
 import { RawPlay } from '../play';
 import { buildExport, parseImport } from '../export-format';
 import { ImportPlan, PlayerImportPlan, planImport, planPlayerImport } from '../import-plan';
@@ -32,6 +34,12 @@ export class Manage {
   private games = inject(GameStore);
   private players = inject(PlayerStore);
   private plays = inject(PlayStore);
+  private backup = inject(BackupService);
+  private storage = inject(PersistentStorageService);
+
+  protected lastBackup = this.backup.describe;
+  protected backupStale = this.backup.stale;
+  protected persisted = this.storage.persisted;
 
   protected gameCount = () => this.games.games().length;
   protected playerCount = () => this.players.players().length;
@@ -132,5 +140,6 @@ export class Manage {
     link.download = 'boardgame-butler.json';
     link.click();
     URL.revokeObjectURL(url);
+    this.backup.recordExport();
   }
 }

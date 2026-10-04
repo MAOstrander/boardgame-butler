@@ -59,6 +59,18 @@ export class PlayerStore {
     this.commit(this._players().filter(p => p.id !== id));
   }
 
+  /** Put a removed player back at their original position, for undo. */
+  restore(player: Player, index: number) {
+    const players = [...this._players()];
+    players.splice(Math.max(0, Math.min(index, players.length)), 0, player);
+    this.commit(players);
+  }
+
+  /** Where a player sits in storage order, or -1. */
+  indexOf(id: string): number {
+    return this._players().findIndex(p => p.id === id);
+  }
+
   replaceAll(players: RawPlayer[]) {
     this.commit(assignIds(players));
   }

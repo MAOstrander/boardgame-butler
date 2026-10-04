@@ -206,6 +206,16 @@
       <p class="text-white/40 text-sm">Your collection is empty — add a game to get started.</p>
     }
 
+    @if (backupNudge()) {
+      <a
+        routerLink="/manage"
+        data-testid="backup-nudge"
+        class="px-4 py-2 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-200 text-sm hover:bg-amber-500/25 transition-colors"
+      >
+        Last backed up {{ lastBackup() }} — export your collection
+      </a>
+    }
+
     @if (canInstall()) {
       <button
         type="button"

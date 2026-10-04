@@ -153,6 +153,19 @@ describe('GameStore', () => {
       expect(store.games()).toEqual(SAMPLE_GAMES);
     });
 
+    it('indexOf() and restore() put a removed game back where it was', () => {
+      const store = TestBed.inject(GameStore);
+      const index = store.indexOf('g-azul');
+      const game = store.find('g-azul')!;
+      expect(index).toBe(1);
+
+      store.remove('g-azul');
+      store.restore(game, index);
+
+      expect(store.games().map(g => g.id)).toEqual(['g-catan', 'g-azul', 'g-gloom', 'g-tm']);
+      expect(savedGames()!.map(g => g.id)).toEqual(['g-catan', 'g-azul', 'g-gloom', 'g-tm']);
+    });
+
     it('find() looks a game up by id', () => {
       const store = TestBed.inject(GameStore);
       expect(store.find('g-azul')?.title).toBe('Azul');

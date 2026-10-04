@@ -3,6 +3,7 @@ import { Router, provideRouter } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { GameForm } from './game-form';
+import { UndoService } from '../undo';
 import { SAMPLE_GAMES, SAMPLE_PLAYS, query, queryAll, savedGames, savedPlays, seedPlays, seedStorage, setInputValue, settle, text } from '../../testing/helpers';
 
 describe('GameForm', () => {
@@ -301,6 +302,22 @@ describe('GameForm', () => {
         expect(savedGames()!.map(g => g.id)).toEqual(['g-catan', 'g-gloom', 'g-tm']);
         expect(savedPlays()).toEqual(SAMPLE_PLAYS);
         expect(router.navigate).toHaveBeenCalledWith(['/collection']);
+      });
+
+      it('offers an undo that puts the game back where it was', async () => {
+        await setup('g-azul');
+        const undo = TestBed.inject(UndoService);
+
+        deleteButton()!.click();
+        await settle(fixture);
+        confirmButton()!.click();
+        await settle(fixture);
+
+        expect(undo.offer()?.message).toBe('Deleted Azul.');
+        expect(savedGames()!.map(g => g.id)).toEqual(['g-catan', 'g-gloom', 'g-tm']);
+
+        undo.accept();
+        expect(savedGames()!.map(g => g.id)).toEqual(['g-catan', 'g-azul', 'g-gloom', 'g-tm']);
       });
 
       it('the confirmation says how many logged plays will be kept', async () => {

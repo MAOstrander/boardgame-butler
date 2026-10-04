@@ -61,6 +61,18 @@ export class GameStore {
     this.commit(this._games().filter(g => g.id !== id));
   }
 
+  /** Put a removed game back at its original position, for undo. */
+  restore(game: Game, index: number) {
+    const games = [...this._games()];
+    games.splice(Math.max(0, Math.min(index, games.length)), 0, game);
+    this.commit(games);
+  }
+
+  /** Where a game sits in storage order, or -1. */
+  indexOf(id: string): number {
+    return this._games().findIndex(g => g.id === id);
+  }
+
   replaceAll(games: RawGame[]) {
     this.commit(assignIds(games));
   }

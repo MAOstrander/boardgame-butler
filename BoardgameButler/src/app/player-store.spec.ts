@@ -115,6 +115,19 @@ describe('PlayerStore', () => {
       expect(store.players()).toEqual([{ id: expect.any(String), name: 'New' }, SAMPLE_PLAYERS[0]]);
     });
 
+    it('indexOf() and restore() put a removed player back where they were', () => {
+      const store = TestBed.inject(PlayerStore);
+      const index = store.indexOf('p-alex');
+      const player = store.find('p-alex')!;
+      expect(index).toBe(1);
+
+      store.remove('p-alex');
+      store.restore(player, index);
+
+      expect(store.players().map(p => p.id)).toEqual(['p-sam', 'p-alex', 'p-jo']);
+      expect(savedPlayers()!.map(p => p.id)).toEqual(['p-sam', 'p-alex', 'p-jo']);
+    });
+
     it('hasName() ignores case and whitespace, and can exclude one player', () => {
       const store = TestBed.inject(PlayerStore);
       expect(store.hasName('sam')).toBe(true);

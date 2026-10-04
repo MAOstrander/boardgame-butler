@@ -3,6 +3,7 @@ import { provideRouter } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { Players } from './players';
+import { UndoService } from '../undo';
 import { SAMPLE_PLAYERS, findByText, query, queryAll, savedPlayers, seedPlayers, setInputValue, settle, text } from '../../testing/helpers';
 
 describe('Players', () => {
@@ -189,6 +190,25 @@ describe('Players', () => {
 
       expect(text(fixture)).not.toContain('Remove Alex?');
       expect(savedPlayers()).toEqual(SAMPLE_PLAYERS);
+    });
+
+    it('offers an undo that puts the player back where they were', async () => {
+      await setup();
+      const undo = TestBed.inject(UndoService);
+
+      rowButton('Alex', 'Remove').click();
+      await settle(fixture);
+      findByText<HTMLButtonElement>(fixture, 'button', 'Yes, remove').click();
+      await settle(fixture);
+
+      expect(undo.offer()?.message).toBe('Removed Alex.');
+      expect(savedPlayers()!.map(p => p.id)).toEqual(['p-sam', 'p-jo']);
+
+      undo.accept();
+      await settle(fixture);
+
+      expect(savedPlayers()!.map(p => p.id)).toEqual(['p-sam', 'p-alex', 'p-jo']);
+      expect(names()).toEqual(['Alex', 'Jo', 'Sam']);
     });
 
     it('confirming removes the player and persists', async () => {

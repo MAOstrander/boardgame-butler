@@ -34,6 +34,20 @@
       >
         Download boardgame-butler.json
       </button>
+
+      <p class="mt-3 text-sm" data-testid="last-backup" [class]="backupStale() ? 'text-amber-400' : 'text-gray-500'">
+        Last backed up: <span class="font-medium">{{ lastBackup() }}</span>.
+        @if (backupStale()) {
+          <span class="text-gray-400">Your play history is the part you can't recreate.</span>
+        }
+      </p>
+
+      @if (persisted() === false) {
+        <p class="mt-2 text-xs text-gray-500" data-testid="persistence-note">
+          This browser hasn't granted persistent storage, so it may clear your data if the device runs low on space.
+          Installing the app usually earns that permission.
+        </p>
+      }
     </section>
 
     <!-- Import -->

@@ -1,6 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { PlayerStore } from '../player-store';
+import { UndoService } from '../undo';
 
 @Component({
   selector: 'app-players',
@@ -9,6 +10,7 @@ import { PlayerStore } from '../player-store';
 })
 export class Players {
   private store = inject(PlayerStore);
+  private undo = inject(UndoService);
 
   protected players = computed(() =>
     [...this.store.players()].sort((a, b) => a.name.localeCompare(b.name)),
@@ -74,8 +76,15 @@ export class Players {
   protected confirmDelete() {
     const id = this.confirmingId();
     if (!id) return;
+
+    const player = this.store.find(id);
+    const index = this.store.indexOf(id);
     this.store.remove(id);
     this.confirmingId.set(null);
+
+    if (player) {
+      this.undo.propose(`Removed ${player.name}.`, () => this.store.restore(player, index));
+    }
   }
 
   /** Duplicate-name message, or null when the name is fine (or empty). */

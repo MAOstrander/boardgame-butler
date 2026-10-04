@@ -22,6 +22,7 @@ This document describes the features that exist today. Items shown as "planned" 
   - [Play History & Log a Play](#play-history--log-a-play)
   - [Statistics](#statistics)
 - [Data storage](#data-storage)
+- [Keeping the data](#keeping-the-data)
 - [Sample data](#sample-data)
 - [Backup file format](#backup-file-format)
 - [Progressive web app (install & offline)](#progressive-web-app-install--offline)
@@ -398,6 +399,7 @@ One form for logging and editing, like the game form. Reached from the pick card
 | `find(id)`, `forGame(gameId)` | Lookups |
 | `lastLineup` | Computed: the players of the most recent play, for pre-filling the next |
 | `add(details)`, `update(id, details)`, `remove(id)` | Persisting edits |
+| `indexOf(id)` / `restore(play, index)` | Support undo by putting a deleted play back where it was |
 | `merge(incoming)` | Add plays whose id isn't already here; returns how many were added |
 | `countNew(incoming)` | What `merge` would add, for the import preview |
 
@@ -493,6 +495,7 @@ There is no backend. The collection is owned by `GameStore` (`src/app/game-store
 | `add(details)` | Append one game with a fresh id and persist; returns the new `Game` |
 | `update(id, details)` | Replace one game's details in place and persist |
 | `remove(id)` | Drop one game and persist |
+| `indexOf(id)` / `restore(game, index)` | Support undo by putting a deleted game back where it was |
 | `replaceAll(games)` | Overwrite the collection and persist |
 | `toJson()` | Pretty-printed JSON, used by export |
 
@@ -516,6 +519,38 @@ An **empty saved list is a decision, not a missing one**: if you delete every ga
 - Each browser / device has its own independent collection. Use export → import on Manage to move it.
 - Clearing site data in the browser deletes the collection; the next launch re-seeds from the starter list.
 - Nothing is ever sent to a server.
+
+---
+
+## Keeping the data
+
+Everything lives in one browser with no server copy, so three things guard against losing it.
+
+### Persistent storage
+
+`PersistentStorageService` calls `navigator.storage.persist()` once at startup (from `App`'s constructor). Browsers may evict "best-effort" origin storage under disk pressure, and Safari discards script-writable storage for sites unused for a week; persistent storage opts out of both. Chrome grants it silently for installed apps and Safari already exempts home-screen apps, so in practice it is free.
+
+It is a request, not a guarantee, and it does **not** stop anyone clearing site data by hand. The signal is three-valued (granted, refused, or unknown/unsupported) and Manage mentions the eviction risk only on an outright refusal.
+
+### Undo
+
+Deleting a game, player or play is immediate and there is nothing to restore from, so each delete hands its reversal to `UndoService` and a toast appears for eight seconds with an **Undo** action. `UndoToast` is rendered once in `App`, beside the router outlet, so it survives navigation — which matters because deleting a game navigates away from the form.
+
+Each store has `indexOf(id)` and `restore(item, index)` so an undone delete puts the item back in its original position rather than appending it. Only one offer exists at a time: a second delete replaces the first, which then can't be reversed.
+
+| Deleted | Message | Reversal |
+|---|---|---|
+| Game | *Deleted Catan.* | `GameStore.restore()`, and its plays were never touched |
+| Player | *Removed Alex.* | `PlayerStore.restore()`; their plays keep the name snapshot either way |
+| Play | *Deleted your play of Azul.* | `PlayStore.restore()` |
+
+### Backup staleness
+
+`BackupService` records the time of each export under `boardgame-butler.lastExport` and exposes how long ago that was. Manage always shows *Last backed up: today / 5 days ago / never*, in amber once it passes 30 days. The home page adds a link to Manage when a backup is overdue **and** there are plays to lose, since nagging about an empty log would be noise.
+
+This protects nothing by itself. It exists so backup stops being a decision you have to remember to make.
+
+**What none of this covers:** losing or wiping the device. Export remains the only answer there, and the options beyond it are noted in the [Roadmap](#roadmap).
 
 ---
 
@@ -668,6 +703,10 @@ Each page has a functional spec next to it (`*.spec.ts`) that drives the rendere
 | Spec | Covers |
 |---|---|
 | `game-store.spec.ts` | First-run seeding (incl. corrupt / non-array saved data), seed failure, load from storage, id assignment (seed, legacy saved data, import, duplicate ids), add / update / remove / replaceAll persistence, `find`, `hasTitle`, `toJson`, storage write failure |
+| `persistent-storage.spec.ts` | Unsupported browser, missing `persist()`, grant, refusal, already-persistent (no re-ask), a browser that throws |
+| `undo.spec.ts` | Propose/accept/dismiss, expiry on its own, accepting after expiry, a second offer replacing the first without its timer cutting the new one short, custom window |
+| `undo-toast.spec.ts` | Hidden until something is deleted, message and `role="status"`, Undo reverses, dismiss doesn't, disappears on expiry |
+| `backup.spec.ts` | Never-exported, recording and persisting, wording for 0/1/5/47 days, the staleness threshold either side, an unreadable stored value, a clock that moved backwards, a storage write that fails |
 | `install.spec.ts` | No offer until `beforeinstallprompt`, `preventDefault` on capture, already-standalone suppression, missing `matchMedia`, prompt accept/dismiss/throw/unavailable, single use, `appinstalled` |
 | `game-filter.spec.ts` | Range parsing (`2-4`, `2`, `3+`, `2 to 6`, en dash, garbage), each filter's matching rule, AND-combination, `filterGames` |
 | `home.spec.ts` | Loading state while seeding, ready from storage, empty-collection hint, random pick and re-roll, rating badge, filter panel toggle, every filter's live count, no-match state, clear, filtered pick vs. whole-collection pick, the overdue-a-turn toggle (label in both modes, combining with other filters, serving from it, clearing), the best-at-count toggle (disabled without a count, qualifying-game count in the label, restricting matches, no-match case, switching off when the count is cleared), the install button appearing and prompting, nav links |
@@ -754,6 +793,6 @@ The full candidate scope for the project, grouped by area. Nothing here has been
 Every item in the MVP and the play-assistance group is done. Natural next steps, none of them prioritised:
 
 - **History filters** (by game, by player, by date range) and a per-game detail view.
-- **Backup nudges** — "last exported N days ago" on Manage, since history is now the most valuable data on the device.
+- **Backup that happens by itself** — the nudge is in, but export is still a manual download. `navigator.share()` with a file would make one-tap backup to Drive or email realistic on mobile; the File System Access API could write to a chosen file automatically on desktop (Chromium only). Beyond that, syncing to the user's own cloud storage or a backend-as-a-service would cover device loss, at the cost of OAuth or accounts.
 - **Logging a game that isn't in the collection** — a friend's copy, or something played at a café. Today the game dropdown only offers collection games; an "Something else…" option with a title box would cover it, and the Stats page already renders plays for games outside the collection.
 - Beyond that, the roadmap's *nice-to-have* group (auth, sync, sharing, scheduling) all imply a backend and remain a deliberate architectural decision rather than an incremental one.

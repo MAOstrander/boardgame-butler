@@ -19,14 +19,20 @@ import {
 } from '../../testing/helpers';
 import { Play } from '../play';
 import { InstallService } from '../install';
+import { LAST_EXPORT_KEY } from '../backup';
 
 describe('Home', () => {
   let fixture: ComponentFixture<Home>;
   let http: HttpTestingController;
 
   /** Pass `null` to start with nothing saved so the store has to seed over HTTP. */
-  async function setup(saved: Game[] | null = SAMPLE_GAMES, plays: Play[] = SAMPLE_PLAYS) {
+  async function setup(
+    saved: Game[] | null = SAMPLE_GAMES,
+    plays: Play[] = SAMPLE_PLAYS,
+    lastExport?: string,
+  ) {
     localStorage.clear();
+    if (lastExport) localStorage.setItem(LAST_EXPORT_KEY, lastExport);
     if (saved) seedStorage(saved);
     seedPlayers([]);
     seedPlays(plays);
@@ -441,6 +447,27 @@ describe('Home', () => {
 
       expect(toggle().getAttribute('aria-pressed')).toBe('false');
       expect(text(fixture)).toContain('No filters set');
+    });
+  });
+
+  describe('backup nudge', () => {
+    const nudge = () => fixture.nativeElement.querySelector('[data-testid="backup-nudge"]');
+
+    it('appears when there is history and no recent backup', async () => {
+      await setup();
+      expect(nudge()).not.toBeNull();
+      expect(nudge().textContent).toContain('Last backed up never');
+      expect(nudge().getAttribute('href')).toBe('/manage');
+    });
+
+    it('stays away when there are no plays to lose', async () => {
+      await setup(SAMPLE_GAMES, []);
+      expect(nudge()).toBeNull();
+    });
+
+    it('stays away just after a backup', async () => {
+      await setup(SAMPLE_GAMES, SAMPLE_PLAYS, new Date().toISOString());
+      expect(nudge()).toBeNull();
     });
   });
 

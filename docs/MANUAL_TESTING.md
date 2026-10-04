@@ -121,7 +121,9 @@ Open http://localhost:4200. Work through the checklist in order — later steps 
 - [ ] Press F5 → the changes survived.
 - [ ] **Edit** Catan again → change the title to `azul` → *You already have a game called "azul".*, button disabled. Change it back to `Catan` → error clears. Change it to `Catan (base)` → **Save Changes** → the row is renamed; sort by Title still works.
 - [ ] **Edit** any game → click **Cancel** → back on the collection with nothing changed.
-- [ ] **Delete:** **Edit** Pandemic → scroll down → red **Delete this game** link → a confirmation box: *Remove Pandemic from your collection? This can't be undone.* Click **Keep it** → box closes, nothing removed. Click **Delete this game** → **Yes, delete it** → back on the collection, *11 games*, Pandemic gone. F5 → still gone.
+- [ ] **Delete:** **Edit** Pandemic → scroll down → red **Delete this game** link → a confirmation box: *Remove Pandemic from your collection? This can't be undone.* Click **Keep it** → box closes, nothing removed. Click **Delete this game** → **Yes, delete it** → back on the collection, *11 games*, Pandemic gone.
+- [ ] A toast appears at the bottom: *Deleted Pandemic.* with **Undo**. Press it → Pandemic is back, in its original position. Delete it again and let the toast time out (about 8 seconds) → it stays deleted. F5 → still gone.
+- [ ] Deleting a player or a play offers the same toast, and **Undo** restores them in place. Delete two things in quick succession → only the second can be undone.
 - [ ] The **Add a Game** page has no delete option.
 - [ ] Type a bogus address, e.g. `http://localhost:4200/edit-game/nope` → *That game isn't in your collection any more.* with a link back to the collection.
 - [ ] Re-add Pandemic (`2-4`, `45-75`, `Medium`, any rating) so the counts below still line up.
@@ -179,7 +181,9 @@ Open http://localhost:4200. Work through the checklist in order — later steps 
 
 ### Manage — export
 
-- [ ] **Manage collection** → Export section says *(12 games)*, *(6 players)* and your play count.
+- [ ] **Manage collection** → Export section says *(12 games)*, *(6 players)* and your play count, and below the button *Last backed up: never* in amber.
+- [ ] After downloading, that line reads *Last backed up: today* and is no longer amber.
+- [ ] On the home page, before any export, a link reads *Last backed up never — export your collection* and goes to Manage. After exporting it disappears. (It only shows when there are logged plays to lose.)
 - [ ] Click **Download boardgame-butler.json** → browser downloads `boardgame-butler.json`. Open it: an object with `"version": 3`, `"exportedAt"`, a `"games"` array of 12 (each with an `"id"`, Cascadia last with `"rating": 8`), a `"players"` array and a `"plays"` array whose entries have real `"playedAt"` dates (the `daysAgo` form is seed-only).
 
 ### Manage — import
@@ -219,6 +223,10 @@ npx serve -s dist/BoardgameButler/browser -l 8080
 (`-s` is single-page mode so `/collection` falls back to `index.html`. First run of `npx serve` downloads it.)
 
 Open http://localhost:8080 in **Chrome or Edge**.
+
+### Persistent storage
+
+- [ ] DevTools → Application → Storage should report storage as **persisted** for the installed app. If the browser refuses, Manage shows a note about eviction risk; if it grants (the usual case once installed), no note appears.
 
 ### Service worker
 

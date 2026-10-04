@@ -4,6 +4,7 @@ import { Router, RouterLink } from '@angular/router';
 import { Game, GameDetails } from '../game';
 import { GameStore } from '../game-store';
 import { PlayStore } from '../play-store';
+import { UndoService } from '../undo';
 
 /**
  * One form for both adding and editing. With no `id` route parameter it
@@ -18,6 +19,7 @@ export class GameForm implements OnInit {
   private fb = inject(FormBuilder);
   private store = inject(GameStore);
   private plays = inject(PlayStore);
+  private undo = inject(UndoService);
   private router = inject(Router);
 
   /** Bound from the `:id` route parameter; absent when adding. */
@@ -100,12 +102,16 @@ export class GameForm implements OnInit {
     const game = this.game();
     if (!game) return;
 
+    const index = this.store.indexOf(game.id);
     this.store.remove(game.id);
-    if (!this.store.error()) {
-      this.router.navigate(['/collection']);
-    } else {
+
+    if (this.store.error()) {
       this.confirmingDelete.set(false);
+      return;
     }
+
+    this.undo.propose(`Deleted ${game.title}.`, () => this.store.restore(game, index));
+    this.router.navigate(['/collection']);
   }
 
   /** Rejects a title already used by another game (case-insensitive). */

@@ -4,6 +4,7 @@ import { Game } from '../game';
 import { GameStore } from '../game-store';
 import { PlayStore } from '../play-store';
 import { InstallService } from '../install';
+import { BackupService } from '../backup';
 import { gameRows, leastPlayed } from '../stats';
 import { EMPTY_FILTERS, GameFilters, filterGames, hasActiveFilters } from '../game-filter';
 
@@ -16,6 +17,7 @@ export class Home {
   private store = inject(GameStore);
   private plays = inject(PlayStore);
   private install = inject(InstallService);
+  private backup = inject(BackupService);
 
   protected games = this.store.games;
   protected ready = this.store.ready;
@@ -83,6 +85,10 @@ export class Home {
   });
 
   protected canInstall = this.install.canInstall;
+
+  /** Nag about backups only once there is history worth losing. */
+  protected backupNudge = computed(() => this.backup.stale() && this.plays.plays().length > 0);
+  protected lastBackup = this.backup.describe;
 
   protected readonly complexityOptions = ['Easy', 'Medium', 'Hard'];
   protected readonly timeOptions = [30, 45, 60, 90, 120, 180];

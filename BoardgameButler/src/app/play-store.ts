@@ -72,6 +72,18 @@ export class PlayStore {
     this.commit(this._plays().filter(p => p.id !== id));
   }
 
+  /** Put a removed play back at its original position, for undo. */
+  restore(play: Play, index: number) {
+    const plays = [...this._plays()];
+    plays.splice(Math.max(0, Math.min(index, plays.length)), 0, play);
+    this.commit(plays);
+  }
+
+  /** Where a play sits in storage order, or -1. */
+  indexOf(id: string): number {
+    return this._plays().findIndex(p => p.id === id);
+  }
+
   /** Add plays whose id isn't already here. Returns how many were added. */
   merge(incoming: RawPlay[]): number {
     const existing = new Set(this._plays().map(p => p.id));

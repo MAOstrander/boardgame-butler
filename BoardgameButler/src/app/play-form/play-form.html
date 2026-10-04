@@ -48,7 +48,7 @@
           }
         </select>
         @if (gameOptions().length === 0 && !missingGame()) {
-          <p class="text-xs text-gray-500">Your collection is empty - <a routerLink="/add-game" class="text-amber-400 hover:text-amber-300">add a game</a> first.</p>
+          <p class="text-xs text-gray-500">Your collection is empty. <a routerLink="/add-game" class="text-amber-400 hover:text-amber-300">Add a game</a> first.</p>
         }
       </div>
 
@@ -75,7 +75,7 @@
           }
         </div>
         @if (playerChoices().length === 0) {
-          <p class="text-xs text-gray-500">No players yet - <a routerLink="/players" class="text-amber-400 hover:text-amber-300">add some</a> to record who played and who won.</p>
+          <p class="text-xs text-gray-500">No players yet. <a routerLink="/players" class="text-amber-400 hover:text-amber-300">Add some</a> to record who played and who won.</p>
         } @else {
           <div class="flex flex-wrap gap-2" role="group" aria-label="Who played">
             @for (p of playerChoices(); track p.id) {
@@ -93,7 +93,7 @@
             }
           </div>
           @if (prefilledLineup()) {
-            <p class="text-xs text-gray-500">Carried over from your last play - change it if tonight's group is different.</p>
+            <p class="text-xs text-gray-500">Carried over from your last play. Change it if tonight's group is different.</p>
           }
         }
       </div>
@@ -116,7 +116,7 @@
         @if (playerCountError(); as message) {
           <p class="text-red-400 text-xs">{{ message }}</p>
         } @else if (playerCountInput() === '' && selectedPlayers().length > 0) {
-          <p class="text-xs text-gray-500">Will be saved as {{ selectedPlayers().length }} - the players picked above.</p>
+          <p class="text-xs text-gray-500">Will be saved as {{ selectedPlayers().length }}, the players picked above.</p>
         }
       </div>
 

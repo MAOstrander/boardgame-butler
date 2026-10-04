@@ -65,7 +65,7 @@ export class Manage {
       try {
         data = JSON.parse(reader.result as string);
       } catch {
-        this.importError.set('Could not parse file - make sure it is valid JSON.');
+        this.importError.set('Could not parse file. Make sure it is valid JSON.');
         return;
       }
 

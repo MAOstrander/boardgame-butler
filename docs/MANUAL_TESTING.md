@@ -9,11 +9,11 @@ All commands run from the `BoardgameButler/` directory.
 ## Contents
 
 - [Before you start](#before-you-start)
-- [Part 1 - PC, dev server (functional checks)](#part-1--pc-dev-server-functional-checks)
-- [Part 2 - PC, production build (install & offline)](#part-2--pc-production-build-install--offline)
-- [Part 3 - Phone over the LAN, plain HTTP (functional only)](#part-3--phone-over-the-lan-plain-http-functional-only)
-- [Part 4 - Phone over the LAN, HTTPS (full install & offline)](#part-4--phone-over-the-lan-https-full-install--offline)
-- [Part 5 - Verifying an update reaches an installed app](#part-5--verifying-an-update-reaches-an-installed-app)
+- [Part 1: PC, dev server (functional checks)](#part-1-pc-dev-server-functional-checks)
+- [Part 2: PC, production build (install & offline)](#part-2-pc-production-build-install--offline)
+- [Part 3: Phone over the LAN, plain HTTP (functional only)](#part-3-phone-over-the-lan-plain-http-functional-only)
+- [Part 4: Phone over the LAN, HTTPS (full install & offline)](#part-4-phone-over-the-lan-https-full-install--offline)
+- [Part 5: Verifying an update reaches an installed app](#part-5-verifying-an-update-reaches-an-installed-app)
 - [Resetting between test runs](#resetting-between-test-runs)
 - [Troubleshooting](#troubleshooting)
 
@@ -30,9 +30,9 @@ npm test          # should report all tests passing
 
 Two facts drive everything below:
 
-1. **The collection lives in the browser's `localStorage`, keyed by origin.** `http://localhost:4200`, `http://localhost:8080` and `http://192.168.1.50:8080` are three different origins with three independent collections. Don't be surprised when switching ports "loses" your games - see [Resetting](#resetting-between-test-runs).
+1. **The collection lives in the browser's `localStorage`, keyed by origin.** `http://localhost:4200`, `http://localhost:8080` and `http://192.168.1.50:8080` are three different origins with three independent collections. Don't be surprised when switching ports "loses" your games; see [Resetting](#resetting-between-test-runs).
 2. **The service worker (install + offline) only runs in a production build on a secure origin.** `ng serve` never registers it. `localhost` counts as secure; a LAN IP over plain HTTP does not.
-3. **A fresh device starts with sample data** - 11 games, 5 players and 15 plays, seeded from `public/*.json` (see *Sample data* in FEATURES.md). The steps below assume it. **To test the empty states**, don't clear site data (that re-seeds): instead use Manage → import a backup whose sections are `[]`, or delete the entries through the UI - an empty list is remembered and won't re-seed.
+3. **A fresh device starts with sample data:** 11 games, 5 players and 15 plays, seeded from `public/*.json` (see *Sample data* in FEATURES.md). The steps below assume it. **To test the empty states**, don't clear site data (that re-seeds): instead use Manage → import a backup whose sections are `[]`, or delete the entries through the UI, since an empty list is remembered and won't re-seed.
 
 | Scenario | Command | Install prompt | Offline |
 |---|---|---|---|
@@ -40,41 +40,41 @@ Two facts drive everything below:
 | PC, prod build on `localhost` | Part 2 | ✓ | ✓ |
 | Phone, LAN over HTTP | Part 3 | ✗ (iOS "Add to Home Screen" still works as a shortcut) | ✗ |
 | Phone, LAN over HTTPS | Part 4 | ✓ | ✓ |
-| **Phone, deployed site** | none - open https://mathewostrander.com/boardgame-butler/ | ✓ | ✓ |
+| **Phone, deployed site** | none; open https://mathewostrander.com/boardgame-butler/ | ✓ | ✓ |
 
-> **Shortcut:** since the app is deployed to GitHub Pages over real HTTPS, testing install and offline behaviour on a phone no longer needs the LAN certificate setup in Part 4 - just open the deployed URL. Part 4 is still the way to test a change that hasn't been pushed yet.
+> **Shortcut:** since the app is deployed to GitHub Pages over real HTTPS, testing install and offline behaviour on a phone no longer needs the LAN certificate setup in Part 4; just open the deployed URL. Part 4 is still the way to test a change that hasn't been pushed yet.
 
 ---
 
-## Part 1 - PC, dev server (functional checks)
+## Part 1: PC, dev server (functional checks)
 
 ```bash
 npm start
 ```
 
-Open http://localhost:4200. Work through the checklist in order - later steps depend on earlier ones.
+Open http://localhost:4200. Work through the checklist in order, since later steps depend on earlier ones.
 
 ### Home
 
 - [ ] Page shows the Dice Butler background, title, tagline and seven feature chips.
 - [ ] First ever load: *"Loading game library..."* appears briefly, then disappears. **Serve me a game!** becomes enabled.
-- [ ] Click **Serve me a game!** - a *Tonight's pick* card appears with title, `N players`, `N min`, and complexity.
-- [ ] Click again several times - the pick changes (it's random; repeats are allowed).
+- [ ] Click **Serve me a game!**; a *Tonight's pick* card appears with title, `N players`, `N min`, and complexity.
+- [ ] Click again several times; the pick changes (it's random, so repeats are allowed).
 - [ ] Most seed games are rated, so the card usually shows an `/10` badge; Gloomhaven and Scythe are unrated and show none.
 - [ ] Three links at the bottom: **View collection**, **+ Add a game**, **Manage collection**.
 
-### Home - install button
+### Home: install button
 
 - [ ] **Desktop Chrome/Edge, production build over `localhost` or HTTPS:** an **📲 Install app** button appears above the bottom links. Click it → the browser's own install dialog opens. Accept → the app installs and the button disappears.
 - [ ] Open the installed app → no install button (it knows it is already installed).
 - [ ] Dismiss the dialog instead → the button disappears for that page load (the browser only offers the event once); reload to get it back.
-- [ ] **`ng serve`, or iOS Safari:** no button at all - expected, since no install event is fired. iOS still installs via Share → *Add to Home Screen*.
+- [ ] **`ng serve`, or iOS Safari:** no button at all, which is expected since no install event is fired. iOS still installs via Share → *Add to Home Screen*.
 
-### Home - filtered pick
+### Home: filtered pick
 
-- [ ] Click **▾ Narrow it down** → a filter panel appears reading *No filters set - all 11 games match*; the link now says **▴ Hide filters**.
+- [ ] Click **▾ Narrow it down** → a filter panel appears reading *No filters set; all 11 games match*; the link now says **▴ Hide filters**.
 - [ ] Players tonight `5` → *N of 11 games match* drops to only games whose range includes 5 (e.g. Terraforming Mars 1-5, Ticket to Ride 2-5, Wingspan 1-5).
-- [ ] Time available *Up to 60 min* → *3 of 11 games match* - only games whose **longest** time is ≤ 60 (Azul, 7 Wonders, Codenames). Catan (60-120) and Ticket to Ride (45-90) must *not* match.
+- [ ] Time available *Up to 60 min* → *3 of 11 games match*, being only those whose **longest** time is ≤ 60 (Azul, 7 Wonders, Codenames). Catan (60-120) and Ticket to Ride (45-90) must *not* match.
 - [ ] Click **Hard** → count changes; click **Easy** too → count grows (either complexity matches); click **Hard** again to deselect.
 - [ ] **Plays best at that count** is greyed out and reads *Set a player count first* until *Players tonight* has a value. Enter `3` → it reads *Best with 3 (2 games)* (Catan and Ticket to Ride). Toggle it on → the match count drops to those two, and **Serve me a match!** only ever returns one of them. Change the count to `2` → *Best with 2 (1 game)* (Azul). Clear the count → the toggle switches itself off and goes grey.
 - [ ] **Overdue a turn** reads *Never played (4 games)* on a freshly seeded device. Toggle it → the count drops to those four; **Serve me a match!** only ever returns Wingspan, Gloomhaven, Scythe or Arkham Horror. Combine with Players `2` → fewer still.
@@ -112,7 +112,7 @@ Open http://localhost:4200. Work through the checklist in order - later steps de
 - [ ] **View collection** → *12 games*; Cascadia is there with rating `8/10`.
 - [ ] Click **Rating** header → highest first, and the two unrated games are last. Click again → lowest first, unrated still last.
 - [ ] Home → **Serve me a game!** until Cascadia comes up → card shows the `8/10` badge.
-- [ ] **Persistence:** press F5. Collection still has 12 games. Close the tab, reopen - still 12.
+- [ ] **Persistence:** press F5. Collection still has 12 games. Close the tab, reopen; still 12.
 
 ### Edit a Game
 
@@ -131,7 +131,7 @@ Open http://localhost:4200. Work through the checklist in order - later steps de
 
 ### Players
 
-- [ ] Home → **👥 Players** → the five seeded players, alphabetical: Alex, Jo, Morgan, Riley, Sam - *5 players*.
+- [ ] Home → **👥 Players** → the five seeded players, alphabetical: Alex, Jo, Morgan, Riley, Sam, and *5 players*.
 - [ ] Type `  Casey ` → **Add** → row *Casey* (trimmed), box cleared, *6 players*. Enter also submits.
 - [ ] Type `sam` → red *You already have a player called "sam".*, **Add** disabled. Clear it.
 - [ ] **Rename** on Jo → inline box pre-filled. Type `alex` → duplicate error, **Save** disabled. Type `Jo` → allowed. Type `Joanna` → **Save** → list shows Joanna. **Rename** again → **Cancel** → unchanged.
@@ -146,7 +146,7 @@ Open http://localhost:4200. Work through the checklist in order - later steps de
 - [ ] **Who played:** on a freshly seeded device the players from the most recent logged play start selected, with *Carried over from your last play* beneath them. Tap any chip → the note disappears. **Clear** deselects everyone (and any winners). The head-count box and the winners are *not* carried over.
 - [ ] Log a play with a different group, then start another → the new group is the one carried over.
 - [ ] **Who played:** tap Sam and Alex → a **Who won** row appears with just those two. Tap Alex there → 🏆 Alex. Un-tap Alex in *Who played* → the winners row loses Alex (or disappears if nobody's left).
-- [ ] **How many played** shows placeholder `2` and *Will be saved as 2 - the players picked above.* Type `1` → *You picked 2 players above.* and **Log Play** is disabled; type `4` (two friends not in your list) → allowed. Leave it at 4.
+- [ ] **How many played** shows placeholder `2` and *Will be saved as 2, the players picked above.* Type `1` → *You picked 2 players above.* and **Log Play** is disabled; type `4` (two friends not in your list) → allowed. Leave it at 4.
 - [ ] Enter 75 minutes, drag *How fun* to 8 (label reads *8 / 10*; **clear** resets to *not rated*), type a note → **Log Play** → *Play History* shows one card: date, game, 🏆 winner, others, *4 players*, *75 min*, *fun 8/10*, note. (A play whose head-count equals the named players shows no *N players* chip.)
 - [ ] Table Tools → start the **Stopwatch**, wait a minute, pause. Back to **+ Log a play** → a **Use stopwatch (1 min)** button fills the duration.
 - [ ] Collection → **Log play** on a row → that game is pre-selected. Log it with no players and no extras → the card shows *no players recorded* and nothing else.
@@ -159,11 +159,11 @@ Open http://localhost:4200. Work through the checklist in order - later steps de
 
 - [ ] **📊 Stats** on a freshly seeded device → **Plays** `15` with *8 in the last 30 days*, **Games played** *7 / 11* with *4 never played*, **Hours at the table** `19`, **Most played** *Catan* (4 plays).
 - [ ] Delete every play through History → Stats shows *No plays logged yet* and a **Log your first play** button.
-- [ ] **Games** table: played games only, most plays first (Catan, Azul, then the rest). Catan's **Players** column reads `3.5`, then a green *★ best with 3*, then one line per table size: *3p ×2 · 75 min · fun 7.5* (highlighted green) and *4p ×2 · 142.5 min · fun 6* - four players takes nearly twice as long and rates lower. Pandemic, always four-handed, shows just `4` with no best line. Terraforming Mars shows *215 min* with a red *+35 min over*; last-played date; average time with *in range* / *+N min over* (red) / *N min under* (blue) against the listed duration; average fun. Games you never recorded a duration or rating for show `—`.
-- [ ] **Never played (4)** chips - Arkham Horror, Gloomhaven, Scythe, Wingspan; click one → *Log a Play* with that game pre-selected.
+- [ ] **Games** table: played games only, most plays first (Catan, Azul, then the rest). Catan's **Players** column reads `3.5`, then a green *★ best with 3*, then one line per table size: *3p ×2 · 75 min · fun 7.5* (highlighted green) and *4p ×2 · 142.5 min · fun 6*, so four players takes nearly twice as long and rates lower. Pandemic, always four-handed, shows just `4` with no best line. Terraforming Mars shows *215 min* with a red *+35 min over*; last-played date; average time with *in range* / *+N min over* (red) / *N min under* (blue) against the listed duration; average fun. Games you never recorded a duration or rating for show `—`.
+- [ ] **Never played (4)** chips for Arkham Horror, Gloomhaven, Scythe and Wingspan; click one → *Log a Play* with that game pre-selected.
 - [ ] **Players** table: Riley's win rate is green (56 %), the others below 50 % are not. Most-played shows a game with ×count. Add a new player and they appear dimmed with dashes.
 - [ ] Log a co-op play with two players and **no winner** → both players' *Plays* go up but *Win rate* is unchanged (the footnote explains why).
-- [ ] Seeded games that show a best size: Catan (3), Azul (2), Codenames (8), Ticket to Ride (3 - a tie on fun broken toward the smaller table). Pandemic, Terraforming Mars and 7 Wonders show none, having only ever been played at one size.
+- [ ] Seeded games that show a best size: Catan (3), Azul (2), Codenames (8), Ticket to Ride (3, a tie on fun broken toward the smaller table). Pandemic, Terraforming Mars and 7 Wonders show none, having only ever been played at one size.
 - [ ] Log a single play of Gloomhaven with a fun rating → still no best line, since one table size cannot be compared. Log a second at a different size with a different rating → the best line appears.
 - [ ] The game you deleted earlier still appears with *(no longer in collection)*; a removed player who has plays still appears with *(removed)*.
 - [ ] Log a play dated 40 days ago → **Plays** tile total goes up, *in the last 30 days* does not.
@@ -179,39 +179,39 @@ Open http://localhost:4200. Work through the checklist in order - later steps de
 - [ ] Start a **2 min** countdown, navigate to **View collection**, wait ~10 s, come back → the countdown has kept going and shows the correct remaining time.
 - [ ] **Stopwatch:** **Start** → counts up; **Pause** holds; **Resume** continues; **Reset** (only enabled when stopped with time on it) → `0:00`.
 
-### Manage - export
+### Manage: export
 
 - [ ] **Manage collection** → Export section says *(12 games)*, *(6 players)* and your play count, and below the button *Last backed up: never* in amber.
 - [ ] After downloading, that line reads *Last backed up: today* and is no longer amber.
-- [ ] On the home page, before any export, a link reads *Last backed up never - export your collection* and goes to Manage. After exporting it disappears. (It only shows when there are logged plays to lose.)
+- [ ] On the home page, before any export, a link reads *Last backed up never; export your collection* and goes to Manage. After exporting it disappears. (It only shows when there are logged plays to lose.)
 - [ ] Click **Download boardgame-butler.json** → browser downloads `boardgame-butler.json`. Open it: an object with `"version": 3`, `"exportedAt"`, a `"games"` array of 12 (each with an `"id"`, Cascadia last with `"rating": 8`), a `"players"` array and a `"plays"` array whose entries have real `"playedAt"` dates (the `daysAgo` form is seed-only).
 
-### Manage - import
+### Manage: import
 
 - [ ] Edit the downloaded file: delete a few games, change a title, add another player, save.
-- [ ] Click the drop-zone, choose the edited file → three ticked sections: *Replace games with N games* with a preview list, *Replace players with N players* with name chips, and *Merge N plays into your history - 0 new, N already here*; the drop-zone disappears.
+- [ ] Click the drop-zone, choose the edited file → three ticked sections: *Replace games with N games* with a preview list, *Replace players with N players* with name chips, and *Merge N plays into your history: 0 new, N already here*; the drop-zone disappears.
 - [ ] Click **Cancel** → preview gone, drop-zone back, collection unchanged (check View collection).
 - [ ] Choose the file again → **Confirm Import** → green *Imported N games, N players, 0 new plays.*; Export section counts update.
 - [ ] **View collection** shows exactly what was in the file; **Players** shows the ones from the file.
-- [ ] **Plays merge, never shrink:** log one more play, then import the same file again → *Merge N plays - 0 new, N already here* → Confirm → History still has the extra play. Now edit the file to delete all but one play and import → *0 new, 1 already here* → Confirm → nothing lost.
+- [ ] **Plays merge, never shrink:** log one more play, then import the same file again → *Merge N plays: 0 new, N already here* → Confirm → History still has the extra play. Now edit the file to delete all but one play and import → *0 new, 1 already here* → Confirm → nothing lost.
 - [ ] **Per-section apply:** choose the file, untick **Replace games** and **Merge plays**, leaving players → Confirm → *Imported 3 players.*; games and history unchanged. Untick everything → **Confirm Import** is disabled.
-- [ ] **Older format:** copy just the `"games"` array from the file into a new file (so it starts with `[`). Import it → only a games checkbox, plus *This is an older games-only file - your N players will be kept.* and *This file has no play history - your N logged plays will be kept.* Confirm → games replaced, players and history untouched.
-- [ ] Import a backup whose `"players"` is `[]` → *and 0 players - your current players will be removed*. Confirm → Players page is empty, **and stays empty on reload** (an empty list is remembered, not re-seeded). Re-add a couple for later steps.
-- [ ] **Duplicates in a file:** open the exported file and paste a copy of the Catan entry at the end, changing its `"rating"` to `9` and its `"title"` to `"catan"`. Choose it → summary reads *Ready to import 12 games (1 duplicate will be skipped)*, an amber note explains first-wins, and the last row is greyed out and struck through: *skipped - duplicate of Catan · differs: rating 9*. **Confirm Import** → collection has 12 games, one Catan, with its original rating.
-- [ ] Create a text file containing `{ not json` → choose it → red *Could not parse file - make sure it is valid JSON.*
+- [ ] **Older format:** copy just the `"games"` array from the file into a new file (so it starts with `[`). Import it → only a games checkbox, plus *This is an older games-only file, so your N players will be kept.* and *This file has no play history, so your N logged plays will be kept.* Confirm → games replaced, players and history untouched.
+- [ ] Import a backup whose `"players"` is `[]` → *and 0 players (your current players will be removed)*. Confirm → Players page is empty, **and stays empty on reload** (an empty list is remembered, not re-seeded). Re-add a couple for later steps.
+- [ ] **Duplicates in a file:** open the exported file and paste a copy of the Catan entry at the end, changing its `"rating"` to `9` and its `"title"` to `"catan"`. Choose it → summary reads *Ready to import 12 games (1 duplicate will be skipped)*, an amber note explains first-wins, and the last row is greyed out and struck through: *skipped: duplicate of Catan · differs: rating 9*. **Confirm Import** → collection has 12 games, one Catan, with its original rating.
+- [ ] Create a text file containing `{ not json` → choose it → red *Could not parse file. Make sure it is valid JSON.*
 - [ ] Create a file containing `{"title":"Catan"}` → *File must contain a JSON array of games, or a backup exported by this app.*
 - [ ] Create a file containing `{"games":"nope"}` → *The "games" entry must be a JSON array.*
 - [ ] Create a file containing `{"games":[],"plays":{}}` → *The "plays" entry must be a JSON array.*
 - [ ] Choose a valid file after an error → the error clears.
-- [ ] Import an empty array `[]` → Home shows *Your collection is empty - add a game to get started.* and the button is disabled; Collection shows the empty-state card with **Add your first game**.
+- [ ] Import an empty array `[]` → Home shows *Your collection is empty. Add a game to get started.* and the button is disabled; Collection shows the empty-state card with **Add your first game**.
 
 ### Storage failure (optional, Chrome/Edge)
 
-- [ ] DevTools → Application → Storage → tick *Simulate custom storage quota*, set it to `1`. Add a game → red *Could not save your collection to this device.* and you stay on the form. Untick and retry - it saves.
+- [ ] DevTools → Application → Storage → tick *Simulate custom storage quota*, set it to `1`. Add a game → red *Could not save your collection to this device.* and you stay on the form. Untick and retry; it saves.
 
 ---
 
-## Part 2 - PC, production build (install & offline)
+## Part 2: PC, production build (install & offline)
 
 This is the cheapest way to test the PWA behaviour: `localhost` is a secure origin, so no certificates are needed.
 
@@ -238,7 +238,7 @@ Open http://localhost:8080 in **Chrome or Edge**.
 
 - [ ] An install icon appears at the right end of the address bar (or ⋮ → *Install Boardgame Butler*). Click it → Install.
 - [ ] The app opens in its own window with no address bar, dark background, dice icon in the taskbar.
-- [ ] Run a quick pass of the Part 1 checklist inside the installed window - everything behaves the same.
+- [ ] Run a quick pass of the Part 1 checklist inside the installed window; everything behaves the same.
 
 ### Offline
 
@@ -260,7 +260,7 @@ Open http://localhost:8080 in **Chrome or Edge**.
 
 ---
 
-## Part 3 - Phone over the LAN, plain HTTP (functional only)
+## Part 3: Phone over the LAN, plain HTTP (functional only)
 
 Quickest way to try the UI on a real phone. Everything works except install-as-app and offline.
 
@@ -277,17 +277,17 @@ Quickest way to try the UI on a real phone. Everything works except install-as-a
 - [ ] Home renders correctly at phone width: background image fills the screen, chips wrap, the **Serve me a game!** button is full-width and tappable.
 - [ ] Run the Part 1 checklist. Pay attention to:
   - [ ] The rating **slider** is usable with a thumb.
-  - [ ] The collection **table** - does it need horizontal scrolling? Note the narrowest width at which it's still readable.
+  - [ ] The collection **table**: does it need horizontal scrolling? Note the narrowest width at which it's still readable.
   - [ ] The **file picker** on Manage opens the OS file chooser; import a `boardgame-butler.json` backup you've shared to the phone (email it to yourself, AirDrop, etc.).
   - [ ] **Export** downloads `boardgame-butler.json` to the phone's Downloads / Files.
 - [ ] Persistence: force-close the browser, reopen the address → collection intact.
 - [ ] **Table tools on a phone:** start a 1-minute countdown, lock the screen, unlock after it should have finished → display shows `0:00` and *Time's up!*. Android should have vibrated; iOS won't (no vibration API) but should beep if the phone isn't on silent.
-- [ ] Install prompt: Chrome on Android should **not** offer *Install app* here (insecure origin) - this is expected. iOS Safari → Share → *Add to Home Screen* still works and opens without browser chrome, but it's a shortcut, not an offline app.
+- [ ] Install prompt: Chrome on Android should **not** offer *Install app* here (insecure origin), which is expected. iOS Safari → Share → *Add to Home Screen* still works and opens without browser chrome, but it's a shortcut, not an offline app.
 - [ ] Prove there's no offline support: turn on Airplane mode, open the shortcut → it fails to load. Turn Airplane mode off.
 
 ---
 
-## Part 4 - Phone over the LAN, HTTPS (full install & offline)
+## Part 4: Phone over the LAN, HTTPS (full install & offline)
 
 Only needed for **unreleased** changes; for anything already on `main`, open the deployed URL on the phone instead and skip to the Install/Offline checks below.
 
@@ -301,7 +301,7 @@ The service worker needs a trusted HTTPS origin. [mkcert](https://github.com/Fil
    mkcert -install
    mkcert 192.168.1.50
    ```
-   This writes `192.168.1.50.pem` and `192.168.1.50-key.pem` into the current directory. **Don't commit them** - keep them outside the repo or add them to `.gitignore`.
+   This writes `192.168.1.50.pem` and `192.168.1.50-key.pem` into the current directory. **Don't commit them.** Keep them outside the repo or add them to `.gitignore`.
 3. Put the root certificate on the phone. `mkcert -CAROOT` prints the folder; the file is `rootCA.pem`.
    - **Android:** copy `rootCA.pem` to the phone → Settings → Security → *Install a certificate* → *CA certificate*. Chrome trusts it immediately.
    - **iOS:** email/AirDrop `rootCA.pem` → open it → Settings → *Profile Downloaded* → Install. Then **also** Settings → General → About → Certificate Trust Settings → enable full trust for the mkcert root. (Without this second step Safari still shows a warning and won't register the service worker.)
@@ -315,7 +315,7 @@ npm run build
 npx serve -s dist/BoardgameButler/browser -l 8443 --ssl-cert 192.168.1.50.pem --ssl-key 192.168.1.50-key.pem
 ```
 
-Allow Node through the firewall if prompted. On the phone open `https://192.168.1.50:8443` - there should be **no** certificate warning. If there is, the root CA isn't trusted yet; fix that before continuing, because the service worker will not register on a warned origin.
+Allow Node through the firewall if prompted. On the phone open `https://192.168.1.50:8443`; there should be **no** certificate warning. If there is, the root CA isn't trusted yet; fix that before continuing, because the service worker will not register on a warned origin.
 
 ### Install
 
@@ -338,13 +338,13 @@ Allow Node through the firewall if prompted. On the phone open `https://192.168.
 
 ---
 
-## Part 5 - Verifying an update reaches an installed app
+## Part 5: Verifying an update reaches an installed app
 
 With the app installed (Part 2 or 4) and `serve` running:
 
-1. Make a visible change - e.g. edit the tagline in `src/app/home/home.html`.
+1. Make a visible change, for example the tagline in `src/app/home/home.html`.
 2. `npm run build` (no need to restart `serve`; it reads the folder live).
-3. Open the installed app. It will still show the **old** tagline - this is expected; the worker fetches the update in the background.
+3. Open the installed app. It will still show the **old** tagline. This is expected; the worker fetches the update in the background.
 4. Close the app fully and reopen it → the **new** tagline shows.
 5. The collection is untouched by the update (it's in `localStorage`, not the cache).
 
@@ -366,7 +366,7 @@ Because data is per-origin, "start from scratch" means clearing that origin's st
 
 The next load re-seeds from `games.json`, `players.json` and `plays.json`.
 
-To just uninstall the app but keep data: Android - long-press icon → Uninstall; iOS - long-press → Remove App; PC - ⋮ → Uninstall inside the app window.
+To just uninstall the app but keep data: on Android long-press the icon → Uninstall; on iOS long-press → Remove App; on PC use ⋮ → Uninstall inside the app window.
 
 ---
 
@@ -376,13 +376,13 @@ To just uninstall the app but keep data: Android - long-press icon → Uninstall
 Check Application → Manifest for errors, and that the service worker shows as *activated*. Both are required. You must be on `localhost` or HTTPS, and using a production build (`npm run build`, not `npm start`). Chrome also won't re-prompt for a while after you dismiss it; use ⋮ → *Install…* instead.
 
 **Service worker never registers.**
-`registerWhenStable:30000` waits for the app to go idle. Give it a few seconds and reload once. If you're on a LAN IP over HTTP it will *never* register - that's Part 3's limitation.
+`registerWhenStable:30000` waits for the app to go idle. Give it a few seconds and reload once. If you're on a LAN IP over HTTP it will *never* register; that's Part 3's limitation.
 
 **Certificate warning on the phone (Part 4).**
 The mkcert root isn't trusted on the phone. iOS needs the extra *Certificate Trust Settings* step. Android needs the file installed as a *CA certificate*, not a *Wi-Fi certificate*. Also confirm the cert was generated for the exact IP you're browsing to.
 
 **Phone can't reach the PC at all.**
-Both on the same Wi-Fi? Guest networks often isolate clients. Windows Firewall - allow Node on private networks, or test with the firewall temporarily off to rule it out. Confirm the port with `netstat -an | findstr 4200`.
+Both on the same Wi-Fi? Guest networks often isolate clients. Windows Firewall: allow Node on private networks, or test with the firewall temporarily off to rule it out. Confirm the port with `netstat -an | findstr 4200`.
 
 **Refreshing `/collection` gives a 404.**
 The static server isn't doing SPA fallback. With `serve`, make sure you passed `-s`. `ng serve` handles this automatically.

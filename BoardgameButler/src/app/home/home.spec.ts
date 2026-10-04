@@ -158,7 +158,7 @@ describe('Home', () => {
 
       await openFilters();
       expect(panel()).not.toBeNull();
-      expect(text(fixture)).toContain('No filters set - all 4 games match');
+      expect(text(fixture)).toContain('No filters set; all 4 games match');
       expect(matchButton().disabled).toBe(false);
 
       findByText<HTMLButtonElement>(fixture, 'button', 'Hide filters').click();
@@ -240,7 +240,7 @@ describe('Home', () => {
       findByText<HTMLButtonElement>(fixture, 'button', 'Clear').click();
       await settle(fixture);
 
-      expect(text(fixture)).toContain('No filters set - all 4 games match');
+      expect(text(fixture)).toContain('No filters set; all 4 games match');
       expect(query<HTMLInputElement>(fixture, '#filter-players').value).toBe('');
       expect(fixture.nativeElement.textContent).not.toContain('Clear');
     });

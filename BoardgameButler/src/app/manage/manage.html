@@ -112,7 +112,7 @@
                   <span [class]="row.duplicateOf ? 'text-gray-400 line-through' : 'text-white font-medium'">{{ row.game.title }}</span>
                   @if (row.duplicateOf) {
                     <span class="text-xs text-amber-300 text-right">
-                      skipped - duplicate of {{ row.duplicateOf }}
+                      skipped: duplicate of {{ row.duplicateOf }}
                       @if (row.differences.length) {
                         <span class="text-gray-500">· differs: {{ row.differences.join(', ') }}</span>
                       }
@@ -136,7 +136,7 @@
                     <span class="text-gray-500"> ({{ players.skipped }} duplicate{{ players.skipped === 1 ? '' : 's' }} will be skipped)</span>
                   }
                   @if (players.kept.length === 0) {
-                    <span class="text-gray-500"> - your current players will be removed</span>
+                    <span class="text-gray-500"> (your current players will be removed)</span>
                   }
                 </span>
               </label>
@@ -153,7 +153,7 @@
               }
             } @else {
               <p class="text-gray-500 text-sm">
-                This is an older games-only file - your {{ playerCount() }} player{{ playerCount() === 1 ? '' : 's' }} will be kept.
+                This is an older games-only file, so your {{ playerCount() }} player{{ playerCount() === 1 ? '' : 's' }} will be kept.
               </p>
             }
           </div>
@@ -164,13 +164,13 @@
               <label class="flex items-start gap-3 text-gray-300 text-sm cursor-pointer">
                 <input type="checkbox" id="apply-plays" [checked]="apply().plays" (change)="toggle('plays', $event)" class="mt-0.5 accent-amber-500" />
                 <span>
-                  Merge <span class="text-amber-400 font-semibold">{{ plays.incoming.length }} play{{ plays.incoming.length === 1 ? '' : 's' }}</span> into your history
-                  <span class="text-gray-500"> - {{ plays.fresh }} new, {{ plays.incoming.length - plays.fresh }} already here</span>
+                  Merge <span class="text-amber-400 font-semibold">{{ plays.incoming.length }} play{{ plays.incoming.length === 1 ? '' : 's' }}</span> into your history:
+                  <span class="text-gray-500">{{ plays.fresh }} new, {{ plays.incoming.length - plays.fresh }} already here</span>
                 </span>
               </label>
             } @else {
               <p class="text-gray-500 text-sm">
-                This file has no play history - your {{ playCount() }} logged play{{ playCount() === 1 ? '' : 's' }} will be kept.
+                This file has no play history, so your {{ playCount() }} logged play{{ playCount() === 1 ? '' : 's' }} will be kept.
               </p>
             }
           </div>

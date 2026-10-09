@@ -5,6 +5,8 @@ import { PlayerStore } from '../player-store';
 import { PlayStore } from '../play-store';
 import { BackupService } from '../backup';
 import { PersistentStorageService } from '../persistent-storage';
+import { BggCredit } from '../bgg-credit/bgg-credit';
+import { BggPlacementService } from '../bgg-credit/bgg-placement';
 import { RawPlay } from '../play';
 import { buildExport, parseImport } from '../export-format';
 import { ImportPlan, PlayerImportPlan, planImport, planPlayerImport } from '../import-plan';
@@ -27,7 +29,7 @@ interface Apply {
 
 @Component({
   selector: 'app-manage',
-  imports: [RouterLink],
+  imports: [RouterLink, BggCredit],
   templateUrl: './manage.html',
 })
 export class Manage {
@@ -35,6 +37,7 @@ export class Manage {
   private players = inject(PlayerStore);
   private plays = inject(PlayStore);
   private backup = inject(BackupService);
+  protected bgg = inject(BggPlacementService);
   private storage = inject(PersistentStorageService);
 
   protected lastBackup = this.backup.describe;

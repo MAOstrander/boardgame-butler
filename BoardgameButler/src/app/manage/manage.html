@@ -194,5 +194,12 @@
       }
     </section>
 
+    @if (bgg.shows('manage')) {
+      <section class="mt-8 pt-6 border-t border-gray-800 flex flex-col items-center gap-2" data-testid="bgg-manage">
+        <p class="text-xs text-gray-500">Game details are looked up from BoardGameGeek.</p>
+        <app-bgg-credit size="md" />
+      </section>
+    }
+
   </div>
 </div>

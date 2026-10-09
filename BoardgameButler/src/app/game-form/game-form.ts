@@ -4,7 +4,6 @@ import { Router, RouterLink } from '@angular/router';
 import { Game, GameDetails } from '../game';
 import { GameStore } from '../game-store';
 import { BggCredit } from '../bgg-credit/bgg-credit';
-import { BggPlacementService } from '../bgg-credit/bgg-placement';
 import { PlayStore } from '../play-store';
 import { UndoService } from '../undo';
 
@@ -20,7 +19,6 @@ import { UndoService } from '../undo';
 export class GameForm implements OnInit {
   private fb = inject(FormBuilder);
   private store = inject(GameStore);
-  protected bgg = inject(BggPlacementService);
   private plays = inject(PlayStore);
   private undo = inject(UndoService);
   private router = inject(Router);

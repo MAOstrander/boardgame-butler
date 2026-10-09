@@ -251,6 +251,12 @@ One reactive form serves both jobs. Without an `:id` it adds a game; with one it
 - On success, navigates back to `/`.
 - If the browser refuses the write (e.g. storage quota exceeded or storage disabled), shows *"Could not save your collection to this device."* and stays on the page.
 
+**BoardGameGeek credit.** Below the buttons sits a "Powered by BGG" logo linking to boardgamegeek.com, with a line explaining that game details can be looked up from there. BGG's XML API terms require any public-facing use of their data to show this logo linked back to the site, "sized so that the text remains easily legible"; 170px is used, and 130px is about the floor where the wordmark still reads. The reversed white-and-orange artwork is the one that suits this dark UI.
+
+This is the game form because that is where BGG data will actually land. If BGG integration later spreads beyond this one page, for example a lookup on the collection page or anything that displays BGG ratings, **the home page under the nav links is the better home for it**: a single credit there covers the whole app without needing one per feature. `BggCredit` takes a `size` input precisely so it can move without rework.
+
+The credit is covered by tests in `game-form.spec.ts` rather than left as decoration, since removing it would put the deployed app in breach of the API terms.
+
 **Current limitations**
 
 - Players/duration are not validated as numbers or ranges.
@@ -707,6 +713,7 @@ Each page has a functional spec next to it (`*.spec.ts`) that drives the rendere
 | `undo.spec.ts` | Propose/accept/dismiss, expiry on its own, accepting after expiry, a second offer replacing the first without its timer cutting the new one short, custom window |
 | `undo-toast.spec.ts` | Hidden until something is deleted, message and `role="status"`, Undo reverses, dismiss doesn't, disappears on expiry |
 | `backup.spec.ts` | Never-exported, recording and persisting, wording for 0/1/5/47 days, the staleness threshold either side, an unreadable stored value, a clock that moved backwards, a storage write that fails |
+| `bgg-credit.spec.ts` | The BGG credit: link target, new-tab safety, alt text, the reversed artwork, and each width |
 | `install.spec.ts` | No offer until `beforeinstallprompt`, `preventDefault` on capture, already-standalone suppression, missing `matchMedia`, prompt accept/dismiss/throw/unavailable, single use, `appinstalled` |
 | `game-filter.spec.ts` | Range parsing (`2-4`, `2`, `3+`, `2 to 6`, en dash, garbage), each filter's matching rule, AND-combination, `filterGames` |
 | `home.spec.ts` | Loading state while seeding, ready from storage, empty-collection hint, random pick and re-roll, rating badge, filter panel toggle, every filter's live count, no-match state, clear, filtered pick vs. whole-collection pick, the overdue-a-turn toggle (label in both modes, combining with other filters, serving from it, clearing), the best-at-count toggle (disabled without a count, qualifying-game count in the label, restricting matches, no-match case, switching off when the count is cleared), the install button appearing and prompting, nav links |

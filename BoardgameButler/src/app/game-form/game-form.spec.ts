@@ -170,6 +170,18 @@ describe('GameForm', () => {
       expect(router.navigate).not.toHaveBeenCalled();
     });
 
+    // BGG require this credit wherever their API data is used, so it is a
+    // compliance detail rather than decoration: a failure here means the
+    // deployed app is in breach.
+    it('credits BoardGameGeek, linked back to the site', () => {
+      const block = query(fixture, '[data-testid="bgg-credit-block"]');
+      expect(block.textContent).toContain('looked up from BoardGameGeek');
+
+      const link = block.querySelector('a')!;
+      expect(link.getAttribute('href')).toBe('https://boardgamegeek.com');
+      expect(link.querySelector('img')!.getAttribute('alt')).toBe('Powered by BoardGameGeek');
+    });
+
     it('links back home and to the collection and manage pages', () => {
       const hrefs = queryAll<HTMLAnchorElement>(fixture, 'a').map(a => a.getAttribute('href'));
       expect(hrefs).toEqual(expect.arrayContaining(['/', '/collection', '/manage']));
@@ -190,6 +202,11 @@ describe('GameForm', () => {
       expect(text(fixture)).toContain('7 / 10');
       expect(submitButton().textContent).toContain('Save Changes');
       expect(submitButton().disabled).toBe(false);
+    });
+
+    it('credits BoardGameGeek here too', async () => {
+      await setup('g-catan');
+      expect(fixture.nativeElement.querySelector('[data-testid="bgg-credit-block"]')).not.toBeNull();
     });
 
     it('offers a Cancel link back to the collection', async () => {

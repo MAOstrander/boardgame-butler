@@ -98,3 +98,5 @@ The workflow also copies `index.html` to `404.html` (GitHub Pages has no rewrite
 [MIT](LICENSE) © 2026 Mathew Ostrander.
 
 The artwork in `public/` (the hero background and the icons derived from it) was supplied by the project author.
+
+`public/bgg/powered-by-bgg.svg` is BoardGameGeek's "Powered by BGG" logo, used under their [XML API terms of use](https://boardgamegeek.com/wiki/page/XML_API_Terms_of_Use) and displayed on the add/edit game page with a link back to the site. Board game data retrieved from their API is theirs, not covered by the licence above.

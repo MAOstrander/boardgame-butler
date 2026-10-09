@@ -1,6 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { BggCredit } from './bgg-credit';
-import { BGG_PLACEMENT_KEY, BggPlacementService } from './bgg-placement';
 import { query, settle } from '../../testing/helpers';
 
 describe('BggCredit', () => {
@@ -51,50 +50,5 @@ describe('BggCredit', () => {
   ] as const)('renders %s at %s', async (size, expected) => {
     await setup(size);
     expect(image().className).toContain(expected);
-  });
-});
-
-describe('BggPlacementService', () => {
-  beforeEach(() => localStorage.clear());
-  afterEach(() => localStorage.clear());
-
-  it('starts in the app footer', () => {
-    expect(TestBed.inject(BggPlacementService).placement()).toBe('footer');
-  });
-
-  it('remembers a choice', () => {
-    const service = TestBed.inject(BggPlacementService);
-    service.set('manage');
-
-    expect(service.placement()).toBe('manage');
-    expect(localStorage.getItem(BGG_PLACEMENT_KEY)).toBe('manage');
-  });
-
-  it('reads a saved choice back', () => {
-    localStorage.setItem(BGG_PLACEMENT_KEY, 'form');
-    expect(TestBed.inject(BggPlacementService).placement()).toBe('form');
-  });
-
-  it('ignores a saved value that is not a placement', () => {
-    localStorage.setItem(BGG_PLACEMENT_KEY, 'somewhere-else');
-    expect(TestBed.inject(BggPlacementService).placement()).toBe('footer');
-  });
-
-  it('shows the credit only where the placement says', () => {
-    const service = TestBed.inject(BggPlacementService);
-    service.set('home');
-
-    expect(service.shows('home')).toBe(true);
-    expect(service.shows('footer')).toBe(false);
-    expect(service.shows('form')).toBe(false);
-  });
-
-  it('shows it everywhere when comparing all four', () => {
-    const service = TestBed.inject(BggPlacementService);
-    service.set('all');
-
-    for (const where of ['footer', 'home', 'form', 'manage'] as const) {
-      expect(service.shows(where)).toBe(true);
-    }
   });
 });

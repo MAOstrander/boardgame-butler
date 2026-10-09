@@ -5,14 +5,12 @@ import { GameStore } from '../game-store';
 import { PlayStore } from '../play-store';
 import { InstallService } from '../install';
 import { BackupService } from '../backup';
-import { BggCredit } from '../bgg-credit/bgg-credit';
-import { BggPlacementService } from '../bgg-credit/bgg-placement';
 import { gameRows, leastPlayed } from '../stats';
 import { EMPTY_FILTERS, GameFilters, filterGames, hasActiveFilters } from '../game-filter';
 
 @Component({
   selector: 'app-home',
-  imports: [RouterLink, BggCredit],
+  imports: [RouterLink],
   templateUrl: './home.html',
 })
 export class Home {
@@ -20,7 +18,6 @@ export class Home {
   private plays = inject(PlayStore);
   private install = inject(InstallService);
   private backup = inject(BackupService);
-  protected bgg = inject(BggPlacementService);
 
   protected games = this.store.games;
   protected ready = this.store.ready;

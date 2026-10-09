@@ -45,7 +45,7 @@ You need a free Cloudflare account. Nothing is installed into this folder;
 
 ```sh
 cd bgg-proxy
-npm test                      # 36 tests, no dependencies required
+npm test                      # 41 tests, no dependencies required
 npx wrangler@latest login     # opens a browser
 npx wrangler@latest deploy
 ```
@@ -87,10 +87,17 @@ app bundle, it is effectively public, and someone who finds it can spend our BGG
 quota.
 
 The cache absorbs most of that, because repeat lookups of popular games never
-reach BGG. For the rest, add a Cloudflare rate limiting rule on the Worker route
-(Security, then Rate limiting rules) at something like 30 requests per minute per
-IP. The free plan includes this. It is worth doing before the lookup ships, not
-after a problem.
+reach BGG. For the rest, the Worker limits each IP address to 30 requests a
+minute that reach BGG, using the `RATE_LIMITER` binding in `wrangler.toml`. Cache
+hits are not counted. Over the limit, the caller gets a 429 with `Retry-After: 60`
+and BGG is not called. If the limiter itself fails, requests go through rather
+than every lookup breaking.
+
+The limit is in the Worker because the dashboard's rate limiting rules belong to
+a zone (a domain on your account), and `workers.dev` is not one. If the proxy
+moves to a custom domain, a zone rule becomes possible too, but the binding keeps
+working either way. Its counters are per Cloudflare location and eventually
+consistent, so treat 30 as approximate.
 
 A shared secret header would not help: it would have to be in the bundle too, so
 it would be just as public as the URL.

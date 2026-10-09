@@ -26,7 +26,32 @@ const CACHE_SECONDS = { thing: 60 * 60 * 24 * 7, search: 60 * 60 * 24 };
 const MAX_QUERY_LENGTH = 100;
 const MAX_IDS = 20;
 
-/** @typedef {{ BGG_TOKEN?: string, ALLOWED_ORIGINS?: string }} Env */
+/** Matches the period of the RATE_LIMITER binding in wrangler.toml. */
+const RATE_LIMIT_PERIOD_SECONDS = 60;
+
+/**
+ * @typedef {{ limit(options: { key: string }): Promise<{ success: boolean }> }} RateLimit
+ * @typedef {{ BGG_TOKEN?: string, ALLOWED_ORIGINS?: string, RATE_LIMITER?: RateLimit }} Env
+ */
+
+/**
+ * Whether this caller may spend another BGG request. Keyed on the caller's IP,
+ * so one heavy user cannot use up the quota for everyone else.
+ *
+ * Fails open: with no binding (tests, local dev) or a limiter error, the
+ * request goes ahead. Losing a lookup to a limiter outage would be worse than
+ * one unmetered request reaching BGG.
+ */
+async function withinRateLimit(request, env) {
+  if (!env?.RATE_LIMITER) return true;
+  const key = request.headers.get('CF-Connecting-IP') ?? 'unknown';
+  try {
+    return (await env.RATE_LIMITER.limit({ key })).success;
+  } catch (error) {
+    console.error(`Rate limiter unavailable: ${error}`);
+    return true;
+  }
+}
 
 export function allowedOrigins(env) {
   const listed = String(env?.ALLOWED_ORIGINS ?? '')
@@ -161,6 +186,14 @@ export async function handle(request, env, deps = {}) {
   if (cache) {
     const hit = await cache.match(cacheKey);
     if (hit) return present(hit.body, hit, cors, 'HIT');
+  }
+
+  // Only requests that would reach BGG are metered. A cache hit costs BGG
+  // nothing, so there is no reason to refuse one.
+  if (!(await withinRateLimit(request, env))) {
+    return problem(429, 'Too many lookups from this address. Try again in a minute.', cors, {
+      'Retry-After': String(RATE_LIMIT_PERIOD_SECONDS),
+    });
   }
 
   let upstream;

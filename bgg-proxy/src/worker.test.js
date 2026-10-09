@@ -308,3 +308,77 @@ describe('handle', () => {
     assert.equal(response.headers.get('Access-Control-Allow-Origin'), 'http://localhost:4200');
   });
 });
+
+describe('rate limiting', () => {
+  /** A stand-in for the RATE_LIMITER binding that allows `allowance` calls per key. */
+  function fakeLimiter(allowance) {
+    const counts = new Map();
+    return {
+      keys: [],
+      async limit({ key }) {
+        this.keys.push(key);
+        counts.set(key, (counts.get(key) ?? 0) + 1);
+        return { success: counts.get(key) <= allowance };
+      },
+    };
+  }
+
+  const fromIp = (path, ip, origin) =>
+    get(path, { origin, headers: { 'CF-Connecting-IP': ip } });
+
+  it('meters each caller by IP address', async () => {
+    const limiter = fakeLimiter(1);
+    const env = { ...ENV, RATE_LIMITER: limiter };
+    const fetch = fakeFetch(() => xmlResponse());
+
+    assert.equal((await handle(fromIp('/thing?id=1', '203.0.113.1'), env, { fetch })).status, 200);
+    assert.equal((await handle(fromIp('/thing?id=2', '203.0.113.2'), env, { fetch })).status, 200);
+    assert.equal((await handle(fromIp('/thing?id=3', '203.0.113.1'), env, { fetch })).status, 429);
+    assert.deepEqual(limiter.keys, ['203.0.113.1', '203.0.113.2', '203.0.113.1']);
+  });
+
+  it('refuses an over-limit caller without calling BGG, saying when to retry', async () => {
+    const env = { ...ENV, RATE_LIMITER: fakeLimiter(0) };
+    const fetch = fakeFetch(xmlResponse());
+    const response = await handle(fromIp('/search?q=Catan', '203.0.113.1', 'http://localhost:4200'), env, { fetch });
+
+    assert.equal(response.status, 429);
+    assert.equal(response.headers.get('Retry-After'), '60');
+    assert.equal(response.headers.get('Access-Control-Allow-Origin'), 'http://localhost:4200');
+    assert.match((await response.json()).error, /Too many lookups/);
+    assert.equal(fetch.calls.length, 0);
+  });
+
+  it('still serves cache hits to an over-limit caller, since they cost BGG nothing', async () => {
+    const cache = fakeCache();
+    await handle(get('/thing?id=13'), ENV, { cache, fetch: fakeFetch(xmlResponse()) });
+
+    const env = { ...ENV, RATE_LIMITER: fakeLimiter(0) };
+    const response = await handle(fromIp('/thing?id=13', '203.0.113.1'), env, { cache, fetch: fakeFetch(xmlResponse()) });
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('X-Proxy-Cache'), 'HIT');
+  });
+
+  it('does not meter health checks or bad requests', async () => {
+    const limiter = fakeLimiter(0);
+    const env = { ...ENV, RATE_LIMITER: limiter };
+    assert.equal((await handle(get('/health'), env, {})).status, 200);
+    assert.equal((await handle(get('/thing?id=nope'), env, {})).status, 400);
+    assert.equal(limiter.keys.length, 0);
+  });
+
+  it('lets the request through if the limiter itself fails', async () => {
+    mock.method(console, 'error', () => {});
+    const env = {
+      ...ENV,
+      RATE_LIMITER: {
+        async limit() {
+          throw new Error('binding unavailable');
+        },
+      },
+    };
+    const response = await handle(get('/thing?id=13'), env, { fetch: fakeFetch(xmlResponse()) });
+    assert.equal(response.status, 200);
+    mock.restoreAll();
+  });
+});

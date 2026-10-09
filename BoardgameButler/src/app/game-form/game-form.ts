@@ -5,12 +5,21 @@ import { Router, RouterLink } from '@angular/router';
 import { Game, GameDetails } from '../game';
 import { GameStore } from '../game-store';
 import { BggCredit } from '../bgg-credit/bgg-credit';
-import { BggDetails, BggSearchResult, BggService, complexityFromWeight, formatRange, lookupErrorMessage } from '../bgg';
+import { BggDetails, BggSearchResult, BggService, lookupErrorMessage } from '../bgg';
 import { PlayStore } from '../play-store';
 import { UndoService } from '../undo';
 
 /** Enough to spot the right edition without a wall of reprints. */
 const MAX_RESULTS = 8;
+
+/** Flags the form with `errorKey` when both ends are set and the minimum exceeds the maximum. */
+function minNotAboveMax(minKey: string, maxKey: string, errorKey: string): ValidatorFn {
+  return (group: AbstractControl): ValidationErrors | null => {
+    const min = group.get(minKey)?.value;
+    const max = group.get(maxKey)?.value;
+    return min != null && max != null && min > max ? { [errorKey]: true } : null;
+  };
+}
 
 /**
  * One form for both adding and editing. With no `id` route parameter it
@@ -50,17 +59,24 @@ export class GameForm implements OnInit {
   protected lookupResults = signal<BggSearchResult[] | null>(null);
   protected lookupError = signal<string | null>(null);
   protected filledFrom = signal<BggDetails | null>(null);
+  /** The BGG game this one is linked to, and its weight as of the lookup. */
+  protected bggLink = signal<{ id: string; weight?: number } | null>(null);
 
-  protected form = this.fb.nonNullable.group({
-    title: ['', [Validators.required, this.uniqueTitle()]],
-    players: ['', Validators.required],
-    duration: ['', Validators.required],
-    complexity: ['Medium', Validators.required],
-    rating: [
-      null as number | null,
-      [Validators.required, Validators.min(1), Validators.max(10)],
-    ],
-  });
+  protected form = this.fb.nonNullable.group(
+    {
+      title: ['', [Validators.required, this.uniqueTitle()]],
+      minPlayers: [null as number | null, [Validators.required, Validators.min(1)]],
+      maxPlayers: [null as number | null, [Validators.required, Validators.min(1)]],
+      minPlaytime: [null as number | null, [Validators.required, Validators.min(1)]],
+      maxPlaytime: [null as number | null, [Validators.required, Validators.min(1)]],
+      complexity: ['Medium', Validators.required],
+      rating: [
+        null as number | null,
+        [Validators.required, Validators.min(1), Validators.max(10)],
+      ],
+    },
+    { validators: [minNotAboveMax('minPlayers', 'maxPlayers', 'playersOrder'), minNotAboveMax('minPlaytime', 'maxPlaytime', 'playtimeOrder')] },
+  );
 
   ngOnInit() {
     const id = this.id();
@@ -74,23 +90,30 @@ export class GameForm implements OnInit {
     this.game.set(game);
     this.form.setValue({
       title: game.title,
-      players: game.players,
-      duration: game.duration,
+      minPlayers: game.minPlayers ?? null,
+      maxPlayers: game.maxPlayers ?? null,
+      minPlaytime: game.minPlaytime ?? null,
+      maxPlaytime: game.maxPlaytime ?? null,
       complexity: game.complexity,
       rating: game.rating ?? null,
     });
+    if (game.bggId) this.bggLink.set({ id: game.bggId, weight: game.bggWeight });
   }
 
   protected submit() {
     if (this.form.invalid) return;
 
     const value = this.form.getRawValue();
+    const link = this.bggLink();
     const details: GameDetails = {
       title: value.title.trim(),
-      players: value.players.trim(),
-      duration: value.duration.trim(),
+      minPlayers: value.minPlayers!,
+      maxPlayers: value.maxPlayers!,
+      minPlaytime: value.minPlaytime!,
+      maxPlaytime: value.maxPlaytime!,
       complexity: value.complexity,
       rating: value.rating ?? undefined,
+      ...(link ? { bggId: link.id, ...(link.weight != null ? { bggWeight: link.weight } : {}) } : {}),
     };
 
     const game = this.game();
@@ -153,23 +176,36 @@ export class GameForm implements OnInit {
     this.lookupError.set(null);
   }
 
+  /** Forget the BGG link, so the saved game no longer carries BGG's id or weight. */
+  protected unlinkBgg() {
+    this.bggLink.set(null);
+    this.filledFrom.set(null);
+  }
+
   /**
-   * Copies what BGG know into the form. Anything BGG have no figure for is left
-   * as it was, and the rating is never touched: it is the user's own opinion.
+   * Copies BGG's figures into the form exactly as BGG give them, each into its
+   * own field. Anything BGG have no figure for is left as it was.
+   *
+   * Complexity and rating are never touched. They are the user's own judgement,
+   * and deriving complexity from BGG's weight would be modifying BGG's data,
+   * which their terms forbid. The weight is shown alongside instead.
    */
   private fillFrom(details: BggDetails) {
     const controls = this.form.controls;
-    if (details.name) controls.title.setValue(details.name);
+    const copies: [AbstractControl, string | number | undefined][] = [
+      [controls.title, details.name || undefined],
+      [controls.minPlayers, details.minPlayers],
+      [controls.maxPlayers, details.maxPlayers],
+      [controls.minPlaytime, details.minPlaytime],
+      [controls.maxPlaytime, details.maxPlaytime],
+    ];
+    for (const [control, value] of copies) {
+      if (value == null) continue;
+      control.setValue(value);
+      control.markAsTouched();
+    }
 
-    const players = formatRange(details.minPlayers, details.maxPlayers);
-    if (players) controls.players.setValue(players);
-
-    const duration = formatRange(details.minPlaytime, details.maxPlaytime);
-    if (duration) controls.duration.setValue(duration);
-
-    if (details.weight) controls.complexity.setValue(complexityFromWeight(details.weight));
-
-    for (const control of [controls.title, controls.players, controls.duration]) control.markAsTouched();
+    this.bggLink.set({ id: details.id, weight: details.weight });
     this.filledFrom.set(details);
   }
 

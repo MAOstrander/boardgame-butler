@@ -1,6 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Game, GameDetails, RawGame } from './game';
+import { Game, GameDetails, RawGame, upgradeGame } from './game';
 import { assignIds, newId } from './ids';
 import { normalizeKey } from './normalize';
 
@@ -30,7 +30,7 @@ export class GameStore {
   constructor() {
     const saved = this.read();
     if (saved) {
-      this.commit(assignIds(saved));
+      this.commit(assignIds(saved.map(upgradeGame)));
       this._ready.set(true);
     } else {
       this.seed();
@@ -74,7 +74,7 @@ export class GameStore {
   }
 
   replaceAll(games: RawGame[]) {
-    this.commit(assignIds(games));
+    this.commit(assignIds(games.map(upgradeGame)));
   }
 
   /** Serialised collection, formatted the same way games.json ships. */
@@ -107,7 +107,7 @@ export class GameStore {
     // Relative so it resolves against <base href> when hosted under a sub-path.
     this.http.get<RawGame[]>('games.json').subscribe({
       next: games => {
-        this.commit(assignIds(games));
+        this.commit(assignIds(games.map(upgradeGame)));
         this._ready.set(true);
       },
       error: () => {

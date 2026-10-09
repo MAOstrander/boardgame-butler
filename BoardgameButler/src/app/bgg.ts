@@ -40,6 +40,11 @@ const NOT_READY_DELAY_MS = 2000;
 /**
  * Talks to BoardGameGeek through our proxy. The proxy passes BGG's XML through
  * unmodified (their terms forbid reshaping it), so parsing happens here.
+ *
+ * Parsing only reads values out; it never combines or converts them. Joining
+ * min and max into "3-4", or turning weight into Easy/Medium/Hard, would be the
+ * kind of modification the terms rule out, so the game model stores BGG's
+ * figures as the separate numbers BGG publish.
  */
 @Injectable({ providedIn: 'root' })
 export class BggService {
@@ -82,24 +87,6 @@ export function lookupErrorMessage(error: unknown): string {
     if (error.status === 429) return 'BoardGameGeek is busy right now. Try again in a minute.';
   }
   return "BoardGameGeek lookup isn't working right now.";
-}
-
-/**
- * BGG's 1 to 5 weight onto our three levels. Light family games sit under 2,
- * heavy strategy games from 3 up.
- */
-export function complexityFromWeight(weight: number): 'Easy' | 'Medium' | 'Hard' {
-  if (weight < 2) return 'Easy';
-  if (weight < 3) return 'Medium';
-  return 'Hard';
-}
-
-/** "2-4", or "2" when both ends match; undefined when BGG has no figure. */
-export function formatRange(min?: number, max?: number): string | undefined {
-  const lo = min || max;
-  const hi = max || min;
-  if (!lo || !hi) return undefined;
-  return lo === hi ? String(lo) : `${Math.min(lo, hi)}-${Math.max(lo, hi)}`;
 }
 
 export function parseSearch(xml: string): BggSearchResult[] {

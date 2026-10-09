@@ -72,21 +72,26 @@ A game is a plain JSON object, defined once in `src/app/game.ts`:
 interface Game {
   id: string;          // stable identifier, assigned by GameStore
   title: string;       // e.g. "Catan"
-  players: string;     // free text, e.g. "3-4"
-  duration: string;    // free text, minutes, e.g. "60-120"
-  complexity: string;  // "Easy" | "Medium" | "Hard"
+  minPlayers?: number; // e.g. 3
+  maxPlayers?: number; // e.g. 4; absent for an open-ended "3+"
+  minPlaytime?: number; // minutes, e.g. 60
+  maxPlaytime?: number; // minutes, e.g. 120
+  complexity: string;  // "Easy" | "Medium" | "Hard"; our own call, never derived from BGG
   rating?: number;     // 1–10, optional (older entries may omit it)
+  bggId?: string;      // the BoardGameGeek game this was looked up from
+  bggWeight?: number;  // BGG's 1–5 weight as of the lookup, exactly as BGG sent it
 }
 ```
 
-Two helper types cover the edges: `RawGame` (a game from a JSON file, where `id` is optional) and `GameDetails` (everything except `id`, which is what the form edits).
+Two helper types cover the edges: `RawGame` (a game from a JSON file, where `id` is optional and older `players`/`duration` text may appear) and `GameDetails` (everything except `id`, which is what the form edits).
 
 Notes:
 
 - `id` is what the edit route and the store's `find`/`update` use. Files don't need to include it: the store assigns one to anything that arrives without it (see [Data storage](#data-storage)). Exported files do include it, so a round trip keeps ids stable.
 - **Titles are unique** within a collection, ignoring case and surrounding whitespace. The form refuses a duplicate, and import keeps only the first entry of each title (see [Manage](#manage-collection-import--export)). The store itself does not enforce it.
 
-- `players` and `duration` are **strings**, not numbers, so ranges like `"2-5"` or `"45-90"` are stored exactly as typed. Nothing parses them yet.
+- **Player count and play time are four separate numbers**, the same shape BoardGameGeek publish them in. That lets a looked-up game keep BGG's figures exactly; joining them into a `"3-4"` string would be modifying BGG's data, which their terms forbid (see the lookup under [Add / Edit a Game](#add--edit-a-game)). Screens show them as a range (`3-4`, `2`, `3+`) only for display, via `playersText()` and `playtimeText()`.
+- They are optional only for older data. Before this split they were free text (`"2-4"`, `"60-120"`, `"3+"`). `upgradeGame()` converts that text when a saved collection loads, when the seed loads and when a file is imported, then drops the text fields. An open-ended `"3+"` keeps no maximum rather than inventing one, and text it can't read at all (`"varies"`) leaves the numbers unset. The form requires all four, so editing such a game asks for the missing figures.
 - `complexity` is constrained to Easy / Medium / Hard by the Add Game form, but imported files are not validated.
 - `rating` is required when adding a game through the UI, but the seed data and imported files may leave it out. The UI treats a missing rating as "no rating" and hides the badge.
 - The import preview list is keyed by `title` because imported rows may not have ids yet.
@@ -148,8 +153,8 @@ The landing page shows a full-bleed background image (`public/hero.webp`) under 
 2. Until the store is ready it shows *"Loading game library..."* and the main button is disabled. If the store is ready but empty it shows *"Your collection is empty. Add a game to get started."* instead.
 3. Clicking **Serve me a game!** picks one game uniformly at random from the **whole collection** and displays it in a *"Tonight's pick"* card showing:
    - Title
-   - `players` players
-   - `duration` min
+   - `N players`, from the player range (left out if unknown)
+   - `N min`, from the play time range (left out if unknown)
    - `complexity`
    - `rating/10` (only if the game has a rating)
 4. Clicking the button again re-rolls. The same game can be picked twice in a row; there is no history or exclusion.
@@ -163,7 +168,7 @@ The landing page shows a full-bleed background image (`public/hero.webp`) under 
 | Filter | Control | A game matches when… |
 |---|---|---|
 | Players tonight | number input | the count is inside the game's player range, inclusive (`2-4` matches 2, 3 or 4; `3+` matches anything ≥ 3) |
-| Time available | select: Any / up to 30, 45, 60, 90, 120, 180 min | the game's **longest** listed duration fits; `45-90` does *not* match "up to 60", so you're never served a game that might run over |
+| Time available | select: Any / up to 30, 45, 60, 90, 120, 180 min | the game's **longest** listed play time (`maxPlaytime`) fits; `45-90` does *not* match "up to 60", so you're never served a game that might run over |
 | Complexity | Easy / Medium / Hard toggle buttons | its complexity is one of the selected ones; none selected means any |
 | Minimum rating | select: Any / 5+ … 9+ | its rating is at or above the minimum; **unrated games are excluded** when this is set |
 | Plays best at that count | one toggle, needs *Players tonight* set | your fun ratings say it scores highest at exactly that table size (see [Statistics](#statistics)). Disabled until a count is chosen, and switched off automatically if you clear it. The label counts the qualifying games, as in *Best with 4 (3 games)* |
@@ -172,7 +177,7 @@ The landing page shows a full-bleed background image (`public/hero.webp`) under 
 - "Overdue a turn" and "plays best at that count" are the two filters that depend on the play log rather than a game's own fields, so they live in `src/app/stats.ts` (`leastPlayed()` and `gameRows().bestPlayers`) rather than `game-filter.ts`. It generalises "never played": once every game has been played, there is no answer to *never*, so it falls back to the lowest count there is.
 - Filters combine with AND. The panel shows a live count: *"No filters set; all N games match"*, *"K of N games match"*, or *"No games match these filters"* (the match button is disabled in that case).
 - **Clear** resets every filter. Hiding the panel keeps the filters; they reset on a full page reload.
-- Player and duration ranges are parsed from the free-text fields (`"2-4"`, `"60-120"`, `"2"`, `"3+"`, `"2 to 6"`). A game whose text can't be parsed is excluded by that filter, since the app can't tell whether it fits. The parsing and matching logic is in `src/app/game-filter.ts`.
+- Matching reads the numeric fields directly. A game with no known minimum is excluded by that filter, since the app can't tell whether it fits. A game with no maximum player count (an older `"3+"`) has no upper limit; one with no maximum play time is judged by its minimum. The matching logic is in `src/app/game-filter.ts`.
 
 **Current limitations**
 
@@ -198,8 +203,8 @@ A read-only table of every game in the collection.
 | Column | Sort behaviour |
 |---|---|
 | Title | Locale-aware alphabetical |
-| Players | By the leading number of the range (`"2-4"` → 2) |
-| Minutes | By the leading number of the range (`"60-120"` → 60) |
+| Players | By minimum players; games with none sort last |
+| Minutes | By minimum play time; games with none sort last |
 | Complexity | Easy → Medium → Hard |
 | Rating | Numeric; unrated games always sort last in either direction |
 
@@ -236,13 +241,14 @@ One reactive form serves both jobs. Without an `:id` it adds a game; with one it
 | Field | Control | Validation | Default |
 |---|---|---|---|
 | Title | text | required; **must not match another game's title** (case-insensitive, trimmed) | - |
-| Players | text (e.g. `2-4`) | required | - |
-| Duration (minutes) | text (e.g. `60-120`) | required | - |
-| Complexity | select: Easy / Medium / Hard | required | Medium |
+| Players | two number boxes, *Min* and *Max* | both required, each at least 1, min not above max | - |
+| Play time (minutes) | two number boxes, *Min* and *Max* | the same | - |
+| Complexity | select: Easy / Medium / Hard | required | Medium, always; a lookup never changes it |
 | Your Rating | range slider 1–10 | required, min 1, max 10 | none (slider must be moved) |
 
-- Required-field errors appear beneath a field once it has been touched. The duplicate-title error (*You already have a game called "…"*) appears as soon as the title matches, and the submit button stays disabled. When editing, the game's own current title is allowed.
-- Text fields are trimmed before saving.
+- Required-field errors appear beneath a field once it has been touched. A pair shows one message at a time: *"Enter both the fewest and the most players."* (or *shortest and longest play time*), then *"Player counts start at 1."*, then *"The minimum can't be more than the maximum."* A single count goes in as the same number twice.
+- The duplicate-title error (*You already have a game called "…"*) appears as soon as the title matches, and the submit button stays disabled. When editing, the game's own current title is allowed.
+- The title is trimmed before saving.
 - The rating slider shows the live value (`7 / 10`) next to its label once set.
 - The submit button is disabled while the form is invalid.
 
@@ -252,16 +258,19 @@ One reactive form serves both jobs. Without an `:id` it adds a game; with one it
 - On success, navigates back to `/`.
 - If the browser refuses the write (e.g. storage quota exceeded or storage disabled), shows *"Could not save your collection to this device."* and stays on the page.
 
-**BoardGameGeek lookup.** Under the title sits **Look up on BoardGameGeek**, enabled once a title is typed. It searches BGG through the [proxy](#boardgamegeek-proxy) and lists up to 8 matches, each with its year and an *expansion* tag where relevant. BGG return hits in no useful order, so exact title matches come first, then base games ahead of expansions, then newest first. Choosing one fetches its details and fills in:
+**BoardGameGeek lookup.** Under the title sits **Look up on BoardGameGeek**, enabled once a title is typed. It searches BGG through the [proxy](#boardgamegeek-proxy) and lists up to 8 matches, each with its year and an *expansion* tag where relevant. BGG return hits in no useful order, so exact title matches come first, then base games ahead of expansions, then newest first. Choosing one fetches its details and copies BGG's figures in, each to its own field and unchanged:
 
 | Field | From BGG |
 |---|---|
 | Title | the primary name |
-| Players | `minplayers`-`maxplayers`, or one number when they match |
-| Duration | `minplaytime`-`maxplaytime`, the same way |
-| Complexity | average weight: under 2 is Easy, under 3 is Medium, 3 and up is Hard |
+| Min / Max players | `minplayers` / `maxplayers` |
+| Min / Max play time | `minplaytime` / `maxplaytime` |
 
-The rating is never touched, since it is the user's own opinion, so the form still needs it before saving. A field BGG have no figure for (they send `0`) keeps whatever it had. A line beneath confirms *"Filled in from Title (year) on BoardGameGeek"*, linking to the game's BGG page. The filled title goes through the duplicate check like any other. *None of these* closes the list without changing anything.
+**Nothing is combined or converted.** BGG's XML API terms say *"You may not modify the data … in any way"*, so the lookup does not join the figures into one string and does not turn BGG's weight into a complexity level. An earlier version did both; the model was split into four numbers to remove the need.
+
+**Weight is shown, not used.** Below the Complexity dropdown, a linked game shows *"BoardGameGeek weight: 2.29 / 5"* with a *View on BGG* link. It is stored as `bggWeight` exactly as BGG sent it (`2.2885`); only the display rounds to two places, as BGG's own site does. Complexity and rating stay the user's own judgement, and complexity keeps its Medium default. **Unlink** drops the BGG id and weight from the game, keeping whatever figures are in the form. Editing a linked game shows its saved weight, which is a snapshot from the lookup rather than a live value.
+
+A field BGG have no figure for (they send `0`) keeps whatever it had. A line beneath the title confirms *"Filled in from Title (year) on BoardGameGeek"*, linking to the game's BGG page. The filled title goes through the duplicate check like any other. *None of these* closes the list without changing anything.
 
 Failures read as plain sentences: no matches, BGG busy (429), no connection, or BGG still preparing the response. That last one is BGG's 202, which the client retries three times at two-second intervals before giving up.
 
@@ -301,6 +310,9 @@ Games and players in a file **replace** what's on the device; plays are **merged
 | Bare array (v1, pre-players) | replaced | kept | kept |
 | `{ games, players }` (v2) | replaced | replaced | kept |
 | `{ games, players, plays }` (v3) | replaced | replaced | merged |
+| `{ version: 4, games, players, plays }` (v4, current) | replaced | replaced | merged |
+
+Games from v1 to v3 carry `players` and `duration` as text; they are split into numbers on the way in (see [Game data model](#game-data-model)).
 
 1. Click the dashed drop-zone to choose a file (`.json` / `application/json` only).
 2. The file is read client-side with `FileReader` and parsed (`parseImport()` in `src/app/export-format.ts`):
@@ -609,21 +621,21 @@ A device that has never used the app is seeded from three files in `public/`, so
 
 Defined in `src/app/export-format.ts`.
 
-**Version 3 (current)**, which is what Export produces:
+**Version 4 (current)**, which is what Export produces:
 
 ```json
 {
-  "version": 3,
+  "version": 4,
   "exportedAt": "2026-09-18T12:00:00.000Z",
-  "games": [ { "id": "…", "title": "Catan", "players": "3-4", "duration": "60-120", "complexity": "Medium", "rating": 7 } ],
+  "games": [ { "id": "…", "title": "Catan", "minPlayers": 3, "maxPlayers": 4, "minPlaytime": 60, "maxPlaytime": 120, "complexity": "Medium", "rating": 7, "bggId": "13", "bggWeight": 2.2885 } ],
   "players": [ { "id": "…", "name": "Sam" } ],
   "plays": [ { "id": "…", "gameId": "…", "gameTitle": "Catan", "playedAt": "2026-09-10", "players": [ { "id": "…", "name": "Sam" } ], "winnerIds": [ "…" ], "durationMinutes": 90, "funRating": 7 } ]
 }
 ```
 
-**Version 2** is the same without `plays`. **Version 1** is a bare JSON array of games, as exported before players existed and as the bundled `games.json` is written. (The seed files are not backups: they are three separate arrays, and `plays.json` uses `daysAgo` rather than `playedAt`. Import does not read them.)
+**Version 3** is the same, except each game carries `"players": "3-4"` and `"duration": "60-120"` as text instead of the four numbers, and has no BGG fields. **Version 2** is v3 without `plays`. **Version 1** is a bare JSON array of games, as exported before players existed and as the bundled `games.json` is written. (The seed files are not backups: they are three separate arrays, and `plays.json` uses `daysAgo` rather than `playedAt`. Import does not read them.)
 
-Import accepts all three. `parseImport()` decides the version by shape (array ⇒ v1; object with a `games` array ⇒ v2; with a `plays` array too ⇒ v3), so a hand-written file without a `version` field also works. A section the file doesn't have is reported as `null` and left alone on the device. Ids in the file are preserved on import; missing ones are generated.
+Import accepts all four. `parseImport()` decides the version by shape (array ⇒ v1; object with a `games` array ⇒ v2; with a `plays` array too ⇒ v3; `"version": 4` ⇒ v4), so a hand-written file without a `version` field also works. Games with text ranges are split into numbers whatever the version says, since `upgradeGame()` looks at the fields actually present. An older copy of the app reading a v4 file would see no player counts or play times, but the app updates itself on the next launch, so that only matters for a device that has not opened it in a while. A section the file doesn't have is reported as `null` and left alone on the device. Ids in the file are preserved on import; missing ones are generated.
 
 **Why plays merge instead of replace.** Games and players are *state*: the file is the truth and replaces the device. Plays are *events*: every one is worth keeping, and they have stable ids, so a union by id is always safe. This is what makes it harmless to restore last month's backup: games and players roll back, history doesn't shrink. Future formats should bump `version` and extend `parseImport()` rather than change the meaning of existing fields.
 
@@ -731,22 +743,23 @@ Each page has a functional spec next to it (`*.spec.ts`) that drives the rendere
 | `backup.spec.ts` | Never-exported, recording and persisting, wording for 0/1/5/47 days, the staleness threshold either side, an unreadable stored value, a clock that moved backwards, a storage write that fails |
 | `bgg-credit.spec.ts` | The BGG credit: link target, new-tab safety, alt text, the reversed artwork, and each width |
 | `install.spec.ts` | No offer until `beforeinstallprompt`, `preventDefault` on capture, already-standalone suppression, missing `matchMedia`, prompt accept/dismiss/throw/unavailable, single use, `appinstalled` |
-| `game-filter.spec.ts` | Range parsing (`2-4`, `2`, `3+`, `2 to 6`, en dash, garbage), each filter's matching rule, AND-combination, `filterGames` |
+| `game.spec.ts` | Reading older text ranges (`2-4`, `2`, `3+`, `2 to 6`, en dash, `120–240 Min`, garbage); `upgradeGame` (splits and drops the text, keeps open-ended counts open, leaves unreadable text unset, passes split games through, prefers numbers when both exist); range display |
+| `game-filter.spec.ts` | Each filter's matching rule on the numeric fields (inclusive ranges, open-ended players, open-ended play time judged by its minimum, unknown values excluded), AND-combination, `filterGames` |
 | `home.spec.ts` | Loading state while seeding, ready from storage, empty-collection hint, random pick and re-roll, rating badge, filter panel toggle, every filter's live count, no-match state, clear, filtered pick vs. whole-collection pick, the overdue-a-turn toggle (label in both modes, combining with other filters, serving from it, clearing), the best-at-count toggle (disabled without a count, qualifying-game count in the label, restricting matches, no-match case, switching off when the count is cleared), the install button appearing and prompting, nav links |
 | `collection.spec.ts` | Seeding/empty/error states, row rendering, complexity pills, search, every sort column and direction, Log play and Edit links |
-| `game-form.spec.ts` | Add: defaults, required errors, live rating label, what gets saved (with id), trimming, duplicate-title rejection (case/whitespace, forced submit, clears on change), storage failure. Edit: pre-fill, save in place keeping id, own title allowed / other title rejected, rename, rating required for unrated, unknown id. Delete: hidden when adding, confirm step (mentions kept plays), keep, confirm removes game but not its plays, storage failure. BGG lookup: hidden without a proxy, needs a title, ranked results, fills the form but not the rating, duplicate check still applies, no matches, *None of these*, error message |
-| `bgg.spec.ts` | Parsing BGG search and thing XML (duplicates, primary name, zeros as unknown), weight to complexity, range formatting, the proxy calls, 202 retries, error messages |
-| `import-plan.spec.ts` | First-wins de-duplication for games: case/whitespace matching, kept order, difference reporting (incl. missing rating), untitled rows; and for players by name |
+| `game-form.spec.ts` | Add: defaults, required errors, min above max for both pairs, counts below 1, a single count as both ends, live rating label, what gets saved (with id), trimming, duplicate-title rejection (case/whitespace, forced submit, clears on change), storage failure. Edit: pre-fill, saved BGG weight shown and kept, an older open-ended game asks for its maximum, save in place keeping id, own title allowed / other title rejected, rename, rating required for unrated, unknown id. Delete: hidden when adding, confirm step (mentions kept plays), keep, confirm removes game but not its plays, storage failure. BGG lookup: hidden without a proxy, needs a title, ranked results, copies each figure to its own field, shows weight without touching complexity, Medium default kept, rating left alone, saves the BGG id and the exact weight, Unlink, duplicate check still applies, no matches, *None of these*, error message |
+| `bgg.spec.ts` | Parsing BGG search and thing XML (duplicates, primary name, zeros as unknown), the proxy calls, 202 retries, error messages |
+| `import-plan.spec.ts` | First-wins de-duplication for games: case/whitespace matching, kept order, difference reporting (incl. missing rating), older files with text ranges, untitled rows; and for players by name |
 | `player-store.spec.ts` | Seeding from `players.json` (id assignment, failure, empty-list-is-a-decision), load without a fetch, id assignment for legacy data, re-seed on corrupt data, add (trimmed, new id), rename, remove, replaceAll, `hasName`, storage failure |
 | `players.spec.ts` | Alphabetical list and count, empty state, add (disabled until typed, trimmed, Enter, duplicate rejected, storage error keeps input), rename (inline editor, save, own name allowed / other rejected, cancel), remove (confirm, keep, confirm removes, opening rename closes confirm), nav links |
-| `export-format.spec.ts` | `buildExport` shape and timestamp; `parseImport` for v1 arrays, v2 and v3 objects, missing players, bad `games`/`players`/`plays` entries, and non-backup values |
+| `export-format.spec.ts` | `buildExport` shape and timestamp; `parseImport` for v1 arrays, v2, v3 and v4 objects, missing players, bad `games`/`players`/`plays` entries, and non-backup values |
 | `play-store.spec.ts` | `lastLineup` (most recent play, unaffected by back-fill, empty log); seeding from `plays.json` including `daysAgo` → `playedAt` conversion (0 and negative values), id assignment, failure, empty-log-is-a-decision, re-seed on corrupt data, load with id assignment, `recent` ordering, add/update/remove, `forGame`, `merge`/`countNew` (skips existing ids, treats id-less as new, no write when nothing is new), storage failure |
 | `play-form.spec.ts` | Log: defaults, alphabetical games with `?game` pre-select (unknown ignored), player chips and winners only for selected players, deselect un-wins, head-count defaults / raised / no named players / refuses fewer than chips or zero, stopwatch shortcut, full and minimal saves with snapshots, clear rating, empty-players / empty-collection hints, storage error. Carry-over: pre-selects the last line-up with its note, nothing to carry when the log is empty, drops removed players, people only (not head-count or winners), note clears on change, Clear empties selection and wins, saves when untouched, never overrides a play being edited. Edit: pre-fill (head-count shown only when it exceeds the chips), save in place, deleted game and removed player stay selectable, unknown id |
 | `history.spec.ts` | Empty state, newest-first list and count, card contents (date, winners, others, duration, fun, notes), no-winner and no-players cases, head-count chip only when it exceeds named players, edit links, delete confirm/keep/confirm |
 | `stats.spec.ts` (`src/app/`) | `leastPlayed` (never-played while any exist, fallback to the lowest count, nothing played, plays of deleted games, empty collection); `shiftDate` across month/leap boundaries; `overview` totals, 30-day window edges, tie-breaking, empty log; `gameRows` ordering, averages and rounding, nulls, deleted games with latest snapshot, open-ended ranges, `headCount` precedence, duration-and-fun breakdown by table size, `bestPlayers` (highest fun, needs two rated sizes, tie-breaks on plays then smaller table, ignores unrated sizes); `playerRows` ordering, win rate over decided plays only, most-played ties, players with no plays, removed players with latest snapshot |
-| `seed-data.spec.ts` | The bundled samples: unique ids, parseable ranges, valid complexity/ratings, plays referencing existing games and players with matching snapshots, winners who took part, sane dates/head-counts/durations, and coverage of the showcase cases listed under [Sample data](#sample-data) |
+| `seed-data.spec.ts` | The bundled samples: unique ids, whole-number ranges with the minimum first, valid complexity/ratings, plays referencing existing games and players with matching snapshots, winners who took part, sane dates/head-counts/durations, and coverage of the showcase cases listed under [Sample data](#sample-data) |
 | `stats.spec.ts` (`src/app/stats/`) | Empty state, overview tiles, hours rounding, games table contents and over/under/in-range labels, players column with breakdown only when head-counts vary, the best-with line and its green highlight, dashes, never-played links, deleted-game label, players table contents, dimmed no-play rows, removed label, no-players hint, nav links |
-| `manage.spec.ts` | Export counts and download (v3 Blob contents, filename), invalid/unrecognised/bad-entry file errors, games preview with duplicates greyed and reasons, v1 file keeps players and plays, v2 file previews and imports players (duplicates first-wins, empty list warns) and keeps plays, v3 plays preview with new/already-here counts, merge adds only new plays, old backup can't delete newer plays, per-section checkboxes (default ticked, unticked sections untouched, Confirm disabled when none, only present sections offered), cancel, storage-failure handling |
+| `manage.spec.ts` | Export counts and download (v4 Blob contents, filename), invalid/unrecognised/bad-entry file errors, games preview with duplicates greyed and reasons, v1 file keeps players and plays, v2 file previews and imports players (duplicates first-wins, empty list warns) and keeps plays, v3 plays preview with new/already-here counts, merge adds only new plays, old backup can't delete newer plays, per-section checkboxes (default ticked, unticked sections untouched, Confirm disabled when none, only present sections offered), cancel, storage-failure handling |
 | `dice.spec.ts` | Random-source mapping onto 1..sides, totals, count clamping, range check across all die types |
 | `timer.spec.ts` | `formatDuration`; Stopwatch start/pause/resume/reset, timestamp-based elapsed (throttled-tab case), `onTick`, `destroy`; Countdown remaining/finished, `onFinish` fires once, pause/resume, reset, `setDuration` |
 | `tools.spec.ts` | Dice type/count selection and clamping, roll rendering (total + individual dice), history; Countdown presets, custom minutes, running/pause/resume display with fake timers, time's-up alert once + reset, survives leaving and re-opening the page; Stopwatch count-up through the hour boundary; nav links |
@@ -785,7 +798,7 @@ The Home page advertises the following chips. Only the first four are fully back
 | Chip | Status |
 |---|---|
 | Track your collection | ✅ View / add / edit / delete / import / export |
-| Players & duration | ✅ Stored and displayed (free-text) |
+| Players & duration | ✅ Stored as min/max numbers, displayed as ranges |
 | Complexity ratings | ✅ Easy / Medium / Hard |
 | User ratings | ✅ 1–10 slider, shown on the pick card |
 | Quick-pick assistant | ✅ Random from the whole collection, or from games matching players / time / complexity / rating |

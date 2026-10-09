@@ -99,40 +99,78 @@
                   rel="noopener noreferrer"
                   class="text-amber-400 hover:text-amber-300"
                 >{{ filled.name }}@if (filled.year) { ({{ filled.year }})}</a>
-                on BoardGameGeek. Check it over and add your rating.
+                on BoardGameGeek. Check it over, then set your own complexity and rating.
               </p>
             }
           </div>
         }
       </div>
 
-      <div class="flex flex-col gap-1.5">
-        <label for="players" class="text-sm font-medium text-gray-300">Players <span class="text-amber-400">*</span></label>
-        <input
-          id="players"
-          type="text"
-          formControlName="players"
-          placeholder="e.g. 2-4"
-          class="px-4 py-2.5 rounded-lg bg-gray-800 border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 transition-colors"
-        />
-        @if (form.controls.players.touched && form.controls.players.errors?.['required']) {
-          <p class="text-red-400 text-xs">Player count is required.</p>
+      <fieldset class="flex flex-col gap-1.5">
+        <legend class="mb-1.5 text-sm font-medium text-gray-300">Players <span class="text-amber-400">*</span></legend>
+        <div class="flex items-center gap-3">
+          <label for="minPlayers" class="text-xs text-gray-400">Min</label>
+          <input
+            id="minPlayers"
+            type="number"
+            inputmode="numeric"
+            min="1"
+            formControlName="minPlayers"
+            placeholder="2"
+            class="w-24 px-4 py-2.5 rounded-lg bg-gray-800 border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 transition-colors"
+          />
+          <label for="maxPlayers" class="text-xs text-gray-400">Max</label>
+          <input
+            id="maxPlayers"
+            type="number"
+            inputmode="numeric"
+            min="1"
+            formControlName="maxPlayers"
+            placeholder="4"
+            class="w-24 px-4 py-2.5 rounded-lg bg-gray-800 border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 transition-colors"
+          />
+        </div>
+        @if ((form.controls.minPlayers.touched && form.controls.minPlayers.errors?.['required']) || (form.controls.maxPlayers.touched && form.controls.maxPlayers.errors?.['required'])) {
+          <p class="text-red-400 text-xs">Enter both the fewest and the most players.</p>
+        } @else if (form.controls.minPlayers.errors?.['min'] || form.controls.maxPlayers.errors?.['min']) {
+          <p class="text-red-400 text-xs">Player counts start at 1.</p>
+        } @else if (form.errors?.['playersOrder']) {
+          <p class="text-red-400 text-xs">The minimum can't be more than the maximum.</p>
         }
-      </div>
+      </fieldset>
 
-      <div class="flex flex-col gap-1.5">
-        <label for="duration" class="text-sm font-medium text-gray-300">Duration (minutes) <span class="text-amber-400">*</span></label>
-        <input
-          id="duration"
-          type="text"
-          formControlName="duration"
-          placeholder="e.g. 60-120"
-          class="px-4 py-2.5 rounded-lg bg-gray-800 border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 transition-colors"
-        />
-        @if (form.controls.duration.touched && form.controls.duration.errors?.['required']) {
-          <p class="text-red-400 text-xs">Duration is required.</p>
+      <fieldset class="flex flex-col gap-1.5">
+        <legend class="mb-1.5 text-sm font-medium text-gray-300">Play time (minutes) <span class="text-amber-400">*</span></legend>
+        <div class="flex items-center gap-3">
+          <label for="minPlaytime" class="text-xs text-gray-400">Min</label>
+          <input
+            id="minPlaytime"
+            type="number"
+            inputmode="numeric"
+            min="1"
+            formControlName="minPlaytime"
+            placeholder="60"
+            class="w-24 px-4 py-2.5 rounded-lg bg-gray-800 border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 transition-colors"
+          />
+          <label for="maxPlaytime" class="text-xs text-gray-400">Max</label>
+          <input
+            id="maxPlaytime"
+            type="number"
+            inputmode="numeric"
+            min="1"
+            formControlName="maxPlaytime"
+            placeholder="120"
+            class="w-24 px-4 py-2.5 rounded-lg bg-gray-800 border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 transition-colors"
+          />
+        </div>
+        @if ((form.controls.minPlaytime.touched && form.controls.minPlaytime.errors?.['required']) || (form.controls.maxPlaytime.touched && form.controls.maxPlaytime.errors?.['required'])) {
+          <p class="text-red-400 text-xs">Enter both the shortest and the longest play time.</p>
+        } @else if (form.controls.minPlaytime.errors?.['min'] || form.controls.maxPlaytime.errors?.['min']) {
+          <p class="text-red-400 text-xs">Play time must be at least 1 minute.</p>
+        } @else if (form.errors?.['playtimeOrder']) {
+          <p class="text-red-400 text-xs">The minimum can't be more than the maximum.</p>
         }
-      </div>
+      </fieldset>
 
       <div class="flex flex-col gap-1.5">
         <label for="complexity" class="text-sm font-medium text-gray-300">Complexity <span class="text-amber-400">*</span></label>
@@ -145,6 +183,27 @@
           <option value="Medium">Medium</option>
           <option value="Hard">Hard</option>
         </select>
+        @if (bggLink(); as link) {
+          <p class="text-xs text-gray-400" data-testid="bgg-weight">
+            @if (link.weight != null) {
+              BoardGameGeek weight:
+              <span class="font-semibold text-gray-200">{{ link.weight.toFixed(2) }} / 5</span>
+            } @else {
+              BoardGameGeek has no weight rating for this game yet.
+            }
+            <a
+              [href]="'https://boardgamegeek.com/boardgame/' + link.id"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="ml-1 text-amber-400 hover:text-amber-300"
+            >View on BGG</a>
+            <button
+              type="button"
+              (click)="unlinkBgg()"
+              class="ml-2 text-gray-500 hover:text-red-400 cursor-pointer"
+            >Unlink</button>
+          </p>
+        }
       </div>
 
       <div class="flex flex-col gap-1.5">

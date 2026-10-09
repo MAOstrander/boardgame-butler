@@ -1,5 +1,4 @@
 import { Game } from './game';
-import { parseRange } from './game-filter';
 import { Play } from './play';
 import { Player } from './player';
 
@@ -110,10 +109,15 @@ export function overview(games: Game[], plays: Play[], today: string): Overview 
   };
 }
 
+/** The collection's play time as a closed range, or null when either end is missing. */
+function listedPlaytime(game: Game): { min: number; max: number } | null {
+  return game.minPlaytime != null && game.maxPlaytime != null ? { min: game.minPlaytime, max: game.maxPlaytime } : null;
+}
+
 /** One row per game in the collection (never-played included) plus one per deleted game that still has plays. Sorted by plays desc, then title. */
 export function gameRows(games: Game[], plays: Play[]): GameRow[] {
   const byGame = groupBy(plays, p => p.gameId);
-  const rows: GameRow[] = games.map(g => row(g.id, g.title, true, byGame.get(g.id) ?? [], parseRange(g.duration)));
+  const rows: GameRow[] = games.map(g => row(g.id, g.title, true, byGame.get(g.id) ?? [], listedPlaytime(g)));
 
   const known = new Set(games.map(g => g.id));
   for (const [gameId, list] of byGame) {
@@ -179,7 +183,7 @@ function row(gameId: string, title: string, inCollection: boolean, list: Play[],
     byPlayers,
     bestPlayers: bestHeadCount(byPlayers),
     avgMinutes: mean(durations),
-    listedMinutes: listed && Number.isFinite(listed.max) ? listed : null,
+    listedMinutes: listed,
     avgFun: mean(funs),
   };
 }

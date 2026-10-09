@@ -83,8 +83,8 @@
               @for (game of filtered(); track game.id) {
                 <tr class="hover:bg-gray-800/40 transition-colors">
                   <td class="px-4 py-3 text-white font-medium">{{ game.title }}</td>
-                  <td class="px-4 py-3 text-gray-300 text-center">{{ game.players }}</td>
-                  <td class="px-4 py-3 text-gray-300 text-center">{{ game.duration }}</td>
+                  <td class="px-4 py-3 text-gray-300 text-center">{{ playersText(game) }}</td>
+                  <td class="px-4 py-3 text-gray-300 text-center">{{ playtimeText(game) }}</td>
                   <td class="px-4 py-3 text-center">
                     <span class="px-2.5 py-0.5 rounded-full text-xs font-medium border {{ complexityClass(game.complexity) }}">
                       {{ game.complexity }}

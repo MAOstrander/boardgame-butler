@@ -2,14 +2,14 @@ import { buildExport, parseImport } from './export-format';
 import { SAMPLE_GAMES, SAMPLE_PLAYERS, SAMPLE_PLAYS } from '../testing/helpers';
 
 describe('buildExport', () => {
-  it('produces a version-3 file with games, players, plays and a timestamp', () => {
+  it('produces a version-4 file with games, players, plays and a timestamp', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-09-18T12:00:00Z'));
     const file = buildExport(SAMPLE_GAMES, SAMPLE_PLAYERS, SAMPLE_PLAYS);
     vi.useRealTimers();
 
     expect(file).toEqual({
-      version: 3,
+      version: 4,
       exportedAt: '2026-09-18T12:00:00.000Z',
       games: SAMPLE_GAMES,
       players: SAMPLE_PLAYERS,
@@ -28,9 +28,14 @@ describe('parseImport', () => {
     expect(parseImport(file)).toEqual({ version: 2, games: SAMPLE_GAMES, players: SAMPLE_PLAYERS, plays: null });
   });
 
-  it('reads a version-3 object', () => {
-    const file = buildExport(SAMPLE_GAMES, SAMPLE_PLAYERS, SAMPLE_PLAYS);
+  it('reads a version-3 object (plays, but games still carry text ranges)', () => {
+    const file = { version: 3, games: SAMPLE_GAMES, players: SAMPLE_PLAYERS, plays: SAMPLE_PLAYS };
     expect(parseImport(file)).toEqual({ version: 3, games: SAMPLE_GAMES, players: SAMPLE_PLAYERS, plays: SAMPLE_PLAYS });
+  });
+
+  it('reads a version-4 object, as this app exports', () => {
+    const file = buildExport(SAMPLE_GAMES, SAMPLE_PLAYERS, SAMPLE_PLAYS);
+    expect(parseImport(file)).toEqual({ version: 4, games: SAMPLE_GAMES, players: SAMPLE_PLAYERS, plays: SAMPLE_PLAYS });
   });
 
   it('treats a missing players entry as an empty list', () => {

@@ -1,8 +1,8 @@
 import { RawGame } from './game';
 import { planImport, planPlayerImport } from './import-plan';
 
-const catan: RawGame = { title: 'Catan', players: '3-4', duration: '60-120', complexity: 'Medium', rating: 7 };
-const azul: RawGame = { title: 'Azul', players: '2-4', duration: '30-45', complexity: 'Easy', rating: 9 };
+const catan: RawGame = { title: 'Catan', minPlayers: 3, maxPlayers: 4, minPlaytime: 60, maxPlaytime: 120, complexity: 'Medium', rating: 7 };
+const azul: RawGame = { title: 'Azul', minPlayers: 2, maxPlayers: 4, minPlaytime: 30, maxPlaytime: 45, complexity: 'Easy', rating: 9 };
 
 describe('planImport', () => {
   it('keeps every game when there are no duplicates', () => {
@@ -30,8 +30,17 @@ describe('planImport', () => {
   });
 
   it('lists how a skipped row differs from the kept one', () => {
-    const plan = planImport([catan, { ...catan, duration: '90', rating: 9 }]);
-    expect(plan.rows[1].differences).toEqual(['duration 90', 'rating 9']);
+    const plan = planImport([catan, { ...catan, minPlaytime: 90, maxPlaytime: 90, rating: 9 }]);
+    expect(plan.rows[1].differences).toEqual(['minutes 90', 'rating 9']);
+  });
+
+  it('reads an older file with text ranges, comparing it like a current one', () => {
+    const old: RawGame = { title: 'Catan', players: '3-4', duration: '60-120', complexity: 'Medium', rating: 7 };
+    const plan = planImport([{ ...old, title: 'Azul', players: '2-4' }, catan, old]);
+
+    expect(plan.kept[0]).toMatchObject({ title: 'Azul', minPlayers: 2, maxPlayers: 4, minPlaytime: 60, maxPlaytime: 120 });
+    expect(plan.kept[0]).not.toHaveProperty('players');
+    expect(plan.rows[2]).toMatchObject({ duplicateOf: 'Catan', differences: [] });
   });
 
   it('reports a missing rating on the skipped row as "no rating"', () => {
@@ -45,7 +54,7 @@ describe('planImport', () => {
   });
 
   it('preserves file order among kept games', () => {
-    const plan = planImport([azul, catan, { ...azul, title: 'AZUL' }, { title: 'Wingspan', players: '1-5', duration: '40-70', complexity: 'Medium' }]);
+    const plan = planImport([azul, catan, { ...azul, title: 'AZUL' }, { title: 'Wingspan', minPlayers: 1, maxPlayers: 5, minPlaytime: 40, maxPlaytime: 70, complexity: 'Medium' }]);
     expect(plan.kept.map(g => g.title)).toEqual(['Azul', 'Catan', 'Wingspan']);
   });
 

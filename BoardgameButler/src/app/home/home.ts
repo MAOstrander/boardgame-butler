@@ -1,6 +1,6 @@
 import { Component, signal, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { Game } from '../game';
+import { Game, playersText, playtimeText } from '../game';
 import { GameStore } from '../game-store';
 import { PlayStore } from '../play-store';
 import { InstallService } from '../install';
@@ -18,6 +18,9 @@ export class Home {
   private plays = inject(PlayStore);
   private install = inject(InstallService);
   private backup = inject(BackupService);
+
+  protected readonly playersText = playersText;
+  protected readonly playtimeText = playtimeText;
 
   protected games = this.store.games;
   protected ready = this.store.ready;

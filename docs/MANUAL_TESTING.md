@@ -104,20 +104,42 @@ Open http://localhost:4200. Work through the checklist in order, since later ste
 ### Add a Game
 
 - [ ] **+ Add a game** → form with Complexity preselected to *Medium*; **Add to Collection** is disabled.
-- [ ] Click into Title, then click away → *Title is required.* appears in red. Same for Players and Duration.
+- [ ] Click into Title, then click away → *Title is required.* appears in red. Click into Players *Max* and away → *Enter both the fewest and the most players.* Same for Play time.
+- [ ] Players *Min* `5`, *Max* `4` → *The minimum can't be more than the maximum.*, button disabled. Make *Min* `0` → *Player counts start at 1.*
+- [ ] On a phone-width window, the Min and Max boxes sit side by side with no sideways scrolling.
 - [ ] Drag the rating slider → label shows e.g. *7 / 10*.
 - [ ] **Duplicate guard:** type `catan` (lower-case) as the title → red *You already have a game called "catan".* and the button stays disabled even with every other field filled. Change it to `Catan: Seafarers` → the error clears.
-- [ ] Fill in: Title `Cascadia`, Players `1-4`, Duration `30-45`, Complexity `Easy`, Rating `8`. Button enables.
+- [ ] Fill in: Title `Cascadia`, Players `1` to `4`, Play time `30` to `45`, Complexity `Easy`, Rating `8`. Button enables.
 - [ ] Click **Add to Collection** → returns to Home.
 - [ ] **View collection** → *12 games*; Cascadia is there with rating `8/10`.
 - [ ] Click **Rating** header → highest first, and the two unrated games are last. Click again → lowest first, unrated still last.
 - [ ] Home → **Serve me a game!** until Cascadia comes up → card shows the `8/10` badge.
 - [ ] **Persistence:** press F5. Collection still has 12 games. Close the tab, reopen; still 12.
 
+### BoardGameGeek lookup
+
+- [ ] **+ Add a game** → **Look up on BoardGameGeek** under the title is greyed out until something is typed.
+- [ ] Set Complexity to *Hard* first. Type `wingspan` → **Look up** → a list of matches with years; the exact title is first, expansions are tagged.
+- [ ] Pick *Wingspan* → title, Players and Play time fill in with BGG's figures, each in its own box. Complexity is **still Hard**, and below it *BoardGameGeek weight: N.NN / 5* with *View on BGG*, which opens the right page in a new tab.
+- [ ] The rating is still unset and **Add to Collection** stays disabled until you choose one.
+- [ ] Look up a fresh game without touching Complexity → it stays *Medium*.
+- [ ] Look up `catan` and pick *CATAN* → *You already have a game called "CATAN".*
+- [ ] **None of these** closes the list without changing the form. **Unlink** removes the weight line but keeps the filled figures.
+- [ ] Save a looked-up game, then **Edit** it → the weight line is still there. Export → that game has `bggId` and `bggWeight`, with the weight at BGG's full precision (e.g. `2.4361`, not `2.44`).
+- [ ] Turn the network off (DevTools → Offline) → **Look up** → *Couldn't reach BoardGameGeek. Check your connection.*
+
+### Older saved data
+
+Collections saved before player counts were split hold text like `"3-4"`.
+
+- [ ] Before updating, export a backup from the live app. After updating, reload: every game still shows the same players and minutes in the collection, and the quick-pick filters still match the same games.
+- [ ] Import that older backup → the preview shows the right player ranges, and the imported games filter correctly.
+- [ ] A game saved as `3+` shows `3+` in the collection; **Edit** it → *Max* players is empty and the form asks for it before saving.
+
 ### Edit a Game
 
-- [ ] **View collection** → click **Edit** on Catan → *Edit Game* page, subtitle *Update the details for Catan.*, every field pre-filled (3-4, 60-120, Medium, rating 7), button reads **Save Changes**. (Editing **Gloomhaven** instead shows the unrated case: the slider is unset and **Save Changes** stays disabled until a rating is chosen.)
-- [ ] Change rating to `6`, Duration to `75-100`, Complexity to `Hard` → **Save Changes** → back on the collection; Catan's row shows `75-100`, a red *Hard* pill and `6/10`. Row count is still 12.
+- [ ] **View collection** → click **Edit** on Catan → *Edit Game* page, subtitle *Update the details for Catan.*, every field pre-filled (players 3 to 4, play time 60 to 120, Medium, rating 7), button reads **Save Changes**. (Editing **Gloomhaven** instead shows the unrated case: the slider is unset and **Save Changes** stays disabled until a rating is chosen.)
+- [ ] Change rating to `6`, Play time to `75` to `100`, Complexity to `Hard` → **Save Changes** → back on the collection; Catan's row shows `75-100`, a red *Hard* pill and `6/10`. Row count is still 12.
 - [ ] Press F5 → the changes survived.
 - [ ] **Edit** Catan again → change the title to `azul` → *You already have a game called "azul".*, button disabled. Change it back to `Catan` → error clears. Change it to `Catan (base)` → **Save Changes** → the row is renamed; sort by Title still works.
 - [ ] **Edit** any game → click **Cancel** → back on the collection with nothing changed.
@@ -126,7 +148,7 @@ Open http://localhost:4200. Work through the checklist in order, since later ste
 - [ ] Deleting a player or a play offers the same toast, and **Undo** restores them in place. Delete two things in quick succession → only the second can be undone.
 - [ ] The **Add a Game** page has no delete option.
 - [ ] Type a bogus address, e.g. `http://localhost:4200/edit-game/nope` → *That game isn't in your collection any more.* with a link back to the collection.
-- [ ] Re-add Pandemic (`2-4`, `45-75`, `Medium`, any rating) so the counts below still line up.
+- [ ] Re-add Pandemic (players `2` to `4`, play time `45` to `75`, `Medium`, any rating) so the counts below still line up.
 - [ ] Export now, open the file → every game has an `"id"` field. Import that file back → **Edit** links still work and a re-export gives the same ids.
 
 ### Players

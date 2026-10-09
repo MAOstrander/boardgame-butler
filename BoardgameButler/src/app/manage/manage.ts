@@ -6,11 +6,12 @@ import { PlayStore } from '../play-store';
 import { BackupService } from '../backup';
 import { PersistentStorageService } from '../persistent-storage';
 import { RawPlay } from '../play';
+import { playersText } from '../game';
 import { buildExport, parseImport } from '../export-format';
 import { ImportPlan, PlayerImportPlan, planImport, planPlayerImport } from '../import-plan';
 
 interface Preview {
-  version: 1 | 2 | 3;
+  version: 1 | 2 | 3 | 4;
   games: ImportPlan;
   /** null when the file has no players section (v1) - the device's players are kept. */
   players: PlayerImportPlan | null;
@@ -37,6 +38,7 @@ export class Manage {
   private backup = inject(BackupService);
   private storage = inject(PersistentStorageService);
 
+  protected readonly playersText = playersText;
   protected lastBackup = this.backup.describe;
   protected backupStale = this.backup.stale;
   protected persisted = this.storage.persisted;

@@ -1,4 +1,4 @@
-import { RawGame } from './game';
+import { RawGame, playersText, playtimeText, upgradeGame } from './game';
 import { RawPlayer } from './player';
 import { normalizeKey } from './normalize';
 
@@ -28,7 +28,8 @@ export function planImport(games: RawGame[]): ImportPlan {
   const rows: ImportRow[] = [];
   const kept: RawGame[] = [];
 
-  for (const game of games) {
+  // Older files carry players and duration as text; compare like with like.
+  for (const game of games.map(upgradeGame)) {
     const key = normalizeKey(String(game.title ?? ''));
     const first = firstByTitle.get(key);
 
@@ -44,11 +45,17 @@ export function planImport(games: RawGame[]): ImportPlan {
   return { rows, kept, skipped: rows.length - kept.length };
 }
 
-const COMPARED_FIELDS: (keyof RawGame)[] = ['players', 'duration', 'complexity', 'rating'];
+/** Each compared field as the user would read it, or '' when absent. */
+const COMPARED_FIELDS: [label: string, read: (game: RawGame) => string][] = [
+  ['players', playersText],
+  ['minutes', playtimeText],
+  ['complexity', g => g.complexity ?? ''],
+  ['rating', g => (g.rating == null ? '' : String(g.rating))],
+];
 
 function differences(kept: RawGame, skipped: RawGame): string[] {
-  return COMPARED_FIELDS.filter(f => (kept[f] ?? null) !== (skipped[f] ?? null)).map(f =>
-    skipped[f] == null ? `no ${f}` : `${f} ${skipped[f]}`,
+  return COMPARED_FIELDS.filter(([, read]) => read(kept) !== read(skipped)).map(([label, read]) =>
+    read(skipped) === '' ? `no ${label}` : `${label} ${read(skipped)}`,
   );
 }
 

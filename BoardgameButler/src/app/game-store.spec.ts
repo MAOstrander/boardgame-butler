@@ -43,6 +43,14 @@ describe('GameStore', () => {
       expect(store.error()).toBe('Could not load the starter collection.');
     });
 
+    it('splits the text ranges an older seed file carries', () => {
+      const store = TestBed.inject(GameStore);
+      http.expectOne('games.json').flush([{ id: 'g-old', title: 'Old', players: '2-4', duration: '30', complexity: 'Easy' }]);
+      expect(store.games()).toEqual([
+        { id: 'g-old', title: 'Old', minPlayers: 2, maxPlayers: 4, minPlaytime: 30, maxPlaytime: 30, complexity: 'Easy' },
+      ]);
+    });
+
     it('re-seeds when the saved value is corrupt', () => {
       localStorage.setItem(STORAGE_KEY, '{ not json');
       const store = TestBed.inject(GameStore);
@@ -55,6 +63,42 @@ describe('GameStore', () => {
       const store = TestBed.inject(GameStore);
       http.expectOne('games.json').flush(SAMPLE_GAMES);
       expect(store.games()).toEqual(SAMPLE_GAMES);
+    });
+  });
+
+  describe('upgrading saved data', () => {
+    // Collections saved before the split hold "players" and "duration" as text.
+    it('converts text ranges to numbers on load and saves the converted collection back', () => {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify([
+          { id: 'g-catan', title: 'Catan', players: '3-4', duration: '60-120', complexity: 'Medium', rating: 7 },
+          { id: 'g-party', title: 'Party', players: '4+', duration: 'varies', complexity: 'Easy' },
+        ]),
+      );
+      const store = TestBed.inject(GameStore);
+
+      const expected = [
+        { id: 'g-catan', title: 'Catan', minPlayers: 3, maxPlayers: 4, minPlaytime: 60, maxPlaytime: 120, complexity: 'Medium', rating: 7 },
+        { id: 'g-party', title: 'Party', minPlayers: 4, complexity: 'Easy' },
+      ];
+      expect(store.games()).toEqual(expected);
+      expect(savedGames()).toEqual(expected);
+    });
+
+    it('converts an imported older file the same way', () => {
+      seedStorage(SAMPLE_GAMES);
+      const store = TestBed.inject(GameStore);
+      store.replaceAll([{ title: 'Azul', players: '2-4', duration: '30-45', complexity: 'Easy' }]);
+      expect(store.games()[0]).toEqual({
+        id: expect.any(String),
+        title: 'Azul',
+        minPlayers: 2,
+        maxPlayers: 4,
+        minPlaytime: 30,
+        maxPlaytime: 45,
+        complexity: 'Easy',
+      });
     });
   });
 
@@ -111,7 +155,7 @@ describe('GameStore', () => {
 
     it('add() appends with a fresh id and persists', () => {
       const store = TestBed.inject(GameStore);
-      const wingspan = { title: 'Wingspan', players: '1-5', duration: '40-70', complexity: 'Medium', rating: 8 };
+      const wingspan = { title: 'Wingspan', minPlayers: 1, maxPlayers: 5, minPlaytime: 40, maxPlaytime: 70, complexity: 'Medium', rating: 8 };
       const added = store.add(wingspan);
 
       expect(added).toEqual({ id: expect.any(String), ...wingspan });
@@ -122,19 +166,19 @@ describe('GameStore', () => {
 
     it('update() replaces the details of one game in place and persists', () => {
       const store = TestBed.inject(GameStore);
-      store.update('g-gloom', { title: 'Gloomhaven', players: '1-4', duration: '90-150', complexity: 'Hard', rating: 6 });
+      store.update('g-gloom', { title: 'Gloomhaven', minPlayers: 1, maxPlayers: 4, minPlaytime: 90, maxPlaytime: 150, complexity: 'Hard', rating: 6 });
 
       const titles = store.games().map(g => g.title);
       expect(titles).toEqual(['Catan', 'Azul', 'Gloomhaven', 'Terraforming Mars']);
       expect(store.find('g-gloom')).toEqual({
-        id: 'g-gloom', title: 'Gloomhaven', players: '1-4', duration: '90-150', complexity: 'Hard', rating: 6,
+        id: 'g-gloom', title: 'Gloomhaven', minPlayers: 1, maxPlayers: 4, minPlaytime: 90, maxPlaytime: 150, complexity: 'Hard', rating: 6,
       });
       expect(savedGames()![2].rating).toBe(6);
     });
 
     it('update() with an unknown id changes nothing', () => {
       const store = TestBed.inject(GameStore);
-      store.update('nope', { title: 'X', players: '1', duration: '1', complexity: 'Easy' });
+      store.update('nope', { title: 'X', minPlayers: 1, maxPlayers: 1, minPlaytime: 1, maxPlaytime: 1, complexity: 'Easy' });
       expect(store.games()).toEqual(SAMPLE_GAMES);
     });
 

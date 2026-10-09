@@ -95,10 +95,10 @@ export function selectFile(input: HTMLInputElement, contents: string, name = 'ga
 }
 
 export const SAMPLE_GAMES: Game[] = [
-  { id: 'g-catan', title: 'Catan', players: '3-4', duration: '60-120', complexity: 'Medium', rating: 7 },
-  { id: 'g-azul', title: 'Azul', players: '2-4', duration: '30-45', complexity: 'Easy', rating: 9 },
-  { id: 'g-gloom', title: 'Gloomhaven', players: '1-4', duration: '60-120', complexity: 'Hard' },
-  { id: 'g-tm', title: 'Terraforming Mars', players: '1-5', duration: '120-180', complexity: 'Hard', rating: 8 },
+  { id: 'g-catan', title: 'Catan', minPlayers: 3, maxPlayers: 4, minPlaytime: 60, maxPlaytime: 120, complexity: 'Medium', rating: 7 },
+  { id: 'g-azul', title: 'Azul', minPlayers: 2, maxPlayers: 4, minPlaytime: 30, maxPlaytime: 45, complexity: 'Easy', rating: 9 },
+  { id: 'g-gloom', title: 'Gloomhaven', minPlayers: 1, maxPlayers: 4, minPlaytime: 60, maxPlaytime: 120, complexity: 'Hard' },
+  { id: 'g-tm', title: 'Terraforming Mars', minPlayers: 1, maxPlayers: 5, minPlaytime: 120, maxPlaytime: 180, complexity: 'Hard', rating: 8 },
 ];
 
 export const SAMPLE_PLAYERS: Player[] = [

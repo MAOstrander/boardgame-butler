@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { BGG_PROXY_URL, BggService, complexityFromWeight, formatRange, lookupErrorMessage, parseSearch, parseThing } from './bgg';
+import { BGG_PROXY_URL, BggService, lookupErrorMessage, parseSearch, parseThing } from './bgg';
 import { SEARCH_XML, THING_XML } from '../testing/bgg-fixtures';
 
 describe('BGG parsing', () => {
@@ -39,22 +39,6 @@ describe('BGG parsing', () => {
     expect(parseThing('<items termsofuse="x"></items>')).toBeNull();
   });
 
-  it('maps weight onto three complexity levels', () => {
-    expect(complexityFromWeight(1.0)).toBe('Easy');
-    expect(complexityFromWeight(1.99)).toBe('Easy');
-    expect(complexityFromWeight(2.0)).toBe('Medium');
-    expect(complexityFromWeight(2.99)).toBe('Medium');
-    expect(complexityFromWeight(3.0)).toBe('Hard');
-    expect(complexityFromWeight(4.8)).toBe('Hard');
-  });
-
-  it('formats ranges the way the form writes them', () => {
-    expect(formatRange(2, 4)).toBe('2-4');
-    expect(formatRange(2, 2)).toBe('2');
-    expect(formatRange(undefined, 5)).toBe('5');
-    expect(formatRange(3, undefined)).toBe('3');
-    expect(formatRange(undefined, undefined)).toBeUndefined();
-  });
 });
 
 describe('BggService', () => {

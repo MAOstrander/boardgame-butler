@@ -1,7 +1,6 @@
 import games from '../../public/games.json';
 import players from '../../public/players.json';
 import plays from '../../public/plays.json';
-import { parseRange } from './game-filter';
 import { normalizeKey } from './normalize';
 
 /**
@@ -29,10 +28,15 @@ describe('bundled seed data', () => {
       expect(new Set(keys).size).toBe(games.length);
     });
 
-    it('uses player and duration ranges the filters can parse', () => {
+    it('gives every game whole-number player and play time ranges, minimum first', () => {
       for (const game of games) {
-        expect(parseRange(game.players), `players of ${game.title}`).not.toBeNull();
-        expect(parseRange(game.duration), `duration of ${game.title}`).not.toBeNull();
+        for (const [min, max, label] of [
+          [game.minPlayers, game.maxPlayers, 'players'],
+          [game.minPlaytime, game.maxPlaytime, 'play time'],
+        ] as const) {
+          expect(Number.isInteger(min) && min >= 1, `${label} minimum of ${game.title}`).toBe(true);
+          expect(Number.isInteger(max) && max >= min, `${label} maximum of ${game.title}`).toBe(true);
+        }
       }
     });
 

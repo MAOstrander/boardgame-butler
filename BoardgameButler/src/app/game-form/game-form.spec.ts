@@ -5,6 +5,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { GameForm } from './game-form';
 import { UndoService } from '../undo';
 import { BGG_PROXY_URL } from '../bgg';
+import { Game } from '../game';
 import { SEARCH_XML, THING_XML } from '../../testing/bgg-fixtures';
 import { SAMPLE_GAMES, SAMPLE_PLAYS, findByText, query, queryAll, savedGames, savedPlays, seedPlays, seedStorage, setInputValue, settle, text } from '../../testing/helpers';
 
@@ -14,9 +15,9 @@ describe('GameForm', () => {
   let router: Router;
 
   /** Create the form; pass an id to open it in edit mode. */
-  async function setup(id?: string, proxyUrl = '') {
+  async function setup(id?: string, proxyUrl = '', games: Game[] = SAMPLE_GAMES) {
     localStorage.clear();
-    seedStorage(SAMPLE_GAMES);
+    seedStorage(games);
     seedPlays(SAMPLE_PLAYS);
 
     await TestBed.configureTestingModule({
@@ -47,16 +48,27 @@ describe('GameForm', () => {
   const submitButton = () => query<HTMLButtonElement>(fixture, 'button[type="submit"]');
   const titleInput = () => query<HTMLInputElement>(fixture, '#title');
 
-  async function fill(values: { title: string; players: string; duration: string; complexity: string; rating: string }) {
+  const RANGE_FIELDS = ['minPlayers', 'maxPlayers', 'minPlaytime', 'maxPlaytime'] as const;
+  type RangeField = (typeof RANGE_FIELDS)[number];
+  const field = (id: RangeField) => query<HTMLInputElement>(fixture, `#${id}`);
+
+  async function fill(values: { title: string; complexity: string; rating: string } & Record<RangeField, string>) {
     setInputValue(titleInput(), values.title);
-    setInputValue(query<HTMLInputElement>(fixture, '#players'), values.players);
-    setInputValue(query<HTMLInputElement>(fixture, '#duration'), values.duration);
+    for (const id of RANGE_FIELDS) setInputValue(field(id), values[id]);
     setInputValue(query<HTMLSelectElement>(fixture, '#complexity'), values.complexity);
     setInputValue(query<HTMLInputElement>(fixture, '#rating'), values.rating);
     await settle(fixture);
   }
 
-  const cascadia = { title: 'Cascadia', players: '1-4', duration: '30-45', complexity: 'Easy', rating: '8' };
+  const cascadia = {
+    title: 'Cascadia',
+    minPlayers: '1',
+    maxPlayers: '4',
+    minPlaytime: '30',
+    maxPlaytime: '45',
+    complexity: 'Easy',
+    rating: '8',
+  };
 
   describe('adding', () => {
     beforeEach(() => setup());
@@ -73,14 +85,42 @@ describe('GameForm', () => {
       expect(text(fixture)).not.toContain('Title is required.');
 
       setInputValue(titleInput(), '');
-      setInputValue(query<HTMLInputElement>(fixture, '#players'), '');
-      setInputValue(query<HTMLInputElement>(fixture, '#duration'), '');
+      setInputValue(field('maxPlayers'), '');
+      setInputValue(field('minPlaytime'), '');
       await settle(fixture);
 
       expect(text(fixture)).toContain('Title is required.');
-      expect(text(fixture)).toContain('Player count is required.');
-      expect(text(fixture)).toContain('Duration is required.');
+      expect(text(fixture)).toContain('Enter both the fewest and the most players.');
+      expect(text(fixture)).toContain('Enter both the shortest and the longest play time.');
       expect(submitButton().disabled).toBe(true);
+    });
+
+    it('rejects a minimum above the maximum', async () => {
+      await fill({ ...cascadia, minPlayers: '5', maxPlayers: '4' });
+      expect(text(fixture)).toContain("The minimum can't be more than the maximum.");
+      expect(submitButton().disabled).toBe(true);
+
+      setInputValue(field('minPlayers'), '4');
+      await settle(fixture);
+      expect(text(fixture)).not.toContain("can't be more than");
+      expect(submitButton().disabled).toBe(false);
+    });
+
+    it('rejects a play time minimum above its maximum', async () => {
+      await fill({ ...cascadia, minPlaytime: '90', maxPlaytime: '45' });
+      expect(text(fixture)).toContain("The minimum can't be more than the maximum.");
+      expect(submitButton().disabled).toBe(true);
+    });
+
+    it('rejects counts below 1', async () => {
+      await fill({ ...cascadia, minPlayers: '0' });
+      expect(text(fixture)).toContain('Player counts start at 1.');
+      expect(submitButton().disabled).toBe(true);
+    });
+
+    it('accepts a single count by entering it as both ends', async () => {
+      await fill({ ...cascadia, minPlayers: '2', maxPlayers: '2' });
+      expect(submitButton().disabled).toBe(false);
     });
 
     it('shows the live rating value next to the label once set', async () => {
@@ -105,21 +145,23 @@ describe('GameForm', () => {
       expect(saved[saved.length - 1]).toEqual({
         id: expect.any(String),
         title: 'Cascadia',
-        players: '1-4',
-        duration: '30-45',
+        minPlayers: 1,
+        maxPlayers: 4,
+        minPlaytime: 30,
+        maxPlaytime: 45,
         complexity: 'Easy',
         rating: 8,
       });
       expect(router.navigate).toHaveBeenCalledWith(['/']);
     });
 
-    it('trims whitespace from text fields before saving', async () => {
-      await fill({ ...cascadia, title: '  Cascadia  ', players: ' 1-4 ' });
+    it('trims whitespace from the title before saving', async () => {
+      await fill({ ...cascadia, title: '  Cascadia  ' });
       submitButton().click();
       await settle(fixture);
 
       const saved = savedGames()!;
-      expect(saved[saved.length - 1]).toMatchObject({ title: 'Cascadia', players: '1-4' });
+      expect(saved[saved.length - 1]).toMatchObject({ title: 'Cascadia' });
     });
 
     describe('duplicate titles', () => {
@@ -230,14 +272,13 @@ describe('GameForm', () => {
           'Catan Card Game',
         ]);
 
-        results()[0].click();
-        http.expectOne('https://proxy.test/thing?id=13').flush(THING_XML);
-        await settle(fixture);
+        await pickCatan();
 
         expect(titleInput().value).toBe('CATAN');
-        expect(query<HTMLInputElement>(fixture, '#players').value).toBe('3-4');
-        expect(query<HTMLInputElement>(fixture, '#duration').value).toBe('60-120');
-        expect(query<HTMLSelectElement>(fixture, '#complexity').value).toBe('Medium');
+        expect(field('minPlayers').value).toBe('3');
+        expect(field('maxPlayers').value).toBe('4');
+        expect(field('minPlaytime').value).toBe('60');
+        expect(field('maxPlaytime').value).toBe('120');
         expect(results()).toEqual([]);
 
         const status = query(fixture, '[role="status"]');
@@ -245,14 +286,73 @@ describe('GameForm', () => {
         expect(status.querySelector('a')!.getAttribute('href')).toBe('https://boardgamegeek.com/boardgame/13');
       });
 
-      it('leaves the rating for the user to set', async () => {
+      async function pickCatan() {
         await search('catan', SEARCH_XML);
         results()[0].click();
         http.expectOne('https://proxy.test/thing?id=13').flush(THING_XML);
         await settle(fixture);
+      }
 
+      // BGG's terms forbid modifying their data, so weight is shown as BGG
+      // give it and never turned into one of our complexity levels.
+      it('shows BGG weight beside the complexity, without changing the complexity', async () => {
+        setInputValue(query<HTMLSelectElement>(fixture, '#complexity'), 'Hard');
+        await pickCatan();
+
+        expect(query<HTMLSelectElement>(fixture, '#complexity').value).toBe('Hard');
+        const weight = query(fixture, '[data-testid="bgg-weight"]');
+        expect(weight.textContent).toContain('BoardGameGeek weight: 2.29 / 5');
+        expect(weight.querySelector('a')!.getAttribute('href')).toBe('https://boardgamegeek.com/boardgame/13');
+      });
+
+      it('keeps the Medium default when looking up a new game', async () => {
+        await pickCatan();
+        expect(query<HTMLSelectElement>(fixture, '#complexity').value).toBe('Medium');
+      });
+
+      it('leaves the rating for the user to set', async () => {
+        await pickCatan();
         expect(text(fixture)).not.toContain('/ 10');
         expect(submitButton().disabled).toBe(true);
+      });
+
+      it('saves the BGG id and the weight exactly as BGG sent it', async () => {
+        await pickCatan();
+        setInputValue(titleInput(), 'Catan (BGG)');
+        setInputValue(query<HTMLInputElement>(fixture, '#rating'), '7');
+        await settle(fixture);
+        submitButton().click();
+        await settle(fixture);
+
+        expect(savedGames()!.at(-1)).toEqual({
+          id: expect.any(String),
+          title: 'Catan (BGG)',
+          minPlayers: 3,
+          maxPlayers: 4,
+          minPlaytime: 60,
+          maxPlaytime: 120,
+          complexity: 'Medium',
+          rating: 7,
+          bggId: '13',
+          bggWeight: 2.2885,
+        });
+      });
+
+      it('Unlink drops the BGG id and weight but keeps the filled-in figures', async () => {
+        await pickCatan();
+        findByText<HTMLButtonElement>(fixture, 'button', 'Unlink').click();
+        setInputValue(titleInput(), 'Catan (BGG)');
+        setInputValue(query<HTMLInputElement>(fixture, '#rating'), '7');
+        await settle(fixture);
+
+        expect(fixture.nativeElement.querySelector('[data-testid="bgg-weight"]')).toBeNull();
+        submitButton().click();
+        await settle(fixture);
+
+        const saved = savedGames()!.at(-1)!;
+        expect(saved).toMatchObject({ minPlayers: 3, maxPlayers: 4 });
+        expect(saved).not.toHaveProperty('bggId');
+        expect(saved).not.toHaveProperty('bggWeight');
       });
 
       it('flags a looked-up title that is already in the collection', async () => {
@@ -299,12 +399,34 @@ describe('GameForm', () => {
       expect(query(fixture, 'h1').textContent).toContain('Edit Game');
       expect(text(fixture)).toContain('Update the details for Catan.');
       expect(titleInput().value).toBe('Catan');
-      expect(query<HTMLInputElement>(fixture, '#players').value).toBe('3-4');
-      expect(query<HTMLInputElement>(fixture, '#duration').value).toBe('60-120');
+      expect(field('minPlayers').value).toBe('3');
+      expect(field('maxPlayers').value).toBe('4');
+      expect(field('minPlaytime').value).toBe('60');
+      expect(field('maxPlaytime').value).toBe('120');
       expect(query<HTMLSelectElement>(fixture, '#complexity').value).toBe('Medium');
       expect(query<HTMLInputElement>(fixture, '#rating').value).toBe('7');
       expect(text(fixture)).toContain('7 / 10');
       expect(submitButton().textContent).toContain('Save Changes');
+      expect(submitButton().disabled).toBe(false);
+      expect(fixture.nativeElement.querySelector('[data-testid="bgg-weight"]')).toBeNull();
+    });
+
+    it('shows the saved BGG weight and keeps the link when saving', async () => {
+      await setup('g-catan', '', [{ ...SAMPLE_GAMES[0], bggId: '13', bggWeight: 2.2885 }, ...SAMPLE_GAMES.slice(1)]);
+
+      expect(query(fixture, '[data-testid="bgg-weight"]').textContent).toContain('2.29 / 5');
+      submitButton().click();
+      await settle(fixture);
+      expect(savedGames()![0]).toMatchObject({ bggId: '13', bggWeight: 2.2885 });
+    });
+
+    it('asks for a maximum when an older game was saved open-ended', async () => {
+      await setup('g-catan', '', [{ ...SAMPLE_GAMES[0], maxPlayers: undefined }, ...SAMPLE_GAMES.slice(1)]);
+
+      expect(field('maxPlayers').value).toBe('');
+      expect(submitButton().disabled).toBe(true);
+      setInputValue(field('maxPlayers'), '6');
+      await settle(fixture);
       expect(submitButton().disabled).toBe(false);
     });
 
@@ -321,7 +443,8 @@ describe('GameForm', () => {
 
     it('saves changed details in place, keeps the id, and returns to the collection', async () => {
       await setup('g-catan');
-      setInputValue(query<HTMLInputElement>(fixture, '#duration'), '75-100');
+      setInputValue(field('minPlaytime'), '75');
+      setInputValue(field('maxPlaytime'), '100');
       setInputValue(query<HTMLSelectElement>(fixture, '#complexity'), 'Hard');
       setInputValue(query<HTMLInputElement>(fixture, '#rating'), '9');
       await settle(fixture);
@@ -334,8 +457,10 @@ describe('GameForm', () => {
       expect(saved[0]).toEqual({
         id: 'g-catan',
         title: 'Catan',
-        players: '3-4',
-        duration: '75-100',
+        minPlayers: 3,
+        maxPlayers: 4,
+        minPlaytime: 75,
+        maxPlaytime: 100,
         complexity: 'Hard',
         rating: 9,
       });

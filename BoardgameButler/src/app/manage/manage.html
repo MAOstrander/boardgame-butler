@@ -118,7 +118,7 @@
                       }
                     </span>
                   } @else {
-                    <span class="text-gray-500">{{ row.game.players }} players · {{ row.game.complexity }}</span>
+                    <span class="text-gray-500">{{ playersText(row.game) || "?" }} players · {{ row.game.complexity }}</span>
                   }
                 </li>
               }

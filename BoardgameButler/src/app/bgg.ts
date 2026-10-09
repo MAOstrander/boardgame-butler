@@ -3,12 +3,12 @@ import { Injectable, InjectionToken, inject } from '@angular/core';
 import { Observable, map, retry, throwError, timer } from 'rxjs';
 
 /**
- * Where the BGG proxy (see `bgg-proxy/`) is deployed. Empty means "not
- * deployed yet", and the lookup is hidden rather than offered and failing.
+ * Where the BGG proxy (see `bgg-proxy/`) is deployed. An empty value hides the
+ * lookup rather than offering it and failing.
  */
 export const BGG_PROXY_URL = new InjectionToken<string>('BGG_PROXY_URL', {
   providedIn: 'root',
-  factory: () => '',
+  factory: () => 'https://boardgame-butler-bgg.mysticalcarp.workers.dev',
 });
 
 export interface BggSearchResult {

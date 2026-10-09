@@ -265,7 +265,7 @@ The rating is never touched, since it is the user's own opinion, so the form sti
 
 Failures read as plain sentences: no matches, BGG busy (429), no connection, or BGG still preparing the response. That last one is BGG's 202, which the client retries three times at two-second intervals before giving up.
 
-The lookup is hidden entirely until the proxy is deployed. Its address is the `BGG_PROXY_URL` token in `src/app/bgg.ts`, which defaults to empty.
+The proxy's address is the `BGG_PROXY_URL` token in `src/app/bgg.ts` (`https://boardgame-butler-bgg.mysticalcarp.workers.dev`). Setting it to an empty string hides the lookup entirely.
 
 **BoardGameGeek credit.** Below the buttons sits a "Powered by BGG" logo linking to boardgamegeek.com, with a line explaining that game details can be looked up from there. BGG's XML API terms require any public-facing use of their data to show this logo linked back to the site, "sized so that the text remains easily legible"; 170px is used, and 130px is about the floor where the wordmark still reads. The reversed white-and-orange artwork is the one that suits this dark UI.
 

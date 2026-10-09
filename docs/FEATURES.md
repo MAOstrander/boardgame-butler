@@ -27,6 +27,7 @@ This document describes the features that exist today. Items shown as "planned" 
 - [Backup file format](#backup-file-format)
 - [Progressive web app (install & offline)](#progressive-web-app-install--offline)
 - [Running and deploying](#running-and-deploying)
+- [BoardGameGeek proxy](#boardgamegeek-proxy)
 - [Planned features (not yet implemented)](#planned-features-not-yet-implemented)
 - [Roadmap](#roadmap)
 
@@ -734,6 +735,30 @@ Each page has a functional spec next to it (`*.spec.ts`) that drives the rendere
 | `timer.spec.ts` | `formatDuration`; Stopwatch start/pause/resume/reset, timestamp-based elapsed (throttled-tab case), `onTick`, `destroy`; Countdown remaining/finished, `onFinish` fires once, pause/resume, reset, `setDuration` |
 | `tools.spec.ts` | Dice type/count selection and clamping, roll rendering (total + individual dice), history; Countdown presets, custom minutes, running/pause/resume display with fake timers, time's-up alert once + reset, survives leaving and re-opening the page; Stopwatch count-up through the hour boundary; nav links |
 | `app.spec.ts` | Every route renders the right component and heading using the real `appConfig` providers; the `:id` parameter reaches the edit forms and `?game` reaches the log form; link navigation between pages |
+
+---
+
+## BoardGameGeek proxy
+
+Lives in [`bgg-proxy/`](../bgg-proxy/README.md) as a Cloudflare Worker, deployed separately from the app. Nothing in the Angular app calls it yet; that is the next piece of work.
+
+**Why a server at all.** BGG issue a bearer token per application, and their guidance is that "all requests should be made by your servers, with the results cached". A purely client-side app can do neither. A token in the Angular bundle is readable by anyone who opens devtools, and the browser has no shared cache to spare BGG repeated identical lookups. So the token lives as a Cloudflare secret and the Worker caches on BGG's behalf.
+
+**Why it does not reshape the data.** Their terms say "You may not modify the data, including User Submissions, retrieved through the BGG XML API in any way". Returning a trimmed JSON shape would be more convenient for the client, but it is exactly what that sentence prohibits. The Worker passes the XML through byte for byte and the browser parses it. A test asserts the passthrough is unmodified, since this is a compliance requirement rather than a preference. The same clause is why a bundled offline index of BGG data was ruled out earlier.
+
+| Route | Maps to | Cached for |
+|---|---|---|
+| `GET /search?q=<title>&exact=0\|1` | `xmlapi2/search?query=…&type=boardgame,boardgameexpansion` | 1 day |
+| `GET /thing?id=<id>[,…]` | `xmlapi2/thing?id=…&stats=1` | 7 days |
+| `GET /health` | nothing; reports whether a token is configured | not cached |
+
+Everything else is a 404. The allowlist matters: an open proxy would spend our token and quota on other people's traffic. Ids must be numeric and at most 20 per request, search text is capped at 100 characters, and no caller header is forwarded upstream, so nobody can smuggle their own credentials through to BGG. `stats=1` is requested because the weight and rating figures live there.
+
+**Cache behaviour.** Keyed on the upstream URL, so one entry serves every caller regardless of origin or query-string order. Game metadata gets a week since it barely changes; search results get a day. A 202 (BGG still building the response) is deliberately not cached, or "not ready yet" would be pinned in place for a week. A 429 is passed back with its `Retry-After` intact, and a rejected token becomes a 502 with the detail in the Worker log rather than in the response.
+
+**Known exposure.** Once the Worker URL ships in the app bundle it is effectively public, and CORS only constrains browsers, not curl. The cache absorbs most repeat traffic; a Cloudflare rate limiting rule on the route covers the rest and is worth adding before the lookup ships. A shared secret header would not help, because it would have to be in the bundle too.
+
+**Testing.** 36 tests on Node's own test runner, no dependencies and no build step: the Worker is written as a plain `handle(request, env, deps)` function so tests inject a fake cache and fetch. They run in CI via [`.github/workflows/proxy.yml`](../.github/workflows/proxy.yml), separately from the Pages deploy. Deployment is by hand with `npx wrangler deploy`, and the token is set once with `wrangler secret put BGG_TOKEN`; see the proxy's own README.
 
 ---
 

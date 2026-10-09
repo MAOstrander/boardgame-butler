@@ -75,6 +75,7 @@ BoardgameButler/
     tools/                                    dice and timers
     *-store.ts                                localStorage-backed stores
     stats.ts game-filter.ts import-plan.ts    pure logic, unit-tested
+bgg-proxy/             Cloudflare Worker holding the BoardGameGeek API token
 docs/
   FEATURES.md          what every page does, data models, roadmap
   MANUAL_TESTING.md    step-by-step checks on PC and mobile
@@ -87,6 +88,10 @@ Business logic lives in pure functions (`stats.ts`, `game-filter.ts`, `import-pl
 Pushing to `main` runs [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml): install → test → build with the correct base href → publish to GitHub Pages. A failing test blocks the deploy.
 
 The workflow also copies `index.html` to `404.html` (GitHub Pages has no rewrite rules, so deep links would otherwise 404) and adds `.nojekyll`.
+
+### The BGG proxy
+
+[`bgg-proxy/`](bgg-proxy/README.md) is a separate Cloudflare Worker, deployed by hand with `npx wrangler deploy`. It holds the BoardGameGeek API token as a Cloudflare secret and caches their responses, because BGG ask that requests come from a server rather than a browser and a token in the app bundle would be public. Its tests run in CI on their own, independent of the Pages deploy.
 
 ## Documentation
 

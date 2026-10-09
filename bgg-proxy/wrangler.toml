@@ -1,0 +1,13 @@
+name = "boardgame-butler-bgg"
+main = "src/worker.js"
+compatibility_date = "2026-10-01"
+
+# BGG_TOKEN is deliberately absent. It is a secret, set once with
+#   npx wrangler secret put BGG_TOKEN
+# so it never appears in this file or in git.
+
+[vars]
+ALLOWED_ORIGINS = "https://mathewostrander.com,http://localhost:4200"
+
+[observability]
+enabled = true

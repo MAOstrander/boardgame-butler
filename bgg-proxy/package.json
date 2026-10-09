@@ -1,0 +1,14 @@
+{
+  "name": "boardgame-butler-bgg-proxy",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Caching proxy that holds the BoardGameGeek API token for Boardgame Butler.",
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "test": "node --test \"src/**/*.test.js\"",
+    "dev": "npx wrangler@latest dev",
+    "deploy": "npx wrangler@latest deploy",
+    "tail": "npx wrangler@latest tail"
+  }
+}

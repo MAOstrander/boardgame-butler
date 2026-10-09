@@ -252,6 +252,21 @@ One reactive form serves both jobs. Without an `:id` it adds a game; with one it
 - On success, navigates back to `/`.
 - If the browser refuses the write (e.g. storage quota exceeded or storage disabled), shows *"Could not save your collection to this device."* and stays on the page.
 
+**BoardGameGeek lookup.** Under the title sits **Look up on BoardGameGeek**, enabled once a title is typed. It searches BGG through the [proxy](#boardgamegeek-proxy) and lists up to 8 matches, each with its year and an *expansion* tag where relevant. BGG return hits in no useful order, so exact title matches come first, then base games ahead of expansions, then newest first. Choosing one fetches its details and fills in:
+
+| Field | From BGG |
+|---|---|
+| Title | the primary name |
+| Players | `minplayers`-`maxplayers`, or one number when they match |
+| Duration | `minplaytime`-`maxplaytime`, the same way |
+| Complexity | average weight: under 2 is Easy, under 3 is Medium, 3 and up is Hard |
+
+The rating is never touched, since it is the user's own opinion, so the form still needs it before saving. A field BGG have no figure for (they send `0`) keeps whatever it had. A line beneath confirms *"Filled in from Title (year) on BoardGameGeek"*, linking to the game's BGG page. The filled title goes through the duplicate check like any other. *None of these* closes the list without changing anything.
+
+Failures read as plain sentences: no matches, BGG busy (429), no connection, or BGG still preparing the response. That last one is BGG's 202, which the client retries three times at two-second intervals before giving up.
+
+The lookup is hidden entirely until the proxy is deployed. Its address is the `BGG_PROXY_URL` token in `src/app/bgg.ts`, which defaults to empty.
+
 **BoardGameGeek credit.** Below the buttons sits a "Powered by BGG" logo linking to boardgamegeek.com, with a line explaining that game details can be looked up from there. BGG's XML API terms require any public-facing use of their data to show this logo linked back to the site, "sized so that the text remains easily legible"; 170px is used, and 130px is about the floor where the wordmark still reads. The reversed white-and-orange artwork is the one that suits this dark UI.
 
 This is the game form because that is where BGG data will actually land. If BGG integration later spreads beyond this one page, for example a lookup on the collection page or anything that displays BGG ratings, **the home page under the nav links is the better home for it**: a single credit there covers the whole app without needing one per feature. `BggCredit` takes a `size` input precisely so it can move without rework.
@@ -719,7 +734,8 @@ Each page has a functional spec next to it (`*.spec.ts`) that drives the rendere
 | `game-filter.spec.ts` | Range parsing (`2-4`, `2`, `3+`, `2 to 6`, en dash, garbage), each filter's matching rule, AND-combination, `filterGames` |
 | `home.spec.ts` | Loading state while seeding, ready from storage, empty-collection hint, random pick and re-roll, rating badge, filter panel toggle, every filter's live count, no-match state, clear, filtered pick vs. whole-collection pick, the overdue-a-turn toggle (label in both modes, combining with other filters, serving from it, clearing), the best-at-count toggle (disabled without a count, qualifying-game count in the label, restricting matches, no-match case, switching off when the count is cleared), the install button appearing and prompting, nav links |
 | `collection.spec.ts` | Seeding/empty/error states, row rendering, complexity pills, search, every sort column and direction, Log play and Edit links |
-| `game-form.spec.ts` | Add: defaults, required errors, live rating label, what gets saved (with id), trimming, duplicate-title rejection (case/whitespace, forced submit, clears on change), storage failure. Edit: pre-fill, save in place keeping id, own title allowed / other title rejected, rename, rating required for unrated, unknown id. Delete: hidden when adding, confirm step (mentions kept plays), keep, confirm removes game but not its plays, storage failure |
+| `game-form.spec.ts` | Add: defaults, required errors, live rating label, what gets saved (with id), trimming, duplicate-title rejection (case/whitespace, forced submit, clears on change), storage failure. Edit: pre-fill, save in place keeping id, own title allowed / other title rejected, rename, rating required for unrated, unknown id. Delete: hidden when adding, confirm step (mentions kept plays), keep, confirm removes game but not its plays, storage failure. BGG lookup: hidden without a proxy, needs a title, ranked results, fills the form but not the rating, duplicate check still applies, no matches, *None of these*, error message |
+| `bgg.spec.ts` | Parsing BGG search and thing XML (duplicates, primary name, zeros as unknown), weight to complexity, range formatting, the proxy calls, 202 retries, error messages |
 | `import-plan.spec.ts` | First-wins de-duplication for games: case/whitespace matching, kept order, difference reporting (incl. missing rating), untitled rows; and for players by name |
 | `player-store.spec.ts` | Seeding from `players.json` (id assignment, failure, empty-list-is-a-decision), load without a fetch, id assignment for legacy data, re-seed on corrupt data, add (trimmed, new id), rename, remove, replaceAll, `hasName`, storage failure |
 | `players.spec.ts` | Alphabetical list and count, empty state, add (disabled until typed, trimmed, Enter, duplicate rejected, storage error keeps input), rename (inline editor, save, own name allowed / other rejected, cancel), remove (confirm, keep, confirm removes, opening rename closes confirm), nav links |
@@ -740,7 +756,7 @@ Each page has a functional spec next to it (`*.spec.ts`) that drives the rendere
 
 ## BoardGameGeek proxy
 
-Lives in [`bgg-proxy/`](../bgg-proxy/README.md) as a Cloudflare Worker, deployed separately from the app. Nothing in the Angular app calls it yet; that is the next piece of work.
+Lives in [`bgg-proxy/`](../bgg-proxy/README.md) as a Cloudflare Worker, deployed separately from the app. The game form's lookup is its only caller; `BggService` (`src/app/bgg.ts`) parses the XML in the browser.
 
 **Why a server at all.** BGG issue a bearer token per application, and their guidance is that "all requests should be made by your servers, with the results cached". A purely client-side app can do neither. A token in the Angular bundle is readable by anyone who opens devtools, and the browser has no shared cache to spare BGG repeated identical lookups. So the token lives as a Cloudflare secret and the Worker caches on BGG's behalf.
 

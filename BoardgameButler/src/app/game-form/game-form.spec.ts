@@ -4,7 +4,9 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { GameForm } from './game-form';
 import { UndoService } from '../undo';
-import { SAMPLE_GAMES, SAMPLE_PLAYS, query, queryAll, savedGames, savedPlays, seedPlays, seedStorage, setInputValue, settle, text } from '../../testing/helpers';
+import { BGG_PROXY_URL } from '../bgg';
+import { SEARCH_XML, THING_XML } from '../../testing/bgg-fixtures';
+import { SAMPLE_GAMES, SAMPLE_PLAYS, findByText, query, queryAll, savedGames, savedPlays, seedPlays, seedStorage, setInputValue, settle, text } from '../../testing/helpers';
 
 describe('GameForm', () => {
   let fixture: ComponentFixture<GameForm>;
@@ -12,14 +14,19 @@ describe('GameForm', () => {
   let router: Router;
 
   /** Create the form; pass an id to open it in edit mode. */
-  async function setup(id?: string) {
+  async function setup(id?: string, proxyUrl = '') {
     localStorage.clear();
     seedStorage(SAMPLE_GAMES);
     seedPlays(SAMPLE_PLAYS);
 
     await TestBed.configureTestingModule({
       imports: [GameForm],
-      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+      providers: [
+        provideRouter([]),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: BGG_PROXY_URL, useValue: proxyUrl },
+      ],
     }).compileComponents();
 
     http = TestBed.inject(HttpTestingController);
@@ -185,6 +192,103 @@ describe('GameForm', () => {
     it('links back home and to the collection and manage pages', () => {
       const hrefs = queryAll<HTMLAnchorElement>(fixture, 'a').map(a => a.getAttribute('href'));
       expect(hrefs).toEqual(expect.arrayContaining(['/', '/collection', '/manage']));
+    });
+  });
+
+  describe('BoardGameGeek lookup', () => {
+    const lookupButton = () => findByText<HTMLButtonElement>(fixture, 'button', 'Look up on BoardGameGeek');
+    const results = () => queryAll<HTMLButtonElement>(fixture, '[data-testid="bgg-result"]');
+
+    async function search(title: string, xml: string) {
+      setInputValue(titleInput(), title);
+      await settle(fixture);
+      lookupButton().click();
+      http.expectOne(r => r.url === 'https://proxy.test/search').flush(xml);
+      await settle(fixture);
+    }
+
+    it('is hidden while no proxy is configured', async () => {
+      await setup();
+      expect(fixture.nativeElement.querySelector('[data-testid="bgg-lookup"]')).toBeNull();
+    });
+
+    describe('with a proxy', () => {
+      beforeEach(() => setup(undefined, 'https://proxy.test'));
+
+      it('needs a title before it can search', async () => {
+        expect(lookupButton().disabled).toBe(true);
+        setInputValue(titleInput(), 'catan');
+        await settle(fixture);
+        expect(lookupButton().disabled).toBe(false);
+      });
+
+      it('lists matches with the exact title first, and fills the form from the chosen one', async () => {
+        await search('catan', SEARCH_XML);
+        expect(results().map(b => b.textContent!.replace(/\s+/g, ' ').trim())).toEqual([
+          'CATAN (1995)',
+          'Catan: Cities & Knights (1998)',
+          'Catan Card Game',
+        ]);
+
+        results()[0].click();
+        http.expectOne('https://proxy.test/thing?id=13').flush(THING_XML);
+        await settle(fixture);
+
+        expect(titleInput().value).toBe('CATAN');
+        expect(query<HTMLInputElement>(fixture, '#players').value).toBe('3-4');
+        expect(query<HTMLInputElement>(fixture, '#duration').value).toBe('60-120');
+        expect(query<HTMLSelectElement>(fixture, '#complexity').value).toBe('Medium');
+        expect(results()).toEqual([]);
+
+        const status = query(fixture, '[role="status"]');
+        expect(status.textContent).toContain('Filled in from CATAN (1995) on BoardGameGeek');
+        expect(status.querySelector('a')!.getAttribute('href')).toBe('https://boardgamegeek.com/boardgame/13');
+      });
+
+      it('leaves the rating for the user to set', async () => {
+        await search('catan', SEARCH_XML);
+        results()[0].click();
+        http.expectOne('https://proxy.test/thing?id=13').flush(THING_XML);
+        await settle(fixture);
+
+        expect(text(fixture)).not.toContain('/ 10');
+        expect(submitButton().disabled).toBe(true);
+      });
+
+      it('flags a looked-up title that is already in the collection', async () => {
+        // The sample collection already has Catan, so filling it in must not slip past the duplicate check.
+        await search('catan', SEARCH_XML);
+        results()[0].click();
+        http.expectOne('https://proxy.test/thing?id=13').flush(THING_XML);
+        await settle(fixture);
+
+        expect(text(fixture)).toContain('You already have a game called "CATAN".');
+      });
+
+      it('says so when nothing matches', async () => {
+        await search('zzzz', '<items total="0" termsofuse="x"></items>');
+        expect(text(fixture)).toContain('No games on BoardGameGeek match "zzzz".');
+      });
+
+      it('"None of these" closes the list without changing anything', async () => {
+        await search('catan', SEARCH_XML);
+        findByText<HTMLButtonElement>(fixture, 'button', 'None of these').click();
+        await settle(fixture);
+
+        expect(results()).toEqual([]);
+        expect(titleInput().value).toBe('catan');
+      });
+
+      it('shows a readable error when the lookup fails', async () => {
+        setInputValue(titleInput(), 'catan');
+        await settle(fixture);
+        lookupButton().click();
+        http.expectOne(r => r.url === 'https://proxy.test/search').flush('', { status: 429, statusText: 'Too Many Requests' });
+        await settle(fixture);
+
+        expect(query(fixture, '[role="alert"]').textContent).toContain('BoardGameGeek is busy right now.');
+        expect(lookupButton().disabled).toBe(false);
+      });
     });
   });
 

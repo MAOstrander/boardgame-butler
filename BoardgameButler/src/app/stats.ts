@@ -28,6 +28,8 @@ export interface HeadCountBreakdown {
   plays: number;
   /** Mean recorded duration at this head-count, or null if none recorded. */
   avgMinutes: number | null;
+  /** Mean recorded fun rating at this head-count, or null if none recorded. */
+  avgFun: number | null;
 }
 
 export interface GameRow {
@@ -38,8 +40,13 @@ export interface GameRow {
   lastPlayed: string | null;
   /** Mean head-count over plays that recorded one (explicitly or via named players), or null. */
   avgPlayers: number | null;
-  /** Duration by head-count, ascending; only head-counts that occur. */
+  /** Duration and fun by head-count, ascending; only head-counts that occur. */
   byPlayers: HeadCountBreakdown[];
+  /**
+   * The head-count this game was most fun at, or null when there isn't enough
+   * to compare - fun must have been recorded at two or more different counts.
+   */
+  bestPlayers: number | null;
   /** Mean of recorded durations, or null if none recorded. */
   avgMinutes: number | null;
   /** The game's listed duration range from the collection, for comparison. */
@@ -72,7 +79,7 @@ export interface LeastPlayed {
 /**
  * "Show me what we never play." Once everything has been played at least
  * once, "never" has no answer, so this generalises to the lowest count there
- * is — the games most overdue a turn either way.
+ * is - the games most overdue a turn either way.
  */
 export function leastPlayed(games: Game[], plays: Play[]): LeastPlayed {
   if (games.length === 0) return { minPlays: 0, ids: new Set() };
@@ -158,6 +165,7 @@ function row(gameId: string, title: string, inCollection: boolean, list: Play[],
       players,
       plays: group.length,
       avgMinutes: mean(group.map(x => x.play.durationMinutes).filter((d): d is number => d != null)),
+      avgFun: mean(group.map(x => x.play.funRating).filter((f): f is number => f != null)),
     }))
     .sort((a, b) => a.players - b.players);
 
@@ -169,10 +177,29 @@ function row(gameId: string, title: string, inCollection: boolean, list: Play[],
     lastPlayed: list.length ? latest(list).playedAt : null,
     avgPlayers: mean(counted.map(x => x.n)),
     byPlayers,
+    bestPlayers: bestHeadCount(byPlayers),
     avgMinutes: mean(durations),
     listedMinutes: listed && Number.isFinite(listed.max) ? listed : null,
     avgFun: mean(funs),
   };
+}
+
+/**
+ * Which head-count was most fun. Needs fun recorded at two or more different
+ * counts - with only one there is nothing to compare against, and claiming a
+ * "best" from a single data point would be misleading. Ties go to the count
+ * with more plays behind it, then to the smaller table.
+ */
+function bestHeadCount(byPlayers: HeadCountBreakdown[]): number | null {
+  const rated = byPlayers.filter(b => b.avgFun != null);
+  if (rated.length < 2) return null;
+
+  return rated.reduce((best, b) =>
+    b.avgFun! > best.avgFun! ||
+    (b.avgFun === best.avgFun && (b.plays > best.plays || (b.plays === best.plays && b.players < best.players)))
+      ? b
+      : best,
+  ).players;
 }
 
 function playerRow(playerId: string, name: string, current: boolean, list: Play[]): PlayerRow {

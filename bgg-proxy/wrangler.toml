@@ -1,0 +1,28 @@
+name = "boardgame-butler-bgg"
+main = "src/worker.js"
+compatibility_date = "2026-10-01"
+
+# BGG_TOKEN is deliberately absent. It is a secret, set once with
+#   npx wrangler secret put BGG_TOKEN
+# so it never appears in this file or in git.
+
+# Both the apex and www are listed because the browser sends whichever origin
+# it is actually on, and a mismatch fails CORS with no useful error. localhost
+# is the Angular dev server.
+[vars]
+ALLOWED_ORIGINS = "https://mathewostrander.com,https://www.mathewostrander.com,http://localhost:4200"
+
+# Per-IP limit on requests that reach BGG (cache hits are not counted). Zone
+# rate limiting rules cannot cover a workers.dev hostname, so the limit lives
+# in the Worker. namespace_id is any number unique within this account. The
+# period must be 10 or 60 seconds; 60 matches RATE_LIMIT_PERIOD_SECONDS.
+[[ratelimits]]
+name = "RATE_LIMITER"
+namespace_id = "1001"
+
+  [ratelimits.simple]
+  limit = 30
+  period = 60
+
+[observability]
+enabled = true

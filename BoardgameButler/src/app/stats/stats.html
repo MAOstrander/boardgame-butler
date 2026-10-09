@@ -21,7 +21,7 @@
       <p class="text-sm text-gray-500">Loading statistics...</p>
     } @else if (!hasPlays()) {
       <div class="p-10 rounded-2xl bg-gray-900 border border-gray-800 text-center">
-        <p class="text-gray-400 mb-4">No plays logged yet — statistics appear once there's some history.</p>
+        <p class="text-gray-400 mb-4">No plays logged yet. Statistics appear once there's some history.</p>
         <a
           routerLink="/log-play"
           class="inline-block px-5 py-2.5 bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-white font-semibold rounded-xl shadow transition-colors duration-200"
@@ -86,10 +86,16 @@
                   <td class="px-4 py-3 text-center text-gray-300" data-testid="players-cell">
                     @if (row.avgPlayers != null) {
                       <span class="text-white tabular-nums">{{ row.avgPlayers }}</span>
+                      @if (row.bestPlayers != null) {
+                        <span class="block text-xs text-green-400 font-medium whitespace-nowrap">★ best with {{ row.bestPlayers }}</span>
+                      }
                       @if (row.byPlayers.length > 1) {
-                        <span class="block text-xs text-gray-500 whitespace-nowrap">
-                          @for (entry of row.byPlayers; track entry.players; let last = $last) {
-                            {{ breakdown(entry) }}@if (!last) {<span class="text-gray-700">, </span>}
+                        <span class="block mt-1 text-xs text-gray-500">
+                          @for (entry of row.byPlayers; track entry.players) {
+                            <span
+                              class="block whitespace-nowrap"
+                              [class.text-green-400]="entry.players === row.bestPlayers"
+                            >{{ breakdown(entry) }}</span>
                           }
                         </span>
                       }

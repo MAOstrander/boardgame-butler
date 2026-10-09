@@ -45,6 +45,65 @@
         @if (form.controls.title.errors?.['duplicate']) {
           <p class="text-red-400 text-xs">You already have a game called "{{ form.controls.title.value.trim() }}".</p>
         }
+
+        @if (lookupEnabled) {
+          <div class="flex flex-col gap-2" data-testid="bgg-lookup">
+            <button
+              type="button"
+              (click)="lookUp()"
+              [disabled]="!form.controls.title.value.trim() || lookupBusy()"
+              class="self-start text-sm text-amber-400 hover:text-amber-300 disabled:text-gray-600 disabled:cursor-not-allowed transition-colors cursor-pointer"
+            >
+              {{ lookupBusy() ? 'Looking up…' : 'Look up on BoardGameGeek' }}
+            </button>
+
+            @if (lookupResults(); as results) {
+              <div class="rounded-lg bg-gray-900 border border-gray-800">
+                <p class="px-3 pt-2 text-xs text-gray-500">Pick the game to fill in its details:</p>
+                <ul class="py-1">
+                  @for (result of results; track result.id) {
+                    <li>
+                      <button
+                        type="button"
+                        (click)="choose(result)"
+                        class="w-full text-left px-3 py-1.5 text-sm text-gray-200 hover:bg-gray-800 cursor-pointer"
+                        data-testid="bgg-result"
+                      >
+                        {{ result.name }}
+                        @if (result.year) { <span class="text-gray-500">({{ result.year }})</span> }
+                        @if (result.expansion) { <span class="ml-1 text-xs text-gray-500">expansion</span> }
+                      </button>
+                    </li>
+                  }
+                </ul>
+                <button
+                  type="button"
+                  (click)="dismissLookup()"
+                  class="px-3 pb-2 text-xs text-gray-500 hover:text-amber-400 cursor-pointer"
+                >
+                  None of these
+                </button>
+              </div>
+            }
+
+            @if (lookupError()) {
+              <p class="text-xs text-red-400" role="alert">{{ lookupError() }}</p>
+            }
+
+            @if (filledFrom(); as filled) {
+              <p class="text-xs text-gray-400" role="status">
+                Filled in from
+                <a
+                  [href]="'https://boardgamegeek.com/boardgame/' + filled.id"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="text-amber-400 hover:text-amber-300"
+                >{{ filled.name }}@if (filled.year) { ({{ filled.year }})}</a>
+                on BoardGameGeek. Check it over and add your rating.
+              </p>
+            }
+          </div>
+        }
       </div>
 
       <div class="flex flex-col gap-1.5">
@@ -129,6 +188,11 @@
       @if (editing()) {
         <a routerLink="/collection" class="text-center text-sm text-gray-500 hover:text-amber-400 transition-colors">Cancel</a>
       }
+
+      <div class="mt-2 pt-4 border-t border-gray-800 flex flex-col items-center gap-2" data-testid="bgg-credit-block">
+        <p class="text-xs text-gray-500">Game details can be looked up from BoardGameGeek.</p>
+        <app-bgg-credit size="md" />
+      </div>
 
     </form>
 

@@ -1,0 +1,31 @@
+name: BGG proxy tests
+
+# Kept separate from the Pages deploy: the Worker is not part of that build and
+# a failure here should not block the site from shipping.
+on:
+  push:
+    paths: ['bgg-proxy/**', '.github/workflows/proxy.yml']
+  pull_request:
+    paths: ['bgg-proxy/**', '.github/workflows/proxy.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bgg-proxy
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # No npm ci: the proxy has no dependencies, and its tests run on Node's
+      # own test runner. Wrangler is only fetched when deploying, by hand.
+      - name: Test
+        run: npm test

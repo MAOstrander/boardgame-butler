@@ -3,6 +3,8 @@ import { RouterLink } from '@angular/router';
 import { GameStore } from '../game-store';
 import { PlayerStore } from '../player-store';
 import { PlayStore } from '../play-store';
+import { BackupService } from '../backup';
+import { PersistentStorageService } from '../persistent-storage';
 import { RawPlay } from '../play';
 import { buildExport, parseImport } from '../export-format';
 import { ImportPlan, PlayerImportPlan, planImport, planPlayerImport } from '../import-plan';
@@ -10,9 +12,9 @@ import { ImportPlan, PlayerImportPlan, planImport, planPlayerImport } from '../i
 interface Preview {
   version: 1 | 2 | 3;
   games: ImportPlan;
-  /** null when the file has no players section (v1) — the device's players are kept. */
+  /** null when the file has no players section (v1) - the device's players are kept. */
   players: PlayerImportPlan | null;
-  /** null when the file has no plays section (v1/v2) — the device's history is kept. */
+  /** null when the file has no plays section (v1/v2) - the device's history is kept. */
   plays: { incoming: RawPlay[]; fresh: number } | null;
 }
 
@@ -32,6 +34,12 @@ export class Manage {
   private games = inject(GameStore);
   private players = inject(PlayerStore);
   private plays = inject(PlayStore);
+  private backup = inject(BackupService);
+  private storage = inject(PersistentStorageService);
+
+  protected lastBackup = this.backup.describe;
+  protected backupStale = this.backup.stale;
+  protected persisted = this.storage.persisted;
 
   protected gameCount = () => this.games.games().length;
   protected playerCount = () => this.players.players().length;
@@ -57,7 +65,7 @@ export class Manage {
       try {
         data = JSON.parse(reader.result as string);
       } catch {
-        this.importError.set('Could not parse file — make sure it is valid JSON.');
+        this.importError.set('Could not parse file. Make sure it is valid JSON.');
         return;
       }
 
@@ -132,5 +140,6 @@ export class Manage {
     link.download = 'boardgame-butler.json';
     link.click();
     URL.revokeObjectURL(url);
+    this.backup.recordExport();
   }
 }

@@ -3,6 +3,7 @@ import { provideRouter } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { History } from './history';
+import { UndoService } from '../undo';
 import { SAMPLE_PLAYS, findByText, query, queryAll, savedPlays, seedPlays, settle, text } from '../../testing/helpers';
 
 describe('History', () => {
@@ -113,6 +114,25 @@ describe('History', () => {
       await settle(fixture);
       expect(text(fixture)).not.toContain('Delete this play of Azul?');
       expect(savedPlays()).toEqual(SAMPLE_PLAYS);
+    });
+
+    it('offers an undo that puts the play back where it was', async () => {
+      await setup();
+      const undo = TestBed.inject(UndoService);
+
+      query<HTMLButtonElement>(fixture, 'button[aria-label="Delete play of Azul"]').click();
+      await settle(fixture);
+      findByText<HTMLButtonElement>(fixture, 'button', 'Yes, delete').click();
+      await settle(fixture);
+
+      expect(undo.offer()?.message).toBe('Deleted your play of Azul.');
+      expect(savedPlays()!.map(p => p.id)).toEqual(['pl-1', 'pl-3']);
+
+      undo.accept();
+      await settle(fixture);
+
+      expect(savedPlays()!.map(p => p.id)).toEqual(['pl-1', 'pl-2', 'pl-3']);
+      expect(titles()).toEqual(['Catan', 'Azul', 'Catan']);
     });
 
     it('confirming removes the play', async () => {

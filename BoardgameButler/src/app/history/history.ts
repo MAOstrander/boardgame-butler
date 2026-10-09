@@ -1,6 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { PlayStore } from '../play-store';
+import { UndoService } from '../undo';
 import { Play } from '../play';
 
 @Component({
@@ -10,6 +11,7 @@ import { Play } from '../play';
 })
 export class History {
   private store = inject(PlayStore);
+  private undo = inject(UndoService);
 
   protected plays = this.store.recent;
   protected error = this.store.error;
@@ -50,7 +52,14 @@ export class History {
   protected confirmDelete() {
     const id = this.confirmingId();
     if (!id) return;
+
+    const play = this.store.find(id);
+    const index = this.store.indexOf(id);
     this.store.remove(id);
     this.confirmingId.set(null);
+
+    if (play) {
+      this.undo.propose(`Deleted your play of ${play.gameTitle}.`, () => this.store.restore(play, index));
+    }
   }
 }

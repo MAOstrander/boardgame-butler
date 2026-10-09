@@ -13,8 +13,8 @@ export type InstallOutcome = 'accepted' | 'dismissed' | 'unavailable';
 
 /**
  * Wraps the browser's install flow. Chrome no longer shows an install banner
- * of its own — it fires `beforeinstallprompt` and expects the page to offer
- * the choice — so the event is captured here and replayed when the user asks.
+ * of its own - it fires `beforeinstallprompt` and expects the page to offer
+ * the choice - so the event is captured here and replayed when the user asks.
  *
  * Browsers that never fire the event (notably iOS Safari, where installing is
  * Share → Add to Home Screen) simply leave `canInstall` false.

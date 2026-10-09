@@ -109,6 +109,11 @@ describe('PlayStore', () => {
     expect(store.plays()).toEqual([]);
   });
 
+  it('lastLineup() is empty with no plays', () => {
+    seedPlays([]);
+    expect(TestBed.inject(PlayStore).lastLineup()).toEqual([]);
+  });
+
   describe('with plays', () => {
     beforeEach(() => seedPlays(SAMPLE_PLAYS));
 
@@ -140,6 +145,42 @@ describe('PlayStore', () => {
       store.remove('pl-2');
       expect(store.plays().map(p => p.id)).toEqual(['pl-1', 'pl-3']);
       expect(savedPlays()!.map(p => p.id)).toEqual(['pl-1', 'pl-3']);
+    });
+
+    it('lastLineup() gives the players of the most recent play', () => {
+      const store = TestBed.inject(PlayStore);
+      // pl-2 and pl-3 share a date; recent() puts the later-logged pl-3 first.
+      expect(store.lastLineup().map(p => p.name)).toEqual(['Sam', 'Alex', 'Jo']);
+    });
+
+    it('lastLineup() ignores a back-filled older play', () => {
+      const store = TestBed.inject(PlayStore);
+      store.add({ ...SAMPLE_PLAYS[0], playedAt: '2020-01-01', players: [{ id: 'p-jo', name: 'Jo' }] });
+      expect(store.lastLineup().map(p => p.name)).toEqual(['Sam', 'Alex', 'Jo']);
+    });
+
+    it('indexOf() and restore() put a removed play back where it was', () => {
+      const store = TestBed.inject(PlayStore);
+      const index = store.indexOf('pl-2');
+      const play = store.find('pl-2')!;
+      expect(index).toBe(1);
+
+      store.remove('pl-2');
+      store.restore(play, index);
+
+      expect(store.plays().map(p => p.id)).toEqual(['pl-1', 'pl-2', 'pl-3']);
+      expect(savedPlays()!.map(p => p.id)).toEqual(['pl-1', 'pl-2', 'pl-3']);
+    });
+
+    it('restore() clamps an out-of-range index rather than leaving a hole', () => {
+      const store = TestBed.inject(PlayStore);
+      store.restore(SAMPLE_PLAYS[0], 99);
+      expect(store.plays().length).toBe(4);
+      expect(store.plays()[3].id).toBe('pl-1');
+    });
+
+    it('indexOf() returns -1 for an unknown id', () => {
+      expect(TestBed.inject(PlayStore).indexOf('nope')).toBe(-1);
     });
 
     it('forGame() filters by game id', () => {

@@ -13,7 +13,7 @@
         Boardgame Butler
       </h1>
       <p class="mt-4 text-lg text-white/80 max-w-xl mx-auto leading-relaxed">
-        Your personal board game concierge. Track your collection by player count, play time, and complexity — then let the Butler choose what to play tonight.
+        Your personal board game concierge. Track your collection by player count, play time, and complexity, then let the Butler choose what to play tonight.
       </p>
     </div>
 
@@ -116,6 +116,24 @@
         </label>
 
         <div class="flex flex-col gap-1.5 text-sm">
+          <span class="text-white/70">Plays best at that count</span>
+          <button
+            type="button"
+            id="filter-best-at-count"
+            (click)="toggleBestAtCount()"
+            [disabled]="filters().players == null"
+            [attr.aria-pressed]="bestAtCountOnly()"
+            class="px-3 py-2 rounded-lg border text-sm font-medium transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+            [class]="bestAtCountOnly()
+              ? 'bg-green-600 border-green-500 text-white'
+              : 'bg-black/30 border-white/20 text-white/80 hover:border-green-500'"
+          >
+            {{ bestAtCountLabel() }}
+          </button>
+          <p class="text-xs text-white/40">Uses your fun ratings to find which table size suits each game.</p>
+        </div>
+
+        <div class="flex flex-col gap-1.5 text-sm">
           <span class="text-white/70">Overdue a turn</span>
           <button
             type="button"
@@ -133,7 +151,7 @@
         <div class="flex items-center justify-between gap-3 pt-1 border-t border-white/10">
           <p class="text-sm text-white/70" aria-live="polite">
             @if (!filtersActive()) {
-              No filters set — all {{ games().length }} games match
+              No filters set; all {{ games().length }} games match
             } @else if (matches().length === 0) {
               No games match these filters
             } @else {
@@ -185,7 +203,17 @@
     @if (!ready()) {
       <p class="text-white/40 text-sm">Loading game library...</p>
     } @else if (games().length === 0) {
-      <p class="text-white/40 text-sm">Your collection is empty — add a game to get started.</p>
+      <p class="text-white/40 text-sm">Your collection is empty. Add a game to get started.</p>
+    }
+
+    @if (backupNudge()) {
+      <a
+        routerLink="/manage"
+        data-testid="backup-nudge"
+        class="px-4 py-2 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-200 text-sm hover:bg-amber-500/25 transition-colors"
+      >
+        Last backed up {{ lastBackup() }}; export your collection
+      </a>
     }
 
     @if (canInstall()) {

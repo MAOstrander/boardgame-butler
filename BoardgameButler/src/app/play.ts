@@ -29,7 +29,7 @@ export interface Play {
   notes?: string;
 }
 
-/** A play as it may arrive from a backup file — `id` is optional there. */
+/** A play as it may arrive from a backup file - `id` is optional there. */
 export type RawPlay = Omit<Play, 'id'> & { id?: string };
 
 /**

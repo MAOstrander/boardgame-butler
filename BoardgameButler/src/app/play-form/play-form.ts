@@ -64,6 +64,9 @@ export class PlayForm implements OnInit {
   protected gameId = signal('');
   protected playedAt = signal(today());
   protected participantIds = signal<string[]>([]);
+  /** True while the player chips are still the untouched suggestion from last time. */
+  protected prefilledLineup = signal(false);
+
   /** Typed head-count; empty means "same as the selected players". */
   protected playerCountInput = signal('');
   protected winnerIds = signal<string[]>([]);
@@ -91,7 +94,7 @@ export class PlayForm implements OnInit {
     return typed < selected ? `You picked ${selected} players above.` : null;
   });
 
-  /** Minutes on the stopwatch, if it has been used — offered as a shortcut. */
+  /** Minutes on the stopwatch, if it has been used - offered as a shortcut. */
   protected stopwatchMinutes = computed(() => Math.round(this.timers.stopwatch.elapsedMs() / 60_000));
 
   protected valid = computed(
@@ -105,6 +108,14 @@ export class PlayForm implements OnInit {
     if (id == null) {
       const preselect = this.game();
       if (preselect && this.games.find(preselect)) this.gameId.set(preselect);
+
+      // Most game nights are the same group, so start from whoever played last.
+      // Anyone since removed from the player list is dropped.
+      const lineup = this.plays.lastLineup().filter(p => this.playerStore.find(p.id));
+      if (lineup.length > 0) {
+        this.participantIds.set(lineup.map(p => p.id));
+        this.prefilledLineup.set(true);
+      }
       return;
     }
 
@@ -136,6 +147,7 @@ export class PlayForm implements OnInit {
   }
 
   protected togglePlayer(id: string) {
+    this.prefilledLineup.set(false);
     const selected = this.participantIds();
     if (selected.includes(id)) {
       this.participantIds.set(selected.filter(p => p !== id));
@@ -143,6 +155,13 @@ export class PlayForm implements OnInit {
     } else {
       this.participantIds.set([...selected, id]);
     }
+  }
+
+  /** Deselect everyone - quicker than un-tapping a suggested line-up one by one. */
+  protected clearPlayers() {
+    this.prefilledLineup.set(false);
+    this.participantIds.set([]);
+    this.winnerIds.set([]);
   }
 
   protected isPlayer(id: string): boolean {

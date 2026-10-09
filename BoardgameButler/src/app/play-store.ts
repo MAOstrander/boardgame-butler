@@ -8,7 +8,7 @@ export const PLAYS_STORAGE_KEY = 'boardgame-butler.plays';
 
 /**
  * The play log. Plays are append-only events, so a backup is *merged* by id
- * rather than replacing what's here — importing an old file can never lose
+ * rather than replacing what's here - importing an old file can never lose
  * history. Stored in localStorage under its own key, and seeded from the
  * bundled plays.json on a device that has never logged any.
  */
@@ -43,6 +43,13 @@ export class PlayStore {
     }
   }
 
+  /**
+   * The line-up from the most recent play, for pre-filling the next one. Taken
+   * by date rather than by insertion order, so back-filling an old session
+   * doesn't change who the app thinks you're currently playing with.
+   */
+  readonly lastLineup = computed(() => this.recent()[0]?.players ?? []);
+
   find(id: string): Play | undefined {
     return this._plays().find(p => p.id === id);
   }
@@ -63,6 +70,18 @@ export class PlayStore {
 
   remove(id: string) {
     this.commit(this._plays().filter(p => p.id !== id));
+  }
+
+  /** Put a removed play back at its original position, for undo. */
+  restore(play: Play, index: number) {
+    const plays = [...this._plays()];
+    plays.splice(Math.max(0, Math.min(index, plays.length)), 0, play);
+    this.commit(plays);
+  }
+
+  /** Where a play sits in storage order, or -1. */
+  indexOf(id: string): number {
+    return this._plays().findIndex(p => p.id === id);
   }
 
   /** Add plays whose id isn't already here. Returns how many were added. */

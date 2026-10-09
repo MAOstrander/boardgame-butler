@@ -1,6 +1,6 @@
-# Boardgame Butler — Feature Documentation
+# Boardgame Butler: Feature Documentation
 
-Boardgame Butler is a personal board game concierge: it keeps a small library of the games you own and helps you pick one to play. It is a single-user, installable **progressive web app** — the collection lives in the browser's storage on each device, so once installed it works fully offline with no server behind it.
+Boardgame Butler is a personal board game concierge: it keeps a small library of the games you own and helps you pick one to play. It is a single-user, installable **progressive web app**. The collection lives in the browser's storage on each device, so once installed it works fully offline with no server behind it.
 
 This document describes the features that exist today. Items shown as "planned" appear in the app's UI but are not yet implemented.
 
@@ -13,7 +13,7 @@ This document describes the features that exist today. Items shown as "planned" 
 - [Player data model](#player-data-model)
 - [Play data model](#play-data-model)
 - [Pages](#pages)
-  - [Home — "Serve me a game!"](#home--serve-me-a-game)
+  - [Home ("Serve me a game!")](#home-serve-me-a-game)
   - [Your Collection](#your-collection)
   - [Add / Edit a Game](#add--edit-a-game)
   - [Manage Collection (import / export)](#manage-collection-import--export)
@@ -22,10 +22,12 @@ This document describes the features that exist today. Items shown as "planned" 
   - [Play History & Log a Play](#play-history--log-a-play)
   - [Statistics](#statistics)
 - [Data storage](#data-storage)
+- [Keeping the data](#keeping-the-data)
 - [Sample data](#sample-data)
 - [Backup file format](#backup-file-format)
 - [Progressive web app (install & offline)](#progressive-web-app-install--offline)
 - [Running and deploying](#running-and-deploying)
+- [BoardGameGeek proxy](#boardgamegeek-proxy)
 - [Planned features (not yet implemented)](#planned-features-not-yet-implemented)
 - [Roadmap](#roadmap)
 
@@ -37,10 +39,10 @@ This document describes the features that exist today. Items shown as "planned" 
 |---|---|
 | Frontend | Angular 21 (standalone components, signals, new control flow, zoneless) |
 | Styling | Tailwind CSS 4 |
-| Backend | None — static files only |
-| Persistence | `localStorage` on each device — games, players and plays under separate keys, each seeded from a bundled JSON file |
+| Backend | None; static files only |
+| Persistence | `localStorage` on each device, with games, players and plays under separate keys, each seeded from a bundled JSON file |
 | Offline / install | `@angular/service-worker` + web app manifest |
-| Tests | Vitest + jsdom — functional component specs for every page (`npm test`) |
+| Tests | Vitest and jsdom, with functional component specs for every page (`npm test`) |
 
 There are eleven routes:
 
@@ -52,7 +54,7 @@ There are eleven routes:
 | `/edit-game/:id` | `GameForm` | The same form, pre-filled, to change or delete an existing game |
 | `/manage` | `Manage` | Export games, players and plays as a backup, or restore from one |
 | `/tools` | `Tools` | Dice roller, countdown timer and stopwatch for use at the table |
-| `/players` | `Players` | The people you play with — add, rename, remove |
+| `/players` | `Players` | The people you play with: add, rename, remove |
 | `/history` | `History` | Every logged play, newest first, with edit and delete |
 | `/log-play` | `PlayForm` | Log a play; `?game=<id>` pre-selects the game |
 | `/log-play/:id` | `PlayForm` | Edit a logged play |
@@ -77,7 +79,7 @@ interface Game {
 }
 ```
 
-Two helper types cover the edges: `RawGame` (a game from a JSON file, where `id` is optional) and `GameDetails` (everything except `id` — what the form edits).
+Two helper types cover the edges: `RawGame` (a game from a JSON file, where `id` is optional) and `GameDetails` (everything except `id`, which is what the form edits).
 
 Notes:
 
@@ -89,7 +91,7 @@ Notes:
 - `rating` is required when adding a game through the UI, but the seed data and imported files may leave it out. The UI treats a missing rating as "no rating" and hides the badge.
 - The import preview list is keyed by `title` because imported rows may not have ids yet.
 
-The starter collection in `public/games.json` contains 11 games (Catan, Ticket to Ride, Pandemic, Terraforming Mars, Azul, Wingspan, Gloomhaven, …), most with a rating and two deliberately without. It is only used to seed a device that has never saved a collection — see [Sample data](#sample-data).
+The starter collection in `public/games.json` contains 11 games (Catan, Ticket to Ride, Pandemic, Terraforming Mars, Azul, Wingspan, Gloomhaven, …), most with a rating and two deliberately without. It is only used to seed a device that has never saved a collection; see [Sample data](#sample-data).
 
 ---
 
@@ -102,9 +104,9 @@ interface Player {
 }
 ```
 
-Players exist so that future play statistics can group by person without "Matt" and "matt" splitting into two people. A `RawPlayer` (optional `id`) is what arrives from a backup file. Names follow the same uniqueness rule as game titles — `normalizeKey()` in `src/app/normalize.ts`, shared by both stores and the import de-duplication.
+Players exist so that future play statistics can group by person without "Matt" and "matt" splitting into two people. A `RawPlayer` (optional `id`) is what arrives from a backup file. Names follow the same uniqueness rule as game titles, via `normalizeKey()` in `src/app/normalize.ts`, shared by both stores and the import de-duplication.
 
-A new device is seeded with five sample players from `public/players.json` — see [Sample data](#sample-data).
+A new device is seeded with five sample players from `public/players.json`; see [Sample data](#sample-data).
 
 ---
 
@@ -127,13 +129,13 @@ interface Play {
 
 **Snapshots.** A play stores the game's title and each player's name as they were when it was logged. That is the deletion policy: deleting a game or removing a player **keeps their plays**, and history still reads correctly. The ids remain so statistics can group across snapshots, and the edit form still offers a deleted game / removed player as a choice, labelled *(no longer in collection)* / *(removed)*.
 
-**Merge semantics.** Plays are append-only events, so a backup's plays are *merged* by id rather than replacing what's on the device — see [Backup file format](#backup-file-format).
+**Merge semantics.** Plays are append-only events, so a backup's plays are *merged* by id rather than replacing what's on the device; see [Backup file format](#backup-file-format).
 
 ---
 
 ## Pages
 
-### Home — "Serve me a game!"
+### Home ("Serve me a game!")
 
 **Route:** `/`
 **Files:** `src/app/home/home.ts`, `src/app/home/home.html`
@@ -143,14 +145,14 @@ The landing page shows a full-bleed background image (`public/hero.webp`) under 
 **What it does**
 
 1. It reads the collection from the shared `GameStore` (see [Data storage](#data-storage)).
-2. Until the store is ready it shows *"Loading game library..."* and the main button is disabled. If the store is ready but empty it shows *"Your collection is empty — add a game to get started."* instead.
+2. Until the store is ready it shows *"Loading game library..."* and the main button is disabled. If the store is ready but empty it shows *"Your collection is empty. Add a game to get started."* instead.
 3. Clicking **Serve me a game!** picks one game uniformly at random from the **whole collection** and displays it in a *"Tonight's pick"* card showing:
    - Title
    - `players` players
    - `duration` min
    - `complexity`
    - `rating/10` (only if the game has a rating)
-4. Clicking the button again re-rolls. The same game can be picked twice in a row — there is no history or exclusion.
+4. Clicking the button again re-rolls. The same game can be picked twice in a row; there is no history or exclusion.
 5. **▾ Narrow it down** opens a filter panel (see below). **Serve me a match!** inside it picks at random from only the games that pass the filters, and the card is labelled *"Tonight's pick · from your matches"*. The main button always ignores the filters, so both options are available at once.
 6. An **📲 Install app** button appears above the links when the browser offers an install (see [Progressive web app](#progressive-web-app-install--offline)).
 7. The *Tonight's pick* card has a **We played this →** link to `/log-play?game=<id>`.
@@ -161,19 +163,20 @@ The landing page shows a full-bleed background image (`public/hero.webp`) under 
 | Filter | Control | A game matches when… |
 |---|---|---|
 | Players tonight | number input | the count is inside the game's player range, inclusive (`2-4` matches 2, 3 or 4; `3+` matches anything ≥ 3) |
-| Time available | select: Any / up to 30, 45, 60, 90, 120, 180 min | the game's **longest** listed duration fits — `45-90` does *not* match "up to 60", so you're never served a game that might run over |
+| Time available | select: Any / up to 30, 45, 60, 90, 120, 180 min | the game's **longest** listed duration fits; `45-90` does *not* match "up to 60", so you're never served a game that might run over |
 | Complexity | Easy / Medium / Hard toggle buttons | its complexity is one of the selected ones; none selected means any |
 | Minimum rating | select: Any / 5+ … 9+ | its rating is at or above the minimum; **unrated games are excluded** when this is set |
-| Overdue a turn | one toggle | it is tied for the fewest plays in the collection. The label says what that currently means — *Never played (4 games)* while anything is unplayed, or *Least played · 2 plays (3 games)* once everything has had a turn |
+| Plays best at that count | one toggle, needs *Players tonight* set | your fun ratings say it scores highest at exactly that table size (see [Statistics](#statistics)). Disabled until a count is chosen, and switched off automatically if you clear it. The label counts the qualifying games, as in *Best with 4 (3 games)* |
+| Overdue a turn | one toggle | it is tied for the fewest plays in the collection. The label says what that currently means: *Never played (4 games)* while anything is unplayed, or *Least played · 2 plays (3 games)* once everything has had a turn |
 
-- The "overdue a turn" toggle is the one filter that depends on the play log rather than a game's own fields, so it lives in `leastPlayed()` in `src/app/stats.ts` rather than `game-filter.ts`. It generalises "never played": once every game has been played, there is no answer to *never*, so it falls back to the lowest count there is.
-- Filters combine with AND. The panel shows a live count: *"No filters set — all N games match"*, *"K of N games match"*, or *"No games match these filters"* (the match button is disabled in that case).
+- "Overdue a turn" and "plays best at that count" are the two filters that depend on the play log rather than a game's own fields, so they live in `src/app/stats.ts` (`leastPlayed()` and `gameRows().bestPlayers`) rather than `game-filter.ts`. It generalises "never played": once every game has been played, there is no answer to *never*, so it falls back to the lowest count there is.
+- Filters combine with AND. The panel shows a live count: *"No filters set; all N games match"*, *"K of N games match"*, or *"No games match these filters"* (the match button is disabled in that case).
 - **Clear** resets every filter. Hiding the panel keeps the filters; they reset on a full page reload.
 - Player and duration ranges are parsed from the free-text fields (`"2-4"`, `"60-120"`, `"2"`, `"3+"`, `"2 to 6"`). A game whose text can't be parsed is excluded by that filter, since the app can't tell whether it fits. The parsing and matching logic is in `src/app/game-filter.ts`.
 
 **Current limitations**
 
-- The pick is uniformly random with no history — the same game can come up repeatedly.
+- The pick is uniformly random with no history; the same game can come up repeatedly.
 - Filters aren't remembered between launches.
 
 ---
@@ -221,24 +224,24 @@ One reactive form serves both jobs. Without an `:id` it adds a game; with one it
 
 | | Add | Edit |
 |---|---|---|
-| Heading | *Add a Game* | *Edit Game* — "Update the details for *Title*." |
+| Heading | *Add a Game* | *Edit Game*, with "Update the details for *Title*." |
 | Initial values | empty, complexity Medium | the game's current values |
 | Submit button | *Add to Collection* | *Save Changes* (plus a *Cancel* link) |
 | On success | `GameStore.add()`, go to `/` | `GameStore.update(id, …)`, go to `/collection` |
-| Delete | — | **Delete this game** below the form → inline confirmation *"Remove Title from your collection? This can't be undone."* with **Yes, delete it** / **Keep it**. If the game has logged plays the confirmation adds *"Its N logged plays will stay in your history."* Confirming calls `GameStore.remove(id)` and returns to `/collection` |
-| Unknown id | — | *"That game isn't in your collection any more."* with a link back |
+| Delete | - | **Delete this game** below the form → inline confirmation *"Remove Title from your collection? This can't be undone."* with **Yes, delete it** / **Keep it**. If the game has logged plays the confirmation adds *"Its N logged plays will stay in your history."* Confirming calls `GameStore.remove(id)` and returns to `/collection` |
+| Unknown id | - | *"That game isn't in your collection any more."* with a link back |
 
 **Fields**
 
 | Field | Control | Validation | Default |
 |---|---|---|---|
-| Title | text | required; **must not match another game's title** (case-insensitive, trimmed) | — |
-| Players | text (e.g. `2-4`) | required | — |
-| Duration (minutes) | text (e.g. `60-120`) | required | — |
+| Title | text | required; **must not match another game's title** (case-insensitive, trimmed) | - |
+| Players | text (e.g. `2-4`) | required | - |
+| Duration (minutes) | text (e.g. `60-120`) | required | - |
 | Complexity | select: Easy / Medium / Hard | required | Medium |
 | Your Rating | range slider 1–10 | required, min 1, max 10 | none (slider must be moved) |
 
-- Required-field errors appear beneath a field once it has been touched. The duplicate-title error — *You already have a game called "…"* — appears as soon as the title matches, and the submit button stays disabled. When editing, the game's own current title is allowed.
+- Required-field errors appear beneath a field once it has been touched. The duplicate-title error (*You already have a game called "…"*) appears as soon as the title matches, and the submit button stays disabled. When editing, the game's own current title is allowed.
 - Text fields are trimmed before saving.
 - The rating slider shows the live value (`7 / 10`) next to its label once set.
 - The submit button is disabled while the form is invalid.
@@ -248,6 +251,27 @@ One reactive form serves both jobs. Without an `:id` it adds a game; with one it
 - Appends the game to the `GameStore`, which writes it to `localStorage` immediately.
 - On success, navigates back to `/`.
 - If the browser refuses the write (e.g. storage quota exceeded or storage disabled), shows *"Could not save your collection to this device."* and stays on the page.
+
+**BoardGameGeek lookup.** Under the title sits **Look up on BoardGameGeek**, enabled once a title is typed. It searches BGG through the [proxy](#boardgamegeek-proxy) and lists up to 8 matches, each with its year and an *expansion* tag where relevant. BGG return hits in no useful order, so exact title matches come first, then base games ahead of expansions, then newest first. Choosing one fetches its details and fills in:
+
+| Field | From BGG |
+|---|---|
+| Title | the primary name |
+| Players | `minplayers`-`maxplayers`, or one number when they match |
+| Duration | `minplaytime`-`maxplaytime`, the same way |
+| Complexity | average weight: under 2 is Easy, under 3 is Medium, 3 and up is Hard |
+
+The rating is never touched, since it is the user's own opinion, so the form still needs it before saving. A field BGG have no figure for (they send `0`) keeps whatever it had. A line beneath confirms *"Filled in from Title (year) on BoardGameGeek"*, linking to the game's BGG page. The filled title goes through the duplicate check like any other. *None of these* closes the list without changing anything.
+
+Failures read as plain sentences: no matches, BGG busy (429), no connection, or BGG still preparing the response. That last one is BGG's 202, which the client retries three times at two-second intervals before giving up.
+
+The proxy's address is the `BGG_PROXY_URL` token in `src/app/bgg.ts` (`https://boardgame-butler-bgg.mysticalcarp.workers.dev`). Setting it to an empty string hides the lookup entirely.
+
+**BoardGameGeek credit.** Below the buttons sits a "Powered by BGG" logo linking to boardgamegeek.com, with a line explaining that game details can be looked up from there. BGG's XML API terms require any public-facing use of their data to show this logo linked back to the site, "sized so that the text remains easily legible"; 170px is used, and 130px is about the floor where the wordmark still reads. The reversed white-and-orange artwork is the one that suits this dark UI.
+
+This is the game form because that is where BGG data will actually land. If BGG integration later spreads beyond this one page, for example a lookup on the collection page or anything that displays BGG ratings, **the home page under the nav links is the better home for it**: a single credit there covers the whole app without needing one per feature. `BggCredit` takes a `size` input precisely so it can move without rework.
+
+The credit is covered by tests in `game-form.spec.ts` rather than left as decoration, since removing it would put the deployed app in breach of the API terms.
 
 **Current limitations**
 
@@ -261,7 +285,7 @@ One reactive form serves both jobs. Without an `:id` it adds a game; with one it
 **Route:** `/manage`
 **Files:** `src/app/manage/manage.ts`, `src/app/manage/manage.html`
 
-Backup and restore of everything on the device — games, players **and play history**. Because each device keeps its own data, this is also how you move between devices — export on one, import on the other.
+Backup and restore of everything on the device: games, players **and play history**. Because each device keeps its own data, this is also how you move between devices; export on one, import on the other.
 
 #### Export
 
@@ -280,18 +304,18 @@ Games and players in a file **replace** what's on the device; plays are **merged
 
 1. Click the dashed drop-zone to choose a file (`.json` / `application/json` only).
 2. The file is read client-side with `FileReader` and parsed (`parseImport()` in `src/app/export-format.ts`):
-   - Invalid JSON → *"Could not parse file — make sure it is valid JSON."*
+   - Invalid JSON → *"Could not parse file. Make sure it is valid JSON."*
    - Neither an array nor an object with a `games` entry → *"File must contain a JSON array of games, or a backup exported by this app."*
    - A backup whose `games` or `players` entry isn't an array → *"The "games" entry must be a JSON array."* (or `players`)
 3. A **preview** lists every game in the file (title, players, complexity) with a count, in a scrollable list.
-4. **Duplicate titles in the file** (same title ignoring case and whitespace) are handled *first wins*: the first entry is kept, later ones are greyed out and struck through with *skipped — duplicate of Catan*. If a skipped entry differs from the kept one, the differing fields are shown (*differs: rating 9*) so you can cancel and fix the file if "first wins" isn't what you want. The summary reads *Ready to import 10 games (2 duplicates will be skipped)* and an amber note explains the rule. The logic is the pure `planImport()` in `src/app/import-plan.ts`.
+4. **Duplicate titles in the file** (same title ignoring case and whitespace) are handled *first wins*: the first entry is kept, later ones are greyed out and struck through with *skipped: duplicate of Catan*. If a skipped entry differs from the kept one, the differing fields are shown (*differs: rating 9*) so you can cancel and fix the file if "first wins" isn't what you want. The summary reads *Ready to import 10 games (2 duplicates will be skipped)* and an amber note explains the rule. The logic is the pure `planImport()` in `src/app/import-plan.ts`.
 5. Each section present in the file gets a **checkbox** (all ticked by default) with a summary line:
    - *Replace games with N games* (with duplicate-skip counts as above)
-   - *Replace players with N players* with the names as chips (duplicates struck through, first wins), or *"— your current players will be removed"* if the list is empty
-   - *Merge N plays into your history — X new, Y already here*
-   Sections the file lacks show a note instead: *"This is an older games-only file — your N players will be kept."* / *"This file has no play history — your N logged plays will be kept."* Untick a section to leave it alone (e.g. restore only the games from an old backup). **Confirm Import** is disabled when nothing is ticked.
+   - *Replace players with N players* with the names as chips (duplicates struck through, first wins), or *"(your current players will be removed)"* if the list is empty
+   - *Merge N plays into your history: X new, Y already here*
+   Sections the file lacks show a note instead: *"This is an older games-only file, so your N players will be kept."* / *"This file has no play history, so your N logged plays will be kept."* Untick a section to leave it alone (e.g. restore only the games from an old backup). **Confirm Import** is disabled when nothing is ticked.
 6. **Confirm Import** applies the ticked sections and persists. **Cancel** discards the preview.
-7. On success a green banner summarises what happened — *"Imported 12 games, 3 players, 2 new plays."* and the drop-zone is shown again. If the browser refuses the write: *"Import failed. Please try again."* and the preview is kept.
+7. On success a green banner summarises what happened, as in *"Imported 12 games, 3 players, 2 new plays."* and the drop-zone is shown again. If the browser refuses the write: *"Import failed. Please try again."* and the preview is kept.
 
 **Current limitations**
 
@@ -310,7 +334,7 @@ Three cards for use during a game. Nothing here touches the collection.
 
 #### Dice
 
-- Pick a die type — **d4, d6, d8, d10, d12, d20, d100** — and a count from 1 to 10 with a −/+ stepper.
+- Pick a die type (**d4, d6, d8, d10, d12, d20, d100**) and a count from 1 to 10 with a −/+ stepper.
 - **Roll NdX** shows the total in large type and, for more than one die, each individual result.
 - The last five rolls are listed under *Recent rolls* (newest first).
 - `rollDice(sides, count, random?)` in `dice.ts` is pure; the random source is injectable so tests are deterministic.
@@ -319,7 +343,7 @@ Three cards for use during a game. Nothing here touches the collection.
 
 - Presets **1, 2, 5, 10, 15, 30 min**, or a **Custom** minutes box (decimals allowed, e.g. `2.5`).
 - **Start / Pause / Resume / Reset**. Presets and the custom box are disabled while running.
-- At zero the display turns red and pulses, *Time's up!* is announced (`role="alert"`), and the device **vibrates** and **beeps** where the platform allows (`navigator.vibrate`, Web Audio). Both are best-effort and silently skipped if unavailable — iOS Safari doesn't support vibration, and audio requires that the user has interacted with the page, which pressing Start satisfies.
+- At zero the display turns red and pulses, *Time's up!* is announced (`role="alert"`), and the device **vibrates** and **beeps** where the platform allows (`navigator.vibrate`, Web Audio). Both are best-effort and silently skipped if unavailable; iOS Safari doesn't support vibration, and audio requires that the user has interacted with the page, which pressing Start satisfies.
 - **Reset** rewinds to the chosen duration so the same timer can be run again.
 
 #### Stopwatch
@@ -328,11 +352,11 @@ Three cards for use during a game. Nothing here touches the collection.
 
 #### How the timers keep time
 
-Both timers derive elapsed time from `Date.now()` timestamps, not by counting ticks — the 250 ms interval only refreshes the display. That keeps them accurate when a phone throttles background JavaScript or the screen locks. They live in the root-scoped `TimerService`, so a running timer keeps going while you visit other pages; the Tools page calls `refresh()` on open to catch the display up. `Countdown` fires `onFinish` exactly once (guarded against the re-entrant tick that `pause()` triggers).
+Both timers derive elapsed time from `Date.now()` timestamps, not by counting ticks; the 250 ms interval only refreshes the display. That keeps them accurate when a phone throttles background JavaScript or the screen locks. They live in the root-scoped `TimerService`, so a running timer keeps going while you visit other pages; the Tools page calls `refresh()` on open to catch the display up. `Countdown` fires `onFinish` exactly once (guarded against the re-entrant tick that `pause()` triggers).
 
 **Current limitations**
 
-- One countdown and one stopwatch — no per-player turn clock yet.
+- One countdown and one stopwatch; no per-player turn clock yet.
 - Timers are in memory only; closing the app entirely loses them.
 - No custom dice expressions (e.g. `2d6+3`) or per-die exploding/rerolls.
 
@@ -345,7 +369,7 @@ Both timers derive elapsed time from `Date.now()` timestamps, not by counting ti
 
 Manage the people you play with. Everything is inline on one page.
 
-- **Add a player** — a text box and **Add** button (Enter also submits). The name is trimmed. **Add** stays disabled while the box is empty or the name matches an existing player (*You already have a player called "sam".*).
+- **Add a player**: a text box and **Add** button (Enter also submits). The name is trimmed. **Add** stays disabled while the box is empty or the name matches an existing player (*You already have a player called "sam".*).
 - The list is **alphabetical** with a count. Each row has **Rename** and **Remove**.
 - **Rename** swaps the row for an inline editor pre-filled with the name, with **Save** / **Cancel**. The player's own name is allowed; another player's is rejected with the same message.
 - **Remove** swaps the row for *Remove Alex?* with **Yes, remove** / **Keep**. Only one row can be editing or confirming at a time; starting one closes the other.
@@ -354,7 +378,7 @@ Manage the people you play with. Everything is inline on one page.
 
 **Current limitations**
 
-- Removing a player does not touch their logged plays — each play keeps a snapshot of the name (see [Play data model](#play-data-model)). There is no warning about this on the Players page yet.
+- Removing a player does not touch their logged plays; each play keeps a snapshot of the name (see [Play data model](#play-data-model)). There is no warning about this on the Players page yet.
 
 ---
 
@@ -371,12 +395,14 @@ One form for logging and editing, like the game form. Reached from the pick card
 |---|---|---|
 | Game | select, alphabetical | **required**; pre-selected from `?game=<id>`. Empty collection → link to Add a game |
 | Date | date input | **required**; defaults to today (local time) |
-| Who played | toggle chips of every player, alphabetical | no players → link to the Players page |
+| Who played | toggle chips of every player, alphabetical | **pre-selected with whoever played most recently**, since game nights tend to repeat; a **Clear** action empties the lot. No players → link to the Players page |
 | How many played | number, optional | defaults to the number of chips selected (the placeholder shows it, and a note says *Will be saved as N*); raise it when someone not in your Players list joined. Can't be lower than the chips selected or below 1 |
 | Who won | toggle chips of the *selected* players only | appears once someone is selected; deselecting a player also un-wins them; leave empty for a loss or draw |
 | How long | minutes | if the Table Tools **stopwatch** has time on it, a **Use stopwatch (N min)** button fills it in |
 | How fun was it? | 1–10 slider, optional | shows *not rated* until moved; **clear** unsets it |
 | Notes | textarea | trimmed; dropped if empty |
+
+**Carried-over line-up.** When logging something new, the players from the most recent play start selected, with a note saying so that disappears as soon as you change the selection. The line-up is read from the play log rather than stored separately (`PlayStore.lastLineup()`), so there is no extra state to keep in sync and it survives export/import for free. Three deliberate limits: it is taken by **date**, so back-filling an old session doesn't change who the app thinks you currently play with; anyone **since removed** from the player list is dropped; and only the people carry over, **not** the head-count or the winners, which are specific to a session rather than to a group.
 
 **Log Play** saves to `PlayStore` with the game title and player names snapshotted, then goes to `/history`. Editing (`/log-play/:id`) pre-fills everything, says **Save Changes**, offers **Cancel**, and keeps the play's id. A deleted game or removed player stays selectable with its snapshot, labelled *(no longer in collection)* / *(removed)*. Unknown id → *"That play isn't in your history any more."*
 
@@ -393,7 +419,9 @@ One form for logging and editing, like the game form. Reached from the pick card
 | `plays` | Read-only signal, storage order |
 | `recent` | Computed: newest first |
 | `find(id)`, `forGame(gameId)` | Lookups |
+| `lastLineup` | Computed: the players of the most recent play, for pre-filling the next |
 | `add(details)`, `update(id, details)`, `remove(id)` | Persisting edits |
+| `indexOf(id)` / `restore(play, index)` | Support undo by putting a deleted play back where it was |
 | `merge(incoming)` | Add plays whose id isn't already here; returns how many were added |
 | `countNew(incoming)` | What `merge` would add, for the import preview |
 
@@ -403,6 +431,7 @@ Stored under `boardgame-butler.plays`.
 
 - No filtering or search on the History page.
 - Logging is manual; nothing is recorded automatically from the quick-pick or timers.
+- The carried-over line-up comes from the single most recent play, not from the group you play with most often.
 
 ---
 
@@ -411,7 +440,7 @@ Stored under `boardgame-butler.plays`.
 **Route:** `/stats`
 **Files:** `src/app/stats/stats.ts`, `src/app/stats/stats.html`, with all the arithmetic in `src/app/stats.ts`
 
-Everything is computed on the fly from the play log — nothing is stored. With no plays logged the page shows an empty state pointing at **Log your first play**.
+Everything is computed on the fly from the play log; nothing is stored. With no plays logged the page shows an empty state pointing at **Log your first play**.
 
 #### Overview tiles
 
@@ -426,7 +455,20 @@ Everything is computed on the fly from the play log — nothing is stored. With 
 
 One row per game that has been played, most plays first: **Plays**, **Players**, **Last played**, **Avg time** and **Avg fun**. Averages use only plays that recorded the value and are rounded to one decimal; `—` when none did.
 
-**Players** is the average head-count — each play's *How many played* if it was set, otherwise the number of named players; plays with neither are left out. When the head-count varied, a breakdown of **duration by head-count** appears beneath it, e.g. *3p ×2 · 70 min, 4p ×3 · 95 min* — how many plays at each table size and the average recorded time at that size. That's the quickest way to see whether a game's length really depends on how many are playing. A game always played at the same size shows just the number.
+**Players** is the average head-count: each play's *How many played* if it was set, otherwise the number of named players; plays with neither are left out. A game always played at the same table size shows just that number.
+
+When the head-count varied, a **breakdown by table size** appears beneath it, with one line per size showing the number of plays, the average recorded duration and the average fun rating:
+
+```
+3.5
+★ best with 3
+3p ×2 · 75 min · fun 7.5
+4p ×2 · 142.5 min · fun 6
+```
+
+**★ best with N** names the table size the game scored highest fun at, and that line is highlighted green in the breakdown. This is the point where logging pays off: the example above says Catan takes nearly twice as long with four players *and* rates a point and a half lower, which is exactly the kind of thing you forget between game nights.
+
+It only appears when fun was recorded at **two or more different table sizes**. With one, there is nothing to compare against, and announcing a "best" from a single data point would be misleading. Ties go to the size with more plays behind it, then to the smaller table. The play counts are shown on every line so you can judge how much to trust it.
 
 Under the average time, a comparison with the game's listed duration range: *in range*, *+30 min over* (red) or *10 min under* (blue). Games with an open-ended listed range (`60+`) get no comparison.
 
@@ -447,15 +489,16 @@ Pure functions, all snapshot-aware:
 | Function | Returns |
 |---|---|
 | `overview(games, plays, today)` | The four tiles' numbers |
-| `gameRows(games, plays)` | One `GameRow` per collection game plus one per deleted game with plays, including `avgPlayers` and a `byPlayers` duration breakdown; sorted by plays desc, then title |
+| `gameRows(games, plays)` | One `GameRow` per collection game plus one per deleted game with plays, including `avgPlayers`, a `byPlayers` breakdown of duration and fun per table size, and `bestPlayers`; sorted by plays desc, then title |
 | `headCount(play)` | Explicit `playerCount`, else named players; null when unknown |
 | `playerRows(players, plays)` | One `PlayerRow` per player plus one per removed player with plays; sorted by plays desc, then name |
 | `shiftDate(iso, days)`, `todayIso()` | Date helpers that avoid timezone drift |
 
 **Current limitations**
 
-- No time-range selection (e.g. "this year") — the 30-day figure is the only windowed number.
+- No time-range selection (e.g. "this year"); the 30-day figure is the only windowed number.
 - No head-to-head (player vs. player) breakdowns.
+- "Best with N" compares raw averages with no weighting for sample size, so two plays can outvote five. The play counts are shown so you can discount it yourself.
 - Tables are fixed-order; no sorting controls.
 
 ---
@@ -474,10 +517,11 @@ There is no backend. The collection is owned by `GameStore` (`src/app/game-store
 | `add(details)` | Append one game with a fresh id and persist; returns the new `Game` |
 | `update(id, details)` | Replace one game's details in place and persist |
 | `remove(id)` | Drop one game and persist |
+| `indexOf(id)` / `restore(game, index)` | Support undo by putting a deleted game back where it was |
 | `replaceAll(games)` | Overwrite the collection and persist |
 | `toJson()` | Pretty-printed JSON, used by export |
 
-**Ids.** Everything entering either store — saved data, the seed file, an imported file — passes through `assignIds()` (`src/app/ids.ts`), which keeps any `id` an item already has and generates one (`crypto.randomUUID()`) for items without one or with a duplicate. Data saved before ids existed is upgraded and re-saved on the next launch.
+**Ids.** Everything entering either store (saved data, the seed file, an imported file) passes through `assignIds()` (`src/app/ids.ts`), which keeps any `id` an item already has and generates one (`crypto.randomUUID()`) for items without one or with a duplicate. Data saved before ids existed is upgraded and re-saved on the next launch.
 
 `PlayerStore` (`src/app/player-store.ts`) is the same shape for players: `players`, `error`, `find(id)`, `hasName(name, excludeId?)`, `add(name)`, `rename(id, name)`, `remove(id)`, `replaceAll(players)`. It has no `ready` flag because there is nothing to seed.
 
@@ -488,7 +532,7 @@ There is no backend. The collection is owned by `GameStore` (`src/app/game-store
 
 **First run**
 
-All three stores behave the same way: when one finds nothing saved for its key (or something unparseable / not an array), it fetches its bundled seed file — `games.json`, `players.json` or `plays.json` — stores the result, and flips `ready`. The service worker caches all three, so this works even if the first launch after install happens offline. If a fetch fails, `ready` still becomes `true` with that section empty and `error` set (*"Could not load the starter collection / players / play history."*).
+All three stores behave the same way: when one finds nothing saved for its key (or something unparseable / not an array), it fetches its bundled seed file (`games.json`, `players.json` or `plays.json`), stores the result, and flips `ready`. The service worker caches all three, so this works even if the first launch after install happens offline. If a fetch fails, `ready` still becomes `true` with that section empty and `error` set (*"Could not load the starter collection / players / play history."*).
 
 An **empty saved list is a decision, not a missing one**: if you delete every game, player or play, the store saves `[]` and will not re-seed on the next launch. Only clearing site data brings the samples back.
 
@@ -500,6 +544,38 @@ An **empty saved list is a decision, not a missing one**: if you delete every ga
 
 ---
 
+## Keeping the data
+
+Everything lives in one browser with no server copy, so three things guard against losing it.
+
+### Persistent storage
+
+`PersistentStorageService` calls `navigator.storage.persist()` once at startup (from `App`'s constructor). Browsers may evict "best-effort" origin storage under disk pressure, and Safari discards script-writable storage for sites unused for a week; persistent storage opts out of both. Chrome grants it silently for installed apps and Safari already exempts home-screen apps, so in practice it is free.
+
+It is a request, not a guarantee, and it does **not** stop anyone clearing site data by hand. The signal is three-valued (granted, refused, or unknown/unsupported) and Manage mentions the eviction risk only on an outright refusal.
+
+### Undo
+
+Deleting a game, player or play is immediate and there is nothing to restore from, so each delete hands its reversal to `UndoService` and a toast appears for eight seconds with an **Undo** action. `UndoToast` is rendered once in `App`, beside the router outlet, so it survives navigation, which matters because deleting a game navigates away from the form.
+
+Each store has `indexOf(id)` and `restore(item, index)` so an undone delete puts the item back in its original position rather than appending it. Only one offer exists at a time: a second delete replaces the first, which then can't be reversed.
+
+| Deleted | Message | Reversal |
+|---|---|---|
+| Game | *Deleted Catan.* | `GameStore.restore()`, and its plays were never touched |
+| Player | *Removed Alex.* | `PlayerStore.restore()`; their plays keep the name snapshot either way |
+| Play | *Deleted your play of Azul.* | `PlayStore.restore()` |
+
+### Backup staleness
+
+`BackupService` records the time of each export under `boardgame-butler.lastExport` and exposes how long ago that was. Manage always shows *Last backed up: today / 5 days ago / never*, in amber once it passes 30 days. The home page adds a link to Manage when a backup is overdue **and** there are plays to lose, since nagging about an empty log would be noise.
+
+This protects nothing by itself. It exists so backup stops being a decision you have to remember to make.
+
+**What none of this covers:** losing or wiping the device. Export remains the only answer there, and the options beyond it are noted in the [Roadmap](#roadmap).
+
+---
+
 ## Sample data
 
 A device that has never used the app is seeded from three files in `public/`, so the deployed site demonstrates every feature rather than opening empty:
@@ -507,14 +583,14 @@ A device that has never used the app is seeded from three files in `public/`, so
 | File | Contents |
 |---|---|
 | `games.json` | 11 games with stable `seed-*` ids; most rated, two unrated, four never played |
-| `players.json` | 5 players — Sam, Alex, Jo, Riley, Morgan |
+| `players.json` | 5 players: Sam, Alex, Jo, Riley, Morgan |
 | `plays.json` | 15 plays across 7 of the games |
 
-**Relative dates.** Seed plays carry `daysAgo` instead of `playedAt`, and `PlayStore` converts it at seed time (`SeedPlay` in `play.ts`). A fixed date would make the demo age badly — the *last 30 days* tile would drift to zero and every game would look abandoned. With offsets, a visitor always sees a plausible recent history.
+**Relative dates.** Seed plays carry `daysAgo` instead of `playedAt`, and `PlayStore` converts it at seed time (`SeedPlay` in `play.ts`). A fixed date would make the demo age badly; the *last 30 days* tile would drift to zero and every game would look abandoned. With offsets, a visitor always sees a plausible recent history.
 
 **What the samples deliberately cover**, so no feature renders as an empty case on the deployed site:
 
-- Games at **different head-counts with different durations** — Catan at 3 players averages 75 min, at 4 players 142.5 min, which is exactly what the stats breakdown is for.
+- Games at **different head-counts with different durations**: Catan at 3 players averages 75 min, at 4 players 142.5 min, which is exactly what the stats breakdown is for.
 - A game that **runs over its listed range** (Terraforming Mars, 215 min against a listed 120–180) so the red *over* label appears.
 - A **co-op loss** with no winner and a **co-op win** with all four players, so win rate over *decided* plays is visible.
 - A **team game with a head-count above the named players** (Codenames at 8 and 6), which shows the *N players* chip and the optional head-count field.
@@ -523,9 +599,9 @@ A device that has never used the app is seeded from three files in `public/`, so
 - Four **never-played** games, for that list on the Stats page.
 - Win rates that **straddle 50 %**, so the green styling appears (Riley at 56 %).
 
-`src/app/seed-data.spec.ts` asserts all of this plus referential integrity — unique ids, plays pointing at games and players that exist, snapshots matching the entities they name, winners who actually took part. The data is hand-written, so those checks are what stop a typo shipping.
+`src/app/seed-data.spec.ts` asserts all of this plus referential integrity: unique ids, plays pointing at games and players that exist, snapshots matching the entities they name, winners who actually took part. The data is hand-written, so those checks are what stop a typo shipping.
 
-**Changing the samples.** Editing these files only affects devices that haven't saved anything yet — including your own. Existing users keep what they have; see [Data storage](#data-storage). To ship an empty app instead, make each file `[]`.
+**Changing the samples.** Editing these files only affects devices that haven't saved anything yet, including your own. Existing users keep what they have; see [Data storage](#data-storage). To ship an empty app instead, make each file `[]`.
 
 ---
 
@@ -533,7 +609,7 @@ A device that has never used the app is seeded from three files in `public/`, so
 
 Defined in `src/app/export-format.ts`.
 
-**Version 3 (current)** — what Export produces:
+**Version 3 (current)**, which is what Export produces:
 
 ```json
 {
@@ -545,11 +621,11 @@ Defined in `src/app/export-format.ts`.
 }
 ```
 
-**Version 2** — the same without `plays`. **Version 1** — a bare JSON array of games, as exported before players existed and as the bundled `games.json` is written. (The seed files are not backups: they are three separate arrays, and `plays.json` uses `daysAgo` rather than `playedAt`. Import does not read them.)
+**Version 2** is the same without `plays`. **Version 1** is a bare JSON array of games, as exported before players existed and as the bundled `games.json` is written. (The seed files are not backups: they are three separate arrays, and `plays.json` uses `daysAgo` rather than `playedAt`. Import does not read them.)
 
 Import accepts all three. `parseImport()` decides the version by shape (array ⇒ v1; object with a `games` array ⇒ v2; with a `plays` array too ⇒ v3), so a hand-written file without a `version` field also works. A section the file doesn't have is reported as `null` and left alone on the device. Ids in the file are preserved on import; missing ones are generated.
 
-**Why plays merge instead of replace.** Games and players are *state* — the file is the truth and replaces the device. Plays are *events* — every one is worth keeping, and they have stable ids, so a union by id is always safe. This is what makes it harmless to restore last month's backup: games and players roll back, history doesn't shrink. Future formats should bump `version` and extend `parseImport()` rather than change the meaning of existing fields.
+**Why plays merge instead of replace.** Games and players are *state*: the file is the truth and replaces the device. Plays are *events*: every one is worth keeping, and they have stable ids, so a union by id is always safe. This is what makes it harmless to restore last month's backup: games and players roll back, history doesn't shrink. Future formats should bump `version` and extend `parseImport()` rather than change the meaning of existing fields.
 
 ---
 
@@ -559,17 +635,17 @@ The app is installable on phones and desktops and works with no network once ins
 
 | Piece | Where |
 |---|---|
-| Web app manifest | `public/manifest.webmanifest` — name *Boardgame Butler*, short name *Butler*, standalone display, amber theme colour, dark background, 72–512 px icons cropped from the Dice Butler artwork |
+| Web app manifest | `public/manifest.webmanifest`, declaring name *Boardgame Butler*, short name *Butler*, standalone display, amber theme colour, dark background, 72–512 px icons cropped from the Dice Butler artwork |
 | Service worker | Angular's `ngsw-worker.js`, registered in `app.config.ts` with `registerWhenStable:30000`; **enabled only in production builds** (`!isDevMode()`) |
-| Caching policy | `ngsw-config.json` — `index.html`, all JS/CSS, the manifest and `games.json` are prefetched on install; images and icons are cached lazily on first use |
-| Install meta | `src/index.html` — `theme-color`, description, and the Apple `apple-mobile-web-app-*` / `apple-touch-icon` tags for iOS home-screen installs |
+| Caching policy | `ngsw-config.json`, where `index.html`, all JS/CSS, the manifest and `games.json` are prefetched on install; images and icons are cached lazily on first use |
+| Install meta | `src/index.html`, providing `theme-color`, description, and the Apple `apple-mobile-web-app-*` / `apple-touch-icon` tags for iOS home-screen installs |
 
 **Installing**
 
-The home page shows its own **📲 Install app** button, backed by `InstallService` (`src/app/install.ts`). Chrome stopped showing an install banner of its own years ago — it fires `beforeinstallprompt` and expects the page to offer the choice — so the service captures that event (calling `preventDefault()`) and replays it when the button is pressed. The event is single-use, so the button disappears once used or dismissed, and never appears at all when:
+The home page shows its own **📲 Install app** button, backed by `InstallService` (`src/app/install.ts`). Chrome stopped showing an install banner of its own years ago. It fires `beforeinstallprompt` and expects the page to offer the choice, so the service captures that event (calling `preventDefault()`) and replays it when the button is pressed. The event is single-use, so the button disappears once used or dismissed, and never appears at all when:
 
 - the app is **already installed** (detected via `display-mode: standalone`, or Safari's `navigator.standalone`), or
-- the browser **never fires the event** — notably **iOS Safari**, where installing is Share → *Add to Home Screen* and no API exists.
+- the browser **never fires the event**, notably **iOS Safari**, where installing is Share → *Add to Home Screen* and no API exists.
 
 The browser's own routes still work regardless:
 
@@ -614,13 +690,13 @@ Three details the build needs to work under a sub-path:
 | `cp index.html 404.html` | Pages has no rewrite rules, so a deep link or refresh on `/boardgame-butler/collection` would 404. Serving `index.html` for unknown paths hands control to the router. (The service worker does this itself once installed; this covers first visits.) |
 | `touch .nojekyll` | Stops Pages running the output through Jekyll |
 
-**Asset paths must stay relative.** The seed fetch (`games.json` in `GameStore`) and the background image in `home.html` are deliberately written without a leading slash so they resolve against `<base href>`. An absolute `/games.json` works at the domain root and breaks under the sub-path — the same applies to anything added later.
+**Asset paths must stay relative.** The seed fetch (`games.json` in `GameStore`) and the background image in `home.html` are deliberately written without a leading slash so they resolve against `<base href>`. An absolute `/games.json` works at the domain root and breaks under the sub-path; the same applies to anything added later.
 
 **Why this URL needs no DNS.** `MAOstrander/MAOstrander.github.io` is a *user* site with a custom domain (`CNAME` = `mathewostrander.com`), and GitHub serves every project site on the account under that domain at `/<repo-name>/`. Renaming the repo changes the path; moving to a subdomain instead would need a `CNAME` DNS record and a custom domain on this repo.
 
 ### One-time repository setup
 
-**Settings → Pages → Build and deployment → Source: GitHub Actions.** Without this the deploy job fails — Pages defaults to serving a branch.
+**Settings → Pages → Build and deployment → Source: GitHub Actions.** Without this the deploy job fails; Pages defaults to serving a branch.
 
 ### Building for the sub-path locally
 
@@ -640,35 +716,65 @@ npx serve -s /tmp/pagesroot -l 4455    # then open /boardgame-butler/
 
 ### Hosting elsewhere
 
-Any static host works — the same three concerns apply: a matching base href, an `index.html` fallback for unknown paths, and HTTPS (which the service worker requires).
+Any static host works; the same three concerns apply: a matching base href, an `index.html` fallback for unknown paths, and HTTPS (which the service worker requires).
 
 ### Tests
 
-Each page has a functional spec next to it (`*.spec.ts`) that drives the rendered DOM — typing into inputs, clicking buttons, choosing files — and asserts against what ends up in `localStorage`. The first-run seed request is stubbed via `HttpTestingController`. `src/app/app.spec.ts` covers routing. Shared helpers and sample data live in `src/testing/helpers.ts` (excluded from the production build).
+Each page has a functional spec next to it (`*.spec.ts`) that drives the rendered DOM (typing into inputs, clicking buttons, choosing files) and asserts against what ends up in `localStorage`. The first-run seed request is stubbed via `HttpTestingController`. `src/app/app.spec.ts` covers routing. Shared helpers and sample data live in `src/testing/helpers.ts` (excluded from the production build).
 
 | Spec | Covers |
 |---|---|
 | `game-store.spec.ts` | First-run seeding (incl. corrupt / non-array saved data), seed failure, load from storage, id assignment (seed, legacy saved data, import, duplicate ids), add / update / remove / replaceAll persistence, `find`, `hasTitle`, `toJson`, storage write failure |
+| `persistent-storage.spec.ts` | Unsupported browser, missing `persist()`, grant, refusal, already-persistent (no re-ask), a browser that throws |
+| `undo.spec.ts` | Propose/accept/dismiss, expiry on its own, accepting after expiry, a second offer replacing the first without its timer cutting the new one short, custom window |
+| `undo-toast.spec.ts` | Hidden until something is deleted, message and `role="status"`, Undo reverses, dismiss doesn't, disappears on expiry |
+| `backup.spec.ts` | Never-exported, recording and persisting, wording for 0/1/5/47 days, the staleness threshold either side, an unreadable stored value, a clock that moved backwards, a storage write that fails |
+| `bgg-credit.spec.ts` | The BGG credit: link target, new-tab safety, alt text, the reversed artwork, and each width |
 | `install.spec.ts` | No offer until `beforeinstallprompt`, `preventDefault` on capture, already-standalone suppression, missing `matchMedia`, prompt accept/dismiss/throw/unavailable, single use, `appinstalled` |
 | `game-filter.spec.ts` | Range parsing (`2-4`, `2`, `3+`, `2 to 6`, en dash, garbage), each filter's matching rule, AND-combination, `filterGames` |
-| `home.spec.ts` | Loading state while seeding, ready from storage, empty-collection hint, random pick and re-roll, rating badge, filter panel toggle, every filter's live count, no-match state, clear, filtered pick vs. whole-collection pick, the overdue-a-turn toggle (label in both modes, combining with other filters, serving from it, clearing), the install button appearing and prompting, nav links |
+| `home.spec.ts` | Loading state while seeding, ready from storage, empty-collection hint, random pick and re-roll, rating badge, filter panel toggle, every filter's live count, no-match state, clear, filtered pick vs. whole-collection pick, the overdue-a-turn toggle (label in both modes, combining with other filters, serving from it, clearing), the best-at-count toggle (disabled without a count, qualifying-game count in the label, restricting matches, no-match case, switching off when the count is cleared), the install button appearing and prompting, nav links |
 | `collection.spec.ts` | Seeding/empty/error states, row rendering, complexity pills, search, every sort column and direction, Log play and Edit links |
-| `game-form.spec.ts` | Add: defaults, required errors, live rating label, what gets saved (with id), trimming, duplicate-title rejection (case/whitespace, forced submit, clears on change), storage failure. Edit: pre-fill, save in place keeping id, own title allowed / other title rejected, rename, rating required for unrated, unknown id. Delete: hidden when adding, confirm step (mentions kept plays), keep, confirm removes game but not its plays, storage failure |
+| `game-form.spec.ts` | Add: defaults, required errors, live rating label, what gets saved (with id), trimming, duplicate-title rejection (case/whitespace, forced submit, clears on change), storage failure. Edit: pre-fill, save in place keeping id, own title allowed / other title rejected, rename, rating required for unrated, unknown id. Delete: hidden when adding, confirm step (mentions kept plays), keep, confirm removes game but not its plays, storage failure. BGG lookup: hidden without a proxy, needs a title, ranked results, fills the form but not the rating, duplicate check still applies, no matches, *None of these*, error message |
+| `bgg.spec.ts` | Parsing BGG search and thing XML (duplicates, primary name, zeros as unknown), weight to complexity, range formatting, the proxy calls, 202 retries, error messages |
 | `import-plan.spec.ts` | First-wins de-duplication for games: case/whitespace matching, kept order, difference reporting (incl. missing rating), untitled rows; and for players by name |
 | `player-store.spec.ts` | Seeding from `players.json` (id assignment, failure, empty-list-is-a-decision), load without a fetch, id assignment for legacy data, re-seed on corrupt data, add (trimmed, new id), rename, remove, replaceAll, `hasName`, storage failure |
 | `players.spec.ts` | Alphabetical list and count, empty state, add (disabled until typed, trimmed, Enter, duplicate rejected, storage error keeps input), rename (inline editor, save, own name allowed / other rejected, cancel), remove (confirm, keep, confirm removes, opening rename closes confirm), nav links |
 | `export-format.spec.ts` | `buildExport` shape and timestamp; `parseImport` for v1 arrays, v2 and v3 objects, missing players, bad `games`/`players`/`plays` entries, and non-backup values |
-| `play-store.spec.ts` | Seeding from `plays.json` including `daysAgo` → `playedAt` conversion (0 and negative values), id assignment, failure, empty-log-is-a-decision, re-seed on corrupt data, load with id assignment, `recent` ordering, add/update/remove, `forGame`, `merge`/`countNew` (skips existing ids, treats id-less as new, no write when nothing is new), storage failure |
-| `play-form.spec.ts` | Log: defaults, alphabetical games with `?game` pre-select (unknown ignored), player chips and winners only for selected players, deselect un-wins, head-count defaults / raised / no named players / refuses fewer than chips or zero, stopwatch shortcut, full and minimal saves with snapshots, clear rating, empty-players / empty-collection hints, storage error. Edit: pre-fill (head-count shown only when it exceeds the chips), save in place, deleted game and removed player stay selectable, unknown id |
+| `play-store.spec.ts` | `lastLineup` (most recent play, unaffected by back-fill, empty log); seeding from `plays.json` including `daysAgo` → `playedAt` conversion (0 and negative values), id assignment, failure, empty-log-is-a-decision, re-seed on corrupt data, load with id assignment, `recent` ordering, add/update/remove, `forGame`, `merge`/`countNew` (skips existing ids, treats id-less as new, no write when nothing is new), storage failure |
+| `play-form.spec.ts` | Log: defaults, alphabetical games with `?game` pre-select (unknown ignored), player chips and winners only for selected players, deselect un-wins, head-count defaults / raised / no named players / refuses fewer than chips or zero, stopwatch shortcut, full and minimal saves with snapshots, clear rating, empty-players / empty-collection hints, storage error. Carry-over: pre-selects the last line-up with its note, nothing to carry when the log is empty, drops removed players, people only (not head-count or winners), note clears on change, Clear empties selection and wins, saves when untouched, never overrides a play being edited. Edit: pre-fill (head-count shown only when it exceeds the chips), save in place, deleted game and removed player stay selectable, unknown id |
 | `history.spec.ts` | Empty state, newest-first list and count, card contents (date, winners, others, duration, fun, notes), no-winner and no-players cases, head-count chip only when it exceeds named players, edit links, delete confirm/keep/confirm |
-| `stats.spec.ts` (`src/app/`) | `leastPlayed` (never-played while any exist, fallback to the lowest count, nothing played, plays of deleted games, empty collection); `shiftDate` across month/leap boundaries; `overview` totals, 30-day window edges, tie-breaking, empty log; `gameRows` ordering, averages and rounding, nulls, deleted games with latest snapshot, open-ended ranges, `headCount` precedence, duration-by-head-count breakdown; `playerRows` ordering, win rate over decided plays only, most-played ties, players with no plays, removed players with latest snapshot |
+| `stats.spec.ts` (`src/app/`) | `leastPlayed` (never-played while any exist, fallback to the lowest count, nothing played, plays of deleted games, empty collection); `shiftDate` across month/leap boundaries; `overview` totals, 30-day window edges, tie-breaking, empty log; `gameRows` ordering, averages and rounding, nulls, deleted games with latest snapshot, open-ended ranges, `headCount` precedence, duration-and-fun breakdown by table size, `bestPlayers` (highest fun, needs two rated sizes, tie-breaks on plays then smaller table, ignores unrated sizes); `playerRows` ordering, win rate over decided plays only, most-played ties, players with no plays, removed players with latest snapshot |
 | `seed-data.spec.ts` | The bundled samples: unique ids, parseable ranges, valid complexity/ratings, plays referencing existing games and players with matching snapshots, winners who took part, sane dates/head-counts/durations, and coverage of the showcase cases listed under [Sample data](#sample-data) |
-| `stats.spec.ts` (`src/app/stats/`) | Empty state, overview tiles, hours rounding, games table contents and over/under/in-range labels, players column with breakdown only when head-counts vary, dashes, never-played links, deleted-game label, players table contents, dimmed no-play rows, removed label, no-players hint, nav links |
+| `stats.spec.ts` (`src/app/stats/`) | Empty state, overview tiles, hours rounding, games table contents and over/under/in-range labels, players column with breakdown only when head-counts vary, the best-with line and its green highlight, dashes, never-played links, deleted-game label, players table contents, dimmed no-play rows, removed label, no-players hint, nav links |
 | `manage.spec.ts` | Export counts and download (v3 Blob contents, filename), invalid/unrecognised/bad-entry file errors, games preview with duplicates greyed and reasons, v1 file keeps players and plays, v2 file previews and imports players (duplicates first-wins, empty list warns) and keeps plays, v3 plays preview with new/already-here counts, merge adds only new plays, old backup can't delete newer plays, per-section checkboxes (default ticked, unticked sections untouched, Confirm disabled when none, only present sections offered), cancel, storage-failure handling |
 | `dice.spec.ts` | Random-source mapping onto 1..sides, totals, count clamping, range check across all die types |
 | `timer.spec.ts` | `formatDuration`; Stopwatch start/pause/resume/reset, timestamp-based elapsed (throttled-tab case), `onTick`, `destroy`; Countdown remaining/finished, `onFinish` fires once, pause/resume, reset, `setDuration` |
 | `tools.spec.ts` | Dice type/count selection and clamping, roll rendering (total + individual dice), history; Countdown presets, custom minutes, running/pause/resume display with fake timers, time's-up alert once + reset, survives leaving and re-opening the page; Stopwatch count-up through the hour boundary; nav links |
 | `app.spec.ts` | Every route renders the right component and heading using the real `appConfig` providers; the `:id` parameter reaches the edit forms and `?game` reaches the log form; link navigation between pages |
+
+---
+
+## BoardGameGeek proxy
+
+Lives in [`bgg-proxy/`](../bgg-proxy/README.md) as a Cloudflare Worker, deployed separately from the app. The game form's lookup is its only caller; `BggService` (`src/app/bgg.ts`) parses the XML in the browser.
+
+**Why a server at all.** BGG issue a bearer token per application, and their guidance is that "all requests should be made by your servers, with the results cached". A purely client-side app can do neither. A token in the Angular bundle is readable by anyone who opens devtools, and the browser has no shared cache to spare BGG repeated identical lookups. So the token lives as a Cloudflare secret and the Worker caches on BGG's behalf.
+
+**Why it does not reshape the data.** Their terms say "You may not modify the data, including User Submissions, retrieved through the BGG XML API in any way". Returning a trimmed JSON shape would be more convenient for the client, but it is exactly what that sentence prohibits. The Worker passes the XML through byte for byte and the browser parses it. A test asserts the passthrough is unmodified, since this is a compliance requirement rather than a preference. The same clause is why a bundled offline index of BGG data was ruled out earlier.
+
+| Route | Maps to | Cached for |
+|---|---|---|
+| `GET /search?q=<title>&exact=0\|1` | `xmlapi2/search?query=…&type=boardgame,boardgameexpansion` | 1 day |
+| `GET /thing?id=<id>[,…]` | `xmlapi2/thing?id=…&stats=1` | 7 days |
+| `GET /health` | nothing; reports whether a token is configured | not cached |
+
+Everything else is a 404. The allowlist matters: an open proxy would spend our token and quota on other people's traffic. Ids must be numeric and at most 20 per request, search text is capped at 100 characters, and no caller header is forwarded upstream, so nobody can smuggle their own credentials through to BGG. `stats=1` is requested because the weight and rating figures live there.
+
+**Cache behaviour.** Keyed on the upstream URL, so one entry serves every caller regardless of origin or query-string order. Game metadata gets a week since it barely changes; search results get a day. A 202 (BGG still building the response) is deliberately not cached, or "not ready yet" would be pinned in place for a week. A 429 is passed back with its `Retry-After` intact, and a rejected token becomes a 502 with the detail in the Worker log rather than in the response.
+
+**Known exposure.** Once the Worker URL ships in the app bundle it is effectively public, and CORS only constrains browsers, not curl. The cache absorbs most repeat traffic. For the rest, the Worker limits each IP to 30 requests a minute that reach BGG (cache hits are free), using a Workers rate limiting binding; over that, it answers 429 without calling BGG. The dashboard's rate limiting rules were the first idea, but they apply to a zone, and a `workers.dev` hostname is not in one. A shared secret header would not help, because it would have to be in the bundle too.
+
+**Testing.** 41 tests on Node's own test runner, no dependencies and no build step: the Worker is written as a plain `handle(request, env, deps)` function so tests inject a fake cache and fetch. They run in CI via [`.github/workflows/proxy.yml`](../.github/workflows/proxy.yml), separately from the Pages deploy. Deployment is by hand with `npx wrangler deploy`, and the token is set once with `wrangler secret put BGG_TOKEN`; see the proxy's own README.
 
 ---
 
@@ -689,19 +795,19 @@ The Home page advertises the following chips. Only the first four are fully back
 Technical gaps in what already exists:
 
 - Schema validation of imported files (only "is an array" is checked)
-- No sync between devices — export/import is the only way to move a collection
+- No sync between devices; export/import is the only way to move a collection
 
 ---
 
 ## Roadmap
 
-The full candidate scope for the project, grouped by area. Nothing here has been prioritized against anything else yet — see [Open questions](#open-questions).
+The full candidate scope for the project, grouped by area. Nothing here has been prioritized against anything else yet; see [Open questions](#open-questions).
 
 ### Collection management
 
 | Item | Status |
 |---|---|
-| View collection | ✅ `/collection` — searchable, sortable table |
+| View collection | ✅ `/collection`, a searchable, sortable table |
 | Add entries | ✅ `/add-game` |
 | Update / delete entries | ✅ `/edit-game/:id` from the Collection page |
 | Game file import / export | ✅ `/manage` |
@@ -711,9 +817,9 @@ The full candidate scope for the project, grouped by area. Nothing here has been
 | Item | Status |
 |---|---|
 | Quick setup chooser (randomize / select a game) | ✅ Random pick from the whole collection or from a filtered subset |
-| Play statistics — players, winner, duration, fun rating | ✅ `/log-play`, `/history`, `/stats` |
-| Dice | ✅ `/tools` — d4–d100, up to 10 dice, history |
-| Timers | ✅ `/tools` — countdown with alert, stopwatch |
+| Play statistics (players, winner, duration, fun rating) | ✅ `/log-play`, `/history`, `/stats` |
+| Dice | ✅ `/tools`, d4–d100, up to 10 dice, history |
+| Timers | ✅ `/tools`, countdown with alert, stopwatch |
 
 ### Nice-to-haves / uncertain fit
 
@@ -727,14 +833,14 @@ The full candidate scope for the project, grouped by area. Nothing here has been
 
 ### Open questions
 
-- **MVP cut line.** The likely MVP was collection view/add/edit/delete plus dice, timers and a filtered quick-setup chooser — all of which are now done. What remains on the "play assistance" side is play statistics. The social / multiplayer layer (auth, scheduling, swapping, bot integration) would sit on the other side of that line.
-- **Single-user vs. backend.** The current architecture — an installable PWA with the collection in browser storage and no server at all — is firmly single-user local software. Auth, cross-device sync and bot hosting all imply a real server and database, which would be a significant change rather than an incremental one.
+- **MVP cut line.** The likely MVP was collection view/add/edit/delete plus dice, timers and a filtered quick-setup chooser, all of which are now done. What remains on the "play assistance" side is play statistics. The social / multiplayer layer (auth, scheduling, swapping, bot integration) would sit on the other side of that line.
+- **Single-user vs. backend.** The current architecture (an installable PWA with the collection in browser storage and no server at all) is firmly single-user local software. Auth, cross-device sync and bot hosting all imply a real server and database, which would be a significant change rather than an incremental one.
 
 ### Likely next step
 
 Every item in the MVP and the play-assistance group is done. Natural next steps, none of them prioritised:
 
 - **History filters** (by game, by player, by date range) and a per-game detail view.
-- **Backup nudges** — "last exported N days ago" on Manage, since history is now the most valuable data on the device.
-- **Logging a game that isn't in the collection** — a friend's copy, or something played at a café. Today the game dropdown only offers collection games; an "Something else…" option with a title box would cover it, and the Stats page already renders plays for games outside the collection.
+- **Backup that happens by itself.** The nudge is in, but export is still a manual download. `navigator.share()` with a file would make one-tap backup to Drive or email realistic on mobile; the File System Access API could write to a chosen file automatically on desktop (Chromium only). Beyond that, syncing to the user's own cloud storage or a backend-as-a-service would cover device loss, at the cost of OAuth or accounts.
+- **Logging a game that isn't in the collection**, such as a friend's copy or something played at a café. Today the game dropdown only offers collection games; an "Something else…" option with a title box would cover it, and the Stats page already renders plays for games outside the collection.
 - Beyond that, the roadmap's *nice-to-have* group (auth, sync, sharing, scheduling) all imply a backend and remain a deliberate architectural decision rather than an incremental one.

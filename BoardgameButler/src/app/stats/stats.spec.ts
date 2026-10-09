@@ -81,7 +81,10 @@ describe('Stats', () => {
     await setup();
     const rows = gameRows();
     expect(rows.length).toBe(2);
-    expect(rows[0]).toMatch(/^Catan 2 2\.5 2p ×1 · 90 min, 3p ×1 .*2026 90 min in range 7\/10$/);
+    expect(rows[0]).toContain('Catan 2');
+    expect(rows[0]).toContain('2p ×1 · 90 min · fun 7');
+    expect(rows[0]).toContain('90 min in range');
+    expect(rows[0]).toContain('7/10');
     expect(rows[1]).toMatch(/^Azul 1 2 .*2026 35 min in range 9\/10$/);
   });
 
@@ -111,13 +114,52 @@ describe('Stats', () => {
     await setup({ plays });
     const cells = queryAll(fixture, '[data-testid="players-cell"]').map(c => c.textContent?.replace(/\s+/g, ' ').trim());
     // Both have 2 plays, so Azul sorts first alphabetically.
-    expect(cells[0]).toBe('2');                                     // Azul: always 2 → no breakdown
-    expect(cells[1]).toBe('3.5 3p ×1 · 60 min, 4p ×1 · 100 min'); // Catan: varies → breakdown
+    expect(cells[0]).toBe('2');  // Azul: always 2 → no breakdown
+    expect(cells[1]).toContain('3.5');
+    expect(cells[1]).toContain('3p ×1 · 60 min · fun 7');
+    expect(cells[1]).toContain('4p ×1 · 100 min · fun 7');
   });
 
   it('shows a dash for players when no head-count is known', async () => {
     await setup({ plays: [{ ...SAMPLE_PLAYS[0], players: [], winnerIds: [] }] });
     expect(query(fixture, '[data-testid="players-cell"]').textContent?.trim()).toBe('—');
+  });
+
+  describe('best player count', () => {
+    const cell = (title: string) =>
+      findByText(fixture, '[data-testid="games-table"] tr', title)
+        .querySelector('[data-testid="players-cell"]')!.textContent!.replace(/\s+/g, ' ').trim();
+
+    it('names the head-count a game is most fun at', async () => {
+      const plays = [
+        { ...SAMPLE_PLAYS[0], id: 'a', playerCount: 3, funRating: 9, durationMinutes: 70 },
+        { ...SAMPLE_PLAYS[0], id: 'b', playerCount: 5, funRating: 6, durationMinutes: 120 },
+      ];
+      await setup({ plays });
+
+      expect(cell('Catan')).toContain('★ best with 3');
+      expect(cell('Catan')).toContain('3p ×1 · 70 min · fun 9');
+      expect(cell('Catan')).toContain('5p ×1 · 120 min · fun 6');
+    });
+
+    it('highlights the winning line in the breakdown', async () => {
+      const plays = [
+        { ...SAMPLE_PLAYS[0], id: 'a', playerCount: 3, funRating: 9 },
+        { ...SAMPLE_PLAYS[0], id: 'b', playerCount: 5, funRating: 6 },
+      ];
+      await setup({ plays });
+
+      const lines = queryAll(fixture, '[data-testid="players-cell"] span span');
+      const best = lines.find(l => l.textContent!.includes('3p'))!;
+      const other = lines.find(l => l.textContent!.includes('5p'))!;
+      expect(best.className).toContain('text-green-400');
+      expect(other.className).not.toContain('text-green-400');
+    });
+
+    it('says nothing when there is only one head-count to judge', async () => {
+      await setup({ plays: [{ ...SAMPLE_PLAYS[0], id: 'a', playerCount: 4, funRating: 9 }] });
+      expect(cell('Catan')).not.toContain('best with');
+    });
   });
 
   it('lists never-played games as links to log them', async () => {

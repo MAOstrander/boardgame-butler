@@ -22,6 +22,8 @@ import {
   text,
 } from '../../testing/helpers';
 import { buildExport } from '../export-format';
+import { BackupService, LAST_EXPORT_KEY } from '../backup';
+import { PersistentStorageService } from '../persistent-storage';
 
 describe('Manage', () => {
   let fixture: ComponentFixture<Manage>;
@@ -61,6 +63,38 @@ describe('Manage', () => {
   }
 
   describe('export', () => {
+    it('says it has never been backed up, and flags that as stale', () => {
+      expect(query(fixture, '[data-testid="last-backup"]').textContent).toContain('never');
+      expect(query(fixture, '[data-testid="last-backup"]').className).toContain('text-amber-400');
+    });
+
+    it('records the export, so the page stops nagging', async () => {
+      Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:x'), revokeObjectURL: vi.fn() });
+      vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+      findByText<HTMLButtonElement>(fixture, 'button', 'Download boardgame-butler.json').click();
+      await settle(fixture);
+
+      expect(localStorage.getItem(LAST_EXPORT_KEY)).toEqual(expect.any(String));
+      expect(TestBed.inject(BackupService).describe()).toBe('today');
+      expect(query(fixture, '[data-testid="last-backup"]').textContent).toContain('today');
+      expect(query(fixture, '[data-testid="last-backup"]').className).not.toContain('text-amber-400');
+    });
+
+    it('mentions eviction risk only when the browser refuses persistent storage', async () => {
+      expect(fixture.nativeElement.querySelector('[data-testid="persistence-note"]')).toBeNull();
+
+      Object.defineProperty(navigator, 'storage', {
+        configurable: true,
+        value: { persist: vi.fn().mockResolvedValue(false), persisted: vi.fn().mockResolvedValue(false) },
+      });
+      await TestBed.inject(PersistentStorageService).ensure();
+      await settle(fixture);
+
+      expect(fixture.nativeElement.querySelector('[data-testid="persistence-note"]')).not.toBeNull();
+      delete (navigator as { storage?: unknown }).storage;
+    });
+
     it('shows how many games, players and plays will be exported', () => {
       expect(text(fixture)).toContain('(4 games)');
       expect(text(fixture)).toContain('(3 players)');
@@ -109,7 +143,7 @@ describe('Manage', () => {
   describe('import', () => {
     it('rejects a file that is not valid JSON', async () => {
       await chooseFile('{ not json');
-      expect(text(fixture)).toContain('Could not parse file — make sure it is valid JSON.');
+      expect(text(fixture)).toContain('Could not parse file. Make sure it is valid JSON.');
       expect(text(fixture)).not.toContain('Replace games with');
     });
 
@@ -156,8 +190,8 @@ describe('Manage', () => {
     it('a games-only (v1) file replaces the games and keeps the players', async () => {
       const incoming = [SAMPLE_GAMES[1], SAMPLE_GAMES[2]];
       await chooseFile(JSON.stringify(incoming));
-      expect(text(fixture)).toContain('This is an older games-only file — your 3 players will be kept.');
-      expect(text(fixture)).toContain('This file has no play history — your 3 logged plays will be kept.');
+      expect(text(fixture)).toContain('This is an older games-only file, so your 3 players will be kept.');
+      expect(text(fixture)).toContain('This file has no play history, so your 3 logged plays will be kept.');
 
       findByText<HTMLButtonElement>(fixture, 'button', 'Confirm Import').click();
       await settle(fixture);
@@ -253,8 +287,8 @@ describe('Manage', () => {
         const rows = queryAll(fixture, 'li');
         expect(rows.length).toBe(5);
         expect(rows[2].className).toContain('opacity-50');
-        expect(cellText(rows[2])).toBe('Catan skipped — duplicate of Catan · differs: rating 9');
-        expect(cellText(rows[3])).toBe('azul skipped — duplicate of Azul');
+        expect(cellText(rows[2])).toBe('Catan skipped: duplicate of Catan · differs: rating 9');
+        expect(cellText(rows[3])).toBe('azul skipped: duplicate of Azul');
         expect(rows[0].className).not.toContain('opacity-50');
       });
 
@@ -282,7 +316,7 @@ describe('Manage', () => {
         const file = buildExport(SAMPLE_GAMES, SAMPLE_PLAYERS, [SAMPLE_PLAYS[0], newPlay, { ...SAMPLE_PLAYS[1], funRating: 1 }]);
         await chooseFile(JSON.stringify(file));
 
-        expect(text(fixture).replace(/\s+/g, ' ')).toContain('Merge 3 plays into your history — 1 new, 2 already here');
+        expect(text(fixture).replace(/\s+/g, ' ')).toContain('Merge 3 plays into your history: 1 new, 2 already here');
       });
 
       it('confirming adds only the new plays and leaves existing ones untouched', async () => {
@@ -301,7 +335,7 @@ describe('Manage', () => {
       it('an old backup cannot delete newer plays', async () => {
         const file = buildExport(SAMPLE_GAMES, SAMPLE_PLAYERS, [SAMPLE_PLAYS[0]]);
         await chooseFile(JSON.stringify(file));
-        expect(text(fixture).replace(/\s+/g, ' ')).toContain('Merge 1 play into your history — 0 new, 1 already here');
+        expect(text(fixture).replace(/\s+/g, ' ')).toContain('Merge 1 play into your history: 0 new, 1 already here');
 
         findByText<HTMLButtonElement>(fixture, 'button', 'Confirm Import').click();
         await settle(fixture);

@@ -6,8 +6,11 @@ compatibility_date = "2026-10-01"
 #   npx wrangler secret put BGG_TOKEN
 # so it never appears in this file or in git.
 
+# Both the apex and www are listed because the browser sends whichever origin
+# it is actually on, and a mismatch fails CORS with no useful error. localhost
+# is the Angular dev server.
 [vars]
-ALLOWED_ORIGINS = "https://mathewostrander.com,http://localhost:4200"
+ALLOWED_ORIGINS = "https://mathewostrander.com,https://www.mathewostrander.com,http://localhost:4200"
 
 [observability]
 enabled = true

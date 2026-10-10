@@ -366,6 +366,16 @@ Three cards for use during a game. Nothing here touches the collection.
 
 Both timers derive elapsed time from `Date.now()` timestamps, not by counting ticks; the 250 ms interval only refreshes the display. That keeps them accurate when a phone throttles background JavaScript or the screen locks. They live in the root-scoped `TimerService`, so a running timer keeps going while you visit other pages; the Tools page calls `refresh()` on open to catch the display up. `Countdown` fires `onFinish` exactly once (guarded against the re-entrant tick that `pause()` triggers).
 
+#### Keeping the screen on
+
+A phone that locks mid-countdown defeats the point of the timer, so while either timer runs the app holds a **screen wake lock** (`WakeLockService`, `src/app/wake-lock.ts`). A *Screen on* tag appears beside the setting while the lock is held. It is let go as soon as both timers stop, including when the countdown reaches zero.
+
+- **Keep the screen on while a timer runs** is a checkbox under the page heading, on by default. It is remembered per device under `boardgame-butler.keepAwake`. Turning it off releases a held lock at once. The off switch exists because a stopwatch timing a whole game would otherwise keep the screen lit for hours.
+- It applies while you are on other pages too, since the timers keep running there.
+- The browser drops the lock whenever the app is hidden (switching apps, pressing the power button). The service takes it again when the app comes back, as long as a timer is still running.
+- A refused request (low battery saver on some phones) just means no lock; nothing is shown as an error.
+- Browsers without the Screen Wake Lock API don't show the checkbox at all. Current Chrome, Edge, Safari and Firefox all support it. On iPhone, older iOS versions ignored it in installed home-screen apps while honouring it in Safari, so check there before relying on it.
+
 **Current limitations**
 
 - One countdown and one stopwatch; no per-player turn clock yet.
@@ -762,7 +772,8 @@ Each page has a functional spec next to it (`*.spec.ts`) that drives the rendere
 | `manage.spec.ts` | Export counts and download (v4 Blob contents, filename), invalid/unrecognised/bad-entry file errors, games preview with duplicates greyed and reasons, v1 file keeps players and plays, v2 file previews and imports players (duplicates first-wins, empty list warns) and keeps plays, v3 plays preview with new/already-here counts, merge adds only new plays, old backup can't delete newer plays, per-section checkboxes (default ticked, unticked sections untouched, Confirm disabled when none, only present sections offered), cancel, storage-failure handling |
 | `dice.spec.ts` | Random-source mapping onto 1..sides, totals, count clamping, range check across all die types |
 | `timer.spec.ts` | `formatDuration`; Stopwatch start/pause/resume/reset, timestamp-based elapsed (throttled-tab case), `onTick`, `destroy`; Countdown remaining/finished, `onFinish` fires once, pause/resume, reset, `setDuration` |
-| `tools.spec.ts` | Dice type/count selection and clamping, roll rendering (total + individual dice), history; Countdown presets, custom minutes, running/pause/resume display with fake timers, time's-up alert once + reset, survives leaving and re-opening the page; Stopwatch count-up through the hour boundary; nav links |
+| `tools.spec.ts` | Dice type/count selection and clamping, roll rendering (total + individual dice), history; Countdown presets, custom minutes, running/pause/resume display with fake timers, time's-up alert once + reset, survives leaving and re-opening the page; Stopwatch count-up through the hour boundary; nav links. Screen: setting hidden without the API, on by default, held while the stopwatch runs and released on pause, released at time's up, turning it off releases and is remembered, stays off on a later visit |
+| `wake-lock.spec.ts` | Unsupported browser, take and release, one request while held, re-taking after the browser drops it on return, not re-taking once released, a lock granted after release is given back, refusal |
 | `app.spec.ts` | Every route renders the right component and heading using the real `appConfig` providers; the `:id` parameter reaches the edit forms and `?game` reaches the log form; link navigation between pages |
 
 ---
@@ -833,6 +844,24 @@ The full candidate scope for the project, grouped by area. Nothing here has been
 | Play statistics (players, winner, duration, fun rating) | ✅ `/log-play`, `/history`, `/stats` |
 | Dice | ✅ `/tools`, d4–d100, up to 10 dice, history |
 | Timers | ✅ `/tools`, countdown with alert, stopwatch |
+| Keep the screen on | ✅ `/tools`, while a timer runs |
+
+### More Table Tools
+
+Candidates for `/tools`, roughly smallest first. Not yet prioritised beyond the order shown.
+
+| Item | Notes |
+|---|---|
+| Coin flip and random number | Small additions to the dice card for "pick a number from 1 to N" moments |
+| Dice notation | Type `2d6+3` or `4d6 drop lowest` and see each die; listed under the current limitations above |
+| First player picker | Pre-selects the last line-up (`PlayStore.lastLineup()`) and picks one at random. A second mode picks from fingers on the screen, for anyone not in the Players list |
+| Turn order shuffle | The same line-up, put in a random seating order |
+| Team splitter | Splits the selected players into N random teams; Codenames in the samples is the obvious use |
+| Turn timer | A clock per player; tapping passes the turn on, and the end shows each player's total. Can reuse the timestamp-based `Stopwatch` |
+| Score pad | Players by rounds with running totals. **Log this play** would hand players, winner and duration to the log form, which makes logging nearly free. Must save as it goes, unlike the in-memory timers, since losing scores mid-game is far worse than losing a timer |
+| Counters | Tappable +/- tallies for life, victory points or anything tracked with tokens; lighter than a score pad |
+
+The picker, shuffle and splitter are small and use data the app already has. The score pad is the most valuable of the larger pieces, because it feeds the stats rather than standing alone.
 
 ### Nice-to-haves / uncertain fit
 

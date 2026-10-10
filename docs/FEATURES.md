@@ -17,7 +17,7 @@ This document describes the features that exist today. Items shown as "planned" 
   - [Your Collection](#your-collection)
   - [Add / Edit a Game](#add--edit-a-game)
   - [Manage Collection (import / export)](#manage-collection-import--export)
-  - [Table Tools (dice & timers)](#table-tools-dice--timers)
+  - [Table Tools (dice, timers & players)](#table-tools-dice-timers--players)
   - [Players](#players)
   - [Play History & Log a Play](#play-history--log-a-play)
   - [Statistics](#statistics)
@@ -53,7 +53,7 @@ There are eleven routes:
 | `/add-game` | `GameForm` | Form to add one game to the collection |
 | `/edit-game/:id` | `GameForm` | The same form, pre-filled, to change or delete an existing game |
 | `/manage` | `Manage` | Export games, players and plays as a backup, or restore from one |
-| `/tools` | `Tools` | Dice roller, countdown timer and stopwatch for use at the table |
+| `/tools` | `Tools` | Dice roller, countdown timer, stopwatch, and first player / turn order / teams for use at the table |
 | `/players` | `Players` | The people you play with: add, rename, remove |
 | `/history` | `History` | Every logged play, newest first, with edit and delete |
 | `/log-play` | `PlayForm` | Log a play; `?game=<id>` pre-selects the game |
@@ -337,12 +337,12 @@ Games from v1 to v3 carry `players` and `duration` as text; they are split into 
 
 ---
 
-### Table Tools (dice & timers)
+### Table Tools (dice, timers & players)
 
 **Route:** `/tools`
-**Files:** `src/app/tools/tools.ts`, `src/app/tools/tools.html`, with logic in `src/app/dice.ts`, `src/app/timer.ts` and `src/app/timer-service.ts`
+**Files:** `src/app/tools/tools.ts`, `src/app/tools/tools.html`, and the `PlayerPicks` card in `src/app/tools/player-picks/`, with logic in `src/app/dice.ts`, `src/app/timer.ts`, `src/app/timer-service.ts`, `src/app/table-lineup.ts` and `src/app/table-picks.ts`
 
-Three cards for use during a game. Nothing here touches the collection.
+Four cards for use during a game. Nothing here changes the collection, the players or the play log.
 
 #### Dice
 
@@ -376,8 +376,24 @@ A phone that locks mid-countdown defeats the point of the timer, so while either
 - A refused request (low battery saver on some phones) just means no lock; nothing is shown as an error.
 - Browsers without the Screen Wake Lock API don't show the checkbox at all. Current Chrome, Edge, Safari and Firefox all support it. On iPhone, older iOS versions ignored it in installed home-screen apps while honouring it in Safari, so check there before relying on it.
 
+#### Who's playing
+
+One line-up feeds three random picks.
+
+- **At the table:** a chip per saved player, alphabetical. It starts with the people from the most recent logged play, with the same *Carried over from your last play* note the Log a play form shows, and anyone since removed is left out. **Clear** empties it.
+- **Guests:** a box for someone not in the Players list. Guests appear as amber chips after the players, with × to remove them. They are held in memory only and never saved; closing the app forgets them. Typing a saved player's name selects that player instead of adding a duplicate, and a name already at the table is refused with *Sam is already at the table.*
+- **Pick first player** shows one name under *Going first*.
+- **Shuffle turn order** shows everyone as a numbered list.
+- **Split into N teams** deals everyone into N teams after a shuffle, so team sizes differ by at most one. A −/+ stepper sets N, from 2 up to the number of people.
+- All three need at least two people; below that they are disabled with *Choose at least two people.*
+- A result disappears as soon as the line-up changes, since it no longer describes the table. Pressing any button again re-rolls.
+
+The line-up lives in the root-scoped `TableLineupService`, so it survives a trip to another page mid-game. Until it is changed, it is computed from `PlayStore.lastLineup()` rather than copied, which keeps it right while the stores are still loading. The picks themselves are pure functions in `table-picks.ts` (`pickOne`, `shuffle` (Fisher-Yates), `splitTeams`), each with an injectable random source like `rollDice`.
+
 **Current limitations**
 
+- No fingers-on-the-screen picker; guests cover people not in the Players list.
+- Results are not kept when you leave the page; the line-up is.
 - One countdown and one stopwatch; no per-player turn clock yet.
 - Timers are in memory only; closing the app entirely loses them.
 - No custom dice expressions (e.g. `2d6+3`) or per-die exploding/rerolls.
@@ -773,6 +789,9 @@ Each page has a functional spec next to it (`*.spec.ts`) that drives the rendere
 | `dice.spec.ts` | Random-source mapping onto 1..sides, totals, count clamping, range check across all die types |
 | `timer.spec.ts` | `formatDuration`; Stopwatch start/pause/resume/reset, timestamp-based elapsed (throttled-tab case), `onTick`, `destroy`; Countdown remaining/finished, `onFinish` fires once, pause/resume, reset, `setDuration` |
 | `tools.spec.ts` | Dice type/count selection and clamping, roll rendering (total + individual dice), history; Countdown presets, custom minutes, running/pause/resume display with fake timers, time's-up alert once + reset, survives leaving and re-opening the page; Stopwatch count-up through the hour boundary; nav links. Screen: setting hidden without the API, on by default, held while the stopwatch runs and released on pause, released at time's up, turning it off releases and is remembered, stays off on a later visit |
+| `table-picks.spec.ts` | `pickOne` mapping and empty list; `shuffle` keeps every item once, leaves the input alone, swap order, empty and single lists; `splitTeams` round-robin sizes, everyone on one team, never an empty team |
+| `table-lineup.spec.ts` | Alphabetical choices, carry-over from the most recent play, empty log, removed players left out, toggling ends carry-over; guests (trimmed, order, empty and duplicate refused, saved player selected instead, removal, never saved); clear |
+| `player-picks.spec.ts` | Pre-selected line-up and note, note drops on change, Clear disables actions, no-players link; guests (chip and removal, button disabled until typed, duplicate message keeps input, guests alone make a table); first player includes guests, numbered turn order with everyone once, teams by the stepper, stepper capped by head-count and clamped when people leave, stale result hidden, new pick replaces the last |
 | `wake-lock.spec.ts` | Unsupported browser, take and release, one request while held, re-taking after the browser drops it on return, not re-taking once released, a lock granted after release is given back, refusal |
 | `app.spec.ts` | Every route renders the right component and heading using the real `appConfig` providers; the `:id` parameter reaches the edit forms and `?game` reaches the log form; link navigation between pages |
 
@@ -845,6 +864,7 @@ The full candidate scope for the project, grouped by area. Nothing here has been
 | Dice | ✅ `/tools`, d4–d100, up to 10 dice, history |
 | Timers | ✅ `/tools`, countdown with alert, stopwatch |
 | Keep the screen on | ✅ `/tools`, while a timer runs |
+| First player, turn order, teams | ✅ `/tools`, from the last line-up plus guests |
 
 ### More Table Tools
 
@@ -854,14 +874,12 @@ Candidates for `/tools`, roughly smallest first. Not yet prioritised beyond the 
 |---|---|
 | Coin flip and random number | Small additions to the dice card for "pick a number from 1 to N" moments |
 | Dice notation | Type `2d6+3` or `4d6 drop lowest` and see each die; listed under the current limitations above |
-| First player picker | Pre-selects the last line-up (`PlayStore.lastLineup()`) and picks one at random. A second mode picks from fingers on the screen, for anyone not in the Players list |
-| Turn order shuffle | The same line-up, put in a random seating order |
-| Team splitter | Splits the selected players into N random teams; Codenames in the samples is the obvious use |
-| Turn timer | A clock per player; tapping passes the turn on, and the end shows each player's total. Can reuse the timestamp-based `Stopwatch` |
-| Score pad | Players by rounds with running totals. **Log this play** would hand players, winner and duration to the log form, which makes logging nearly free. Must save as it goes, unlike the in-memory timers, since losing scores mid-game is far worse than losing a timer |
+| Fingers-on-the-screen picker | Everyone puts a finger down and one is chosen. Guests already cover people not in the Players list, so this is for fun more than need |
+| Turn timer | A clock per player; tapping passes the turn on, and the end shows each player's total. Can reuse the timestamp-based `Stopwatch`, and take its players and order from the *Who's playing* card |
+| Score pad | Players by rounds with running totals, starting from the *Who's playing* line-up. **Log this play** would hand players, winner and duration to the log form, which makes logging nearly free. Must save as it goes, unlike the in-memory timers, since losing scores mid-game is far worse than losing a timer |
 | Counters | Tappable +/- tallies for life, victory points or anything tracked with tokens; lighter than a score pad |
 
-The picker, shuffle and splitter are small and use data the app already has. The score pad is the most valuable of the larger pieces, because it feeds the stats rather than standing alone.
+The score pad is the most valuable of what remains, because it feeds the stats rather than standing alone. Guests are a wrinkle for it: a play can only name saved players, so a guest would count towards *How many played* without being named.
 
 ### Nice-to-haves / uncertain fit
 

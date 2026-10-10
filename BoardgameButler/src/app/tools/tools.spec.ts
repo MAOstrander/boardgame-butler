@@ -1,4 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
 import { Tools } from './tools';
 import { KEEP_AWAKE_KEY, TimerService } from '../timer-service';
@@ -13,7 +15,7 @@ describe('Tools', () => {
     vi.useFakeTimers();
     await TestBed.configureTestingModule({
       imports: [Tools],
-      providers: [provideRouter([])],
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
     }).compileComponents();
 
     timers = TestBed.inject(TimerService);
@@ -240,6 +242,10 @@ describe('Tools', () => {
     expect(hrefs).toEqual(expect.arrayContaining(['/', '/collection']));
   });
 
+  it("includes the Who's playing card", () => {
+    expect(query(fixture, '#picks-heading').textContent?.trim()).toBe("Who's playing");
+  });
+
   it('offers no screen setting where the browser cannot keep the screen on', () => {
     expect(fixture.nativeElement.querySelector('#keep-awake')).toBeNull();
   });
@@ -253,7 +259,7 @@ describe('Tools: keeping the screen on', () => {
   async function open() {
     await TestBed.configureTestingModule({
       imports: [Tools],
-      providers: [provideRouter([])],
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
     }).compileComponents();
     timers = TestBed.inject(TimerService);
     vi.spyOn(timers, 'alert').mockImplementation(() => {});

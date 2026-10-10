@@ -4,12 +4,13 @@ import { DIE_SIDES, DiceRoll, MAX_DICE, rollDice } from '../dice';
 import { formatDuration } from '../timer';
 import { TimerService } from '../timer-service';
 import { WakeLockService } from '../wake-lock';
+import { PlayerPicks } from './player-picks/player-picks';
 
 const ROLL_HISTORY = 5;
 
 @Component({
   selector: 'app-tools',
-  imports: [RouterLink],
+  imports: [RouterLink, PlayerPicks],
   templateUrl: './tools.html',
 })
 export class Tools implements OnInit {

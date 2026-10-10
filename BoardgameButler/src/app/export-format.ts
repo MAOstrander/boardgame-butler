@@ -7,10 +7,12 @@ import { Play, RawPlay } from './play';
  *   v1 - a bare array of games
  *   v2 - { version, games, players }
  *   v3 - adds a plays section
+ *   v4 - games carry player count and play time as min/max numbers, plus
+ *        optional BGG fields; older text fields are converted on import
  * Import accepts all of them; a section a file doesn't have is left alone on
  * the device.
  */
-export const EXPORT_VERSION = 3;
+export const EXPORT_VERSION = 4;
 
 export interface ExportFile {
   version: typeof EXPORT_VERSION;
@@ -21,7 +23,7 @@ export interface ExportFile {
 }
 
 export interface ParsedImport {
-  version: 1 | 2 | 3;
+  version: 1 | 2 | 3 | 4;
   games: RawGame[];
   /** null when the file predates players (v1) - the device's players are left untouched. */
   players: RawPlayer[] | null;
@@ -40,7 +42,7 @@ export function parseImport(data: unknown): ParsedImport | { error: string } {
   }
 
   if (data && typeof data === 'object' && 'games' in data) {
-    const file = data as { games?: unknown; players?: unknown; plays?: unknown };
+    const file = data as { version?: unknown; games?: unknown; players?: unknown; plays?: unknown };
     if (!Array.isArray(file.games)) {
       return { error: 'The "games" entry must be a JSON array.' };
     }
@@ -53,7 +55,7 @@ export function parseImport(data: unknown): ParsedImport | { error: string } {
 
     const hasPlays = file.plays !== undefined;
     return {
-      version: hasPlays ? 3 : 2,
+      version: file.version === 4 ? 4 : hasPlays ? 3 : 2,
       games: file.games,
       players: (file.players as RawPlayer[] | undefined) ?? [],
       plays: hasPlays ? (file.plays as RawPlay[]) : null,

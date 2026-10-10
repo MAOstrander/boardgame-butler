@@ -191,7 +191,7 @@ describe('gameRows', () => {
   });
 
   it('ignores an open-ended listed range', () => {
-    const games = [{ ...SAMPLE_GAMES[0], duration: '60+' }];
+    const games = [{ ...SAMPLE_GAMES[0], maxPlaytime: undefined }];
     expect(gameRows(games, SAMPLE_PLAYS)[0].listedMinutes).toBeNull();
   });
 });

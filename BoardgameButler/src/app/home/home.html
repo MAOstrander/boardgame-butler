@@ -183,8 +183,12 @@
         </p>
         <h2 class="text-3xl font-bold mb-4">{{ game.title }}</h2>
         <div class="flex flex-wrap gap-2 justify-center">
-          <span class="px-3 py-1 rounded-full bg-white/20 text-sm">{{ game.players }} players</span>
-          <span class="px-3 py-1 rounded-full bg-white/20 text-sm">{{ game.duration }} min</span>
+          @if (playersText(game); as players) {
+            <span class="px-3 py-1 rounded-full bg-white/20 text-sm">{{ players }} players</span>
+          }
+          @if (playtimeText(game); as playtime) {
+            <span class="px-3 py-1 rounded-full bg-white/20 text-sm">{{ playtime }} min</span>
+          }
           <span class="px-3 py-1 rounded-full bg-white/20 text-sm">{{ game.complexity }}</span>
           @if (game.rating) {
             <span class="px-3 py-1 rounded-full bg-white/20 text-sm">{{ game.rating }}/10</span>

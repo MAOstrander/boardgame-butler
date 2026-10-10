@@ -174,9 +174,9 @@ describe('Collection', () => {
       expect(titles()[3]).toBe('Terraforming Mars');
     });
 
-    it('pushes non-numeric players/minutes values to the end', async () => {
+    it('pushes games with no known player count to the end', async () => {
       await load([
-        { id: 'g-party', title: 'Party', players: 'any', duration: '20', complexity: 'Easy' },
+        { id: 'g-party', title: 'Party', minPlaytime: 20, maxPlaytime: 20, complexity: 'Easy' },
         ...SAMPLE_GAMES,
       ]);
       await clickHeader('Players');

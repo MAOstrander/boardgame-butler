@@ -1,6 +1,6 @@
 import { Component, signal, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { Game } from '../game';
+import { Game, playersText, playtimeText } from '../game';
 import { GameStore } from '../game-store';
 
 type SortKey = 'title' | 'players' | 'duration' | 'complexity' | 'rating';
@@ -14,6 +14,9 @@ const COMPLEXITY_ORDER: Record<string, number> = { Easy: 0, Medium: 1, Hard: 2 }
 })
 export class Collection {
   private store = inject(GameStore);
+
+  protected readonly playersText = playersText;
+  protected readonly playtimeText = playtimeText;
 
   protected games = this.store.games;
   protected loading = computed(() => !this.store.ready());
@@ -78,16 +81,16 @@ export class Collection {
         if (b.rating == null) return this.sortAsc() ? -1 : 1;
         return a.rating - b.rating;
       case 'players':
+        return this.orUnknown(a.minPlayers) - this.orUnknown(b.minPlayers);
       case 'duration':
-        // Values are free-text ranges like "2-4" or "60-120"; sort by the leading number.
-        return this.leadingNumber(a[key]) - this.leadingNumber(b[key]);
+        return this.orUnknown(a.minPlaytime) - this.orUnknown(b.minPlaytime);
       default:
         return a.title.localeCompare(b.title);
     }
   }
 
-  private leadingNumber(value: string): number {
-    const n = parseInt(value, 10);
-    return Number.isNaN(n) ? Number.MAX_SAFE_INTEGER : n;
+  /** Games with no figure sort after those with one. */
+  private orUnknown(value: number | undefined): number {
+    return value ?? Number.MAX_SAFE_INTEGER;
   }
 }

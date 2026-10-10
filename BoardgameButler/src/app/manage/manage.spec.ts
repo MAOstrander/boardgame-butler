@@ -120,7 +120,7 @@ describe('Manage', () => {
       expect(revokeObjectURL).toHaveBeenCalledWith('blob:games');
     });
 
-    it('exports games, players and plays in the version-3 format, pretty-printed', async () => {
+    it('exports games, players and plays in the version-4 format, pretty-printed', async () => {
       const createObjectURL = vi.fn((_blob: Blob) => 'blob:games');
       Object.assign(URL, { createObjectURL, revokeObjectURL: vi.fn() });
       vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
@@ -130,13 +130,13 @@ describe('Manage', () => {
       const blob = createObjectURL.mock.calls[0][0];
       const file = JSON.parse(await blob.text());
       expect(file).toEqual({
-        version: 3,
+        version: 4,
         exportedAt: expect.any(String),
         games: SAMPLE_GAMES,
         players: SAMPLE_PLAYERS,
         plays: SAMPLE_PLAYS,
       });
-      expect(await blob.text()).toContain('\n  "version": 3');
+      expect(await blob.text()).toContain('\n  "version": 4');
     });
   });
 

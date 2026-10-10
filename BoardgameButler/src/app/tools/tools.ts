@@ -1,6 +1,6 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { DIE_SIDES, DiceRoll, MAX_DICE, rollDice } from '../dice';
+import { DIE_SIDES, MAX_DICE, Notation, NotationRoll, parseNotation, rollNotation } from '../dice';
 import { formatDuration } from '../timer';
 import { TimerService } from '../timer-service';
 import { WakeLockService } from '../wake-lock';
@@ -21,8 +21,10 @@ export class Tools implements OnInit {
   protected readonly maxDice = MAX_DICE;
   protected sides = signal<number>(6);
   protected count = signal(1);
-  protected roll = signal<DiceRoll | null>(null);
-  protected history = signal<DiceRoll[]>([]);
+  protected roll = signal<NotationRoll | null>(null);
+  protected history = signal<NotationRoll[]>([]);
+  protected notationInput = signal('');
+  protected notationError = signal<string | null>(null);
 
   // --- Countdown
   protected readonly presetMinutes = [1, 2, 5, 10, 15, 30];
@@ -53,7 +55,41 @@ export class Tools implements OnInit {
   }
 
   protected rollDice() {
-    const result = rollDice(this.sides(), this.count());
+    const sides = this.sides();
+    const count = this.count();
+    this.rollAndRecord({ text: `${count}d${sides}`, dice: [{ sign: 1, count, sides }], modifier: 0 });
+  }
+
+  protected onNotation(event: Event) {
+    this.notationInput.set((event.target as HTMLInputElement).value);
+    this.notationError.set(null);
+  }
+
+  /** Roll whatever was typed, e.g. 3d6+3. */
+  protected rollTyped() {
+    const parsed = parseNotation(this.notationInput());
+    if ('error' in parsed) {
+      this.notationError.set(parsed.error);
+      return;
+    }
+    this.notationError.set(null);
+    this.rollAndRecord(parsed);
+  }
+
+  /** Roll a recent expression again. */
+  protected reroll(notation: string) {
+    const parsed = parseNotation(notation);
+    if (!('error' in parsed)) this.rollAndRecord(parsed);
+  }
+
+  /** Show the individual dice unless it was a single die and nothing added. */
+  protected showBreakdown(roll: NotationRoll): boolean {
+    const dice = roll.groups.reduce((n, g) => n + g.results.length, 0);
+    return dice > 1 || roll.modifier !== 0;
+  }
+
+  private rollAndRecord(notation: Notation) {
+    const result = rollNotation(notation);
     this.roll.set(result);
     this.history.update(h => [result, ...h].slice(0, ROLL_HISTORY));
   }
@@ -78,9 +114,5 @@ export class Tools implements OnInit {
 
   protected onKeepAwake(event: Event) {
     this.timers.setKeepAwake((event.target as HTMLInputElement).checked);
-  }
-
-  protected formatRoll(roll: DiceRoll): string {
-    return `${roll.count}d${roll.sides}`;
   }
 }

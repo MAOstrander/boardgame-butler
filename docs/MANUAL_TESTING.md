@@ -195,6 +195,9 @@ Collections saved before player counts were split hold text like `"3-4"`.
 - [ ] Home → **🎲 Table tools** → four cards: Dice, Countdown, Stopwatch, Who's playing.
 - [ ] **Dice:** d6 is highlighted; button reads **Roll 1d6**. Click **Roll** several times → a large number 1–6, no individual dice shown; *Recent rolls* appears after the second roll and never exceeds five entries.
 - [ ] Click **d20**, then **+** twice → **Roll 3d20**. Roll → total plus three individual dice, each 1–20, summing to the total. **−** at 1 and **+** at 10 are disabled.
+- [ ] **Or type a roll:** `3d6+3` → **Roll it** (or Enter) → label `3d6+3`, three dice and *+ 3*, and the total is their sum plus 3. `d20 - 2` → label `1d20-2`, one die and *− 2*. `2d6-1d4` → the dice grouped under *2d6* and *1d4* with a minus between. `3x6` → *Couldn't read "3x6". Try something like 3d6+3.* and nothing rolls; typing again clears the message.
+- [ ] *Recent rolls* mixes button and typed rolls. Tap `3d6+3` there → it rolls again and goes to the top.
+- [ ] On a phone, the box doesn't autocorrect or capitalise what you type.
 - [ ] **Countdown:** display `0:00`, **Start** and **Reset** disabled. Click **1 min** → `1:00`, preset highlighted. **Start** → counts down; presets and the Custom box are disabled; button reads **Pause**. **Pause** → stops; **Resume** → continues.
 - [ ] Let it reach `0:00` → display turns red and pulses, *Time's up!* appears, and on a device that supports it you get a short beep / vibration. **Reset** → back to `1:00`, message gone.
 - [ ] Type `0.5` in **Custom** → `0:30`, preset highlight cleared.

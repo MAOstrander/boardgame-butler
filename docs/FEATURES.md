@@ -348,8 +348,20 @@ Four cards for use during a game. Nothing here changes the collection, the playe
 
 - Pick a die type (**d4, d6, d8, d10, d12, d20, d100**) and a count from 1 to 10 with a −/+ stepper.
 - **Roll NdX** shows the total in large type and, for more than one die, each individual result.
-- The last five rolls are listed under *Recent rolls* (newest first).
-- `rollDice(sides, count, random?)` in `dice.ts` is pure; the random source is injectable so tests are deterministic.
+- **Or type a roll** takes dice notation, rolled with **Roll it** or Enter:
+
+| Typed | Means |
+|---|---|
+| `3d6+3` | three six-sided dice, plus 3 |
+| `d20` | one die; the count is optional |
+| `d%` | the same as `d100` |
+| `2d6+1d4-1` | several groups and numbers, added and subtracted |
+| `1d4-10` | the total can go below zero |
+
+  Spaces and case are ignored, and the label shows the expression tidied up (`D20 + 5` becomes `1d20+5`). Typed rolls allow up to 100 dice in total, 2 to 1000 sides, and a number within ±1000; anything else gets a plain message such as *Couldn't read "3x6". Try something like 3d6+3.* There is no multiplication, and no keep/drop (`4d6kh3`) yet.
+- The result shows each die whenever there is more than one die or a number was added, then the number itself (*+ 3*). Mixed groups are labelled (*2d6* 6 6 *− 1d4* 4).
+- The last five rolls, from the buttons and typed alike, are listed under *Recent rolls* (newest first). Tapping one rolls it again.
+- `parseNotation()` and `rollNotation()` in `dice.ts` are pure, like `rollDice(sides, count, random?)`; the random source is injectable so tests are deterministic. The buttons go through the same path as typed notation, so there is one result display and one history.
 
 #### Countdown
 
@@ -396,7 +408,7 @@ The line-up lives in the root-scoped `TableLineupService`, so it survives a trip
 - Results are not kept when you leave the page; the line-up is.
 - One countdown and one stopwatch; no per-player turn clock yet.
 - Timers are in memory only; closing the app entirely loses them.
-- No custom dice expressions (e.g. `2d6+3`) or per-die exploding/rerolls.
+- Dice notation covers sums only: no keep/drop (`4d6kh3`), exploding dice, rerolls or multiplication.
 
 ---
 
@@ -786,9 +798,9 @@ Each page has a functional spec next to it (`*.spec.ts`) that drives the rendere
 | `seed-data.spec.ts` | The bundled samples: unique ids, whole-number ranges with the minimum first, valid complexity/ratings, plays referencing existing games and players with matching snapshots, winners who took part, sane dates/head-counts/durations, and coverage of the showcase cases listed under [Sample data](#sample-data) |
 | `stats.spec.ts` (`src/app/stats/`) | Empty state, overview tiles, hours rounding, games table contents and over/under/in-range labels, players column with breakdown only when head-counts vary, the best-with line and its green highlight, dashes, never-played links, deleted-game label, players table contents, dimmed no-play rows, removed label, no-players hint, nav links |
 | `manage.spec.ts` | Export counts and download (v4 Blob contents, filename), invalid/unrecognised/bad-entry file errors, games preview with duplicates greyed and reasons, v1 file keeps players and plays, v2 file previews and imports players (duplicates first-wins, empty list warns) and keeps plays, v3 plays preview with new/already-here counts, merge adds only new plays, old backup can't delete newer plays, per-section checkboxes (default ticked, unticked sections untouched, Confirm disabled when none, only present sections offered), cancel, storage-failure handling |
-| `dice.spec.ts` | Random-source mapping onto 1..sides, totals, count clamping, range check across all die types |
+| `dice.spec.ts` | Random-source mapping onto 1..sides, totals, count clamping, range check across all die types; `parseNotation` (dice plus a number, spaces and case, optional count, `d%`, several groups and numbers, subtraction, leading minus, every error message, exact limits); `rollNotation` (groups and modifier totalled, negative groups, totals below zero, more dice than the stepper) |
 | `timer.spec.ts` | `formatDuration`; Stopwatch start/pause/resume/reset, timestamp-based elapsed (throttled-tab case), `onTick`, `destroy`; Countdown remaining/finished, `onFinish` fires once, pause/resume, reset, `setDuration` |
-| `tools.spec.ts` | Dice type/count selection and clamping, roll rendering (total + individual dice), history; Countdown presets, custom minutes, running/pause/resume display with fake timers, time's-up alert once + reset, survives leaving and re-opening the page; Stopwatch count-up through the hour boundary; nav links. Screen: setting hidden without the API, on by default, held while the stopwatch runs and released on pause, released at time's up, turning it off releases and is remembered, stays off on a later visit |
+| `tools.spec.ts` | Dice type/count selection and clamping, roll rendering (total + individual dice), history; typed notation (button disabled until typed, `3d6+3` with dice and modifier, breakdown for one die plus a number, mixed groups labelled with subtraction, error message and nothing rolled, message clears on typing, shared history and tap to reroll); Countdown presets, custom minutes, running/pause/resume display with fake timers, time's-up alert once + reset, survives leaving and re-opening the page; Stopwatch count-up through the hour boundary; nav links. Screen: setting hidden without the API, on by default, held while the stopwatch runs and released on pause, released at time's up, turning it off releases and is remembered, stays off on a later visit |
 | `table-picks.spec.ts` | `pickOne` mapping and empty list; `shuffle` keeps every item once, leaves the input alone, swap order, empty and single lists; `splitTeams` round-robin sizes, everyone on one team, never an empty team |
 | `table-lineup.spec.ts` | Alphabetical choices, carry-over from the most recent play, empty log, removed players left out, toggling ends carry-over; guests (trimmed, order, empty and duplicate refused, saved player selected instead, removal, never saved); clear |
 | `player-picks.spec.ts` | Pre-selected line-up and note, note drops on change, Clear disables actions, no-players link; guests (chip and removal, button disabled until typed, duplicate message keeps input, guests alone make a table); first player includes guests, numbered turn order with everyone once, teams by the stepper, stepper capped by head-count and clamped when people leave, stale result hidden, new pick replaces the last |
@@ -865,6 +877,7 @@ The full candidate scope for the project, grouped by area. Nothing here has been
 | Timers | ✅ `/tools`, countdown with alert, stopwatch |
 | Keep the screen on | ✅ `/tools`, while a timer runs |
 | First player, turn order, teams | ✅ `/tools`, from the last line-up plus guests |
+| Dice notation | ✅ `/tools`, e.g. `3d6+3` or `2d6+1d4-1`, with tap-to-reroll history |
 
 ### More Table Tools
 
@@ -873,7 +886,7 @@ Candidates for `/tools`, roughly smallest first. Not yet prioritised beyond the 
 | Item | Notes |
 |---|---|
 | Coin flip and random number | Small additions to the dice card for "pick a number from 1 to N" moments |
-| Dice notation | Type `2d6+3` or `4d6 drop lowest` and see each die; listed under the current limitations above |
+| Keep / drop dice | `4d6kh3` (keep highest 3) or `2d20kl1` for disadvantage, extending the dice notation that already exists |
 | Fingers-on-the-screen picker | Everyone puts a finger down and one is chosen. Guests already cover people not in the Players list, so this is for fun more than need |
 | Turn timer | A clock per player; tapping passes the turn on, and the end shows each player's total. Can reuse the timestamp-based `Stopwatch`, and take its players and order from the *Who's playing* card |
 | Score pad | Players by rounds with running totals, starting from the *Who's playing* line-up. **Log this play** would hand players, winner and duration to the log form, which makes logging nearly free. Must save as it goes, unlike the in-memory timers, since losing scores mid-game is far worse than losing a timer |

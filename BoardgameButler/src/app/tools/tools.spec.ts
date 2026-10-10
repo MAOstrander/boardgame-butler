@@ -1,8 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { Tools } from './tools';
-import { TimerService } from '../timer-service';
+import { KEEP_AWAKE_KEY, TimerService } from '../timer-service';
 import { findByText, query, queryAll, setInputValue, settle, text } from '../../testing/helpers';
+import { FakeSentinel, removeWakeLock, stubWakeLock } from '../../testing/wake-lock';
 
 describe('Tools', () => {
   let fixture: ComponentFixture<Tools>;
@@ -237,5 +238,111 @@ describe('Tools', () => {
   it('links back home and to the collection', () => {
     const hrefs = queryAll<HTMLAnchorElement>(fixture, 'a').map(a => a.getAttribute('href'));
     expect(hrefs).toEqual(expect.arrayContaining(['/', '/collection']));
+  });
+
+  it('offers no screen setting where the browser cannot keep the screen on', () => {
+    expect(fixture.nativeElement.querySelector('#keep-awake')).toBeNull();
+  });
+});
+
+describe('Tools: keeping the screen on', () => {
+  let fixture: ComponentFixture<Tools>;
+  let timers: TimerService;
+  let request: ReturnType<typeof stubWakeLock>;
+
+  async function open() {
+    await TestBed.configureTestingModule({
+      imports: [Tools],
+      providers: [provideRouter([])],
+    }).compileComponents();
+    timers = TestBed.inject(TimerService);
+    vi.spyOn(timers, 'alert').mockImplementation(() => {});
+    fixture = TestBed.createComponent(Tools);
+    await settle(fixture);
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    localStorage.clear();
+    request = stubWakeLock();
+  });
+
+  afterEach(() => {
+    timers.countdown.destroy();
+    timers.stopwatch.destroy();
+    removeWakeLock();
+    localStorage.clear();
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  const checkbox = () => query<HTMLInputElement>(fixture, '#keep-awake');
+  const buttonIn = (section: string, label: string) =>
+    findByText<HTMLButtonElement>(fixture, `section[aria-labelledby="${section}-heading"] button`, label);
+  const held = () => fixture.nativeElement.querySelector('[data-testid="screen-held"]');
+
+  /** Render (which runs the timer effect), let the lock request resolve, render again. */
+  async function flush() {
+    await settle(fixture);
+    for (let i = 0; i < 5; i++) await Promise.resolve();
+    await settle(fixture);
+  }
+
+  it('is on by default and does nothing until a timer starts', async () => {
+    await open();
+    expect(checkbox().checked).toBe(true);
+    expect(request).not.toHaveBeenCalled();
+    expect(held()).toBeNull();
+  });
+
+  it('holds the screen while the stopwatch runs and lets go on pause', async () => {
+    await open();
+    buttonIn('stopwatch', 'Start').click();
+    await flush();
+    expect(request).toHaveBeenCalledWith('screen');
+    expect(held()).toBeTruthy();
+
+    const sentinel: FakeSentinel = await request.mock.results[0].value;
+    buttonIn('stopwatch', 'Pause').click();
+    await flush();
+    expect(sentinel.release).toHaveBeenCalled();
+    expect(held()).toBeNull();
+  });
+
+  it('lets go when the countdown reaches zero', async () => {
+    await open();
+    findByText<HTMLButtonElement>(fixture, 'button', '1 min').click();
+    await settle(fixture);
+    buttonIn('countdown', 'Start').click();
+    await flush();
+    expect(held()).toBeTruthy();
+
+    vi.advanceTimersByTime(61_000);
+    await flush();
+    expect(text(fixture)).toContain("Time's up!");
+    expect(held()).toBeNull();
+  });
+
+  it('turning it off releases a held screen and is remembered', async () => {
+    await open();
+    buttonIn('stopwatch', 'Start').click();
+    await flush();
+    const sentinel: FakeSentinel = await request.mock.results[0].value;
+
+    checkbox().click();
+    await flush();
+    expect(sentinel.release).toHaveBeenCalled();
+    expect(held()).toBeNull();
+    expect(localStorage.getItem(KEEP_AWAKE_KEY)).toBe('off');
+  });
+
+  it('stays off on a later visit, so a timer leaves the screen alone', async () => {
+    localStorage.setItem(KEEP_AWAKE_KEY, 'off');
+    await open();
+    expect(checkbox().checked).toBe(false);
+
+    buttonIn('stopwatch', 'Start').click();
+    await flush();
+    expect(request).not.toHaveBeenCalled();
   });
 });

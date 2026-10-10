@@ -1,17 +1,45 @@
-import { Injectable } from '@angular/core';
+import { Injectable, effect, inject, signal } from '@angular/core';
 import { Countdown, Stopwatch } from './timer';
+import { WakeLockService } from './wake-lock';
+
+export const KEEP_AWAKE_KEY = 'boardgame-butler.keepAwake';
 
 /**
  * Root-scoped so a running timer keeps going while the user visits other
- * pages. Also owns the "time's up" alert.
+ * pages. Also owns the "time's up" alert, and keeps the screen on while a
+ * timer runs.
  */
 @Injectable({ providedIn: 'root' })
 export class TimerService {
+  private wakeLock = inject(WakeLockService);
+
   readonly countdown = new Countdown();
   readonly stopwatch = new Stopwatch();
 
+  private readonly _keepAwake = signal(readKeepAwake());
+  /** Whether to hold the screen on while either timer runs. On unless turned off. */
+  readonly keepAwake = this._keepAwake.asReadonly();
+
   constructor() {
     this.countdown.onFinish = () => this.alert();
+
+    effect(() => {
+      const running = this.countdown.running() || this.stopwatch.running();
+      if (running && this._keepAwake()) {
+        void this.wakeLock.request();
+      } else {
+        this.wakeLock.release();
+      }
+    });
+  }
+
+  setKeepAwake(on: boolean) {
+    this._keepAwake.set(on);
+    try {
+      localStorage.setItem(KEEP_AWAKE_KEY, on ? 'on' : 'off');
+    } catch {
+      // The setting still applies for this session.
+    }
   }
 
   /** Vibrate and beep where the platform allows; silently do nothing otherwise. */
@@ -37,5 +65,13 @@ export class TimerService {
     } catch {
       /* autoplay blocked or unsupported */
     }
+  }
+}
+
+function readKeepAwake(): boolean {
+  try {
+    return localStorage.getItem(KEEP_AWAKE_KEY) !== 'off';
+  } catch {
+    return true;
   }
 }

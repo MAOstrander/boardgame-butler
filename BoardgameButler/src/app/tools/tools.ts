@@ -3,6 +3,7 @@ import { RouterLink } from '@angular/router';
 import { DIE_SIDES, DiceRoll, MAX_DICE, rollDice } from '../dice';
 import { formatDuration } from '../timer';
 import { TimerService } from '../timer-service';
+import { WakeLockService } from '../wake-lock';
 
 const ROLL_HISTORY = 5;
 
@@ -31,6 +32,10 @@ export class Tools implements OnInit {
   // --- Stopwatch
   protected stopwatch = this.timers.stopwatch;
   protected stopwatchDisplay = computed(() => formatDuration(this.stopwatch.elapsedMs()));
+
+  // --- Screen
+  protected wakeLock = inject(WakeLockService);
+  protected keepAwake = this.timers.keepAwake;
 
   ngOnInit() {
     // Timers keep running while other pages are open; catch the display up.
@@ -68,6 +73,10 @@ export class Tools implements OnInit {
 
   protected isPreset(minutes: number): boolean {
     return this.countdown.durationMs() === minutes * 60_000 && this.customMinutes() === '';
+  }
+
+  protected onKeepAwake(event: Event) {
+    this.timers.setKeepAwake((event.target as HTMLInputElement).checked);
   }
 
   protected formatRoll(roll: DiceRoll): string {

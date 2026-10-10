@@ -178,6 +178,7 @@ Open http://localhost:4200. Work through the checklist in order, since later ste
 - [ ] Type `0.5` in **Custom** → `0:30`, preset highlight cleared.
 - [ ] Start a **2 min** countdown, navigate to **View collection**, wait ~10 s, come back → the countdown has kept going and shows the correct remaining time.
 - [ ] **Stopwatch:** **Start** → counts up; **Pause** holds; **Resume** continues; **Reset** (only enabled when stopped with time on it) → `0:00`.
+- [ ] **Keep the screen on** (Chrome or Edge): the checkbox under the heading is ticked. Start the stopwatch → a *Screen on* tag appears beside it. Pause → the tag goes. Start again, untick the box → the tag goes; reload the page → the box is still unticked. Tick it again before moving on. The real test is on a phone; see [Part 4](#screen-stays-on).
 
 ### Manage: export
 
@@ -330,6 +331,16 @@ Allow Node through the firewall if prompted. On the phone open `https://192.168.
 - [ ] It opens. Home, Collection, Add and Manage all work. Add another game.
 - [ ] Turn Airplane mode off. The game added offline is still there.
 - [ ] Stronger test: **stop `serve` on the PC** (or shut the PC down), launch the app → still works.
+
+### Screen stays on
+
+Wake locks need HTTPS, so on plain HTTP (Part 3) the setting is hidden. Set the phone's auto-lock to its shortest time (30 s or 1 min) first.
+
+- [ ] Table Tools → start a **5 min** countdown, put the phone down → the screen stays lit past the auto-lock time.
+- [ ] Switch to another app and back → *Screen on* is shown again and the screen still stays lit.
+- [ ] Let a **1 min** countdown run out → after *Time's up!* the screen dims and locks at the usual time.
+- [ ] Untick **Keep the screen on**, start the stopwatch → the screen locks as normal.
+- [ ] Do this both in the browser and in the installed app. On iPhone the installed app is the one most likely to differ.
 
 ### Fresh-install seeding
 

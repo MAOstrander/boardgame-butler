@@ -1,0 +1,139 @@
+<section aria-labelledby="picks-heading" class="p-6 rounded-2xl bg-gray-900 border border-gray-800 flex flex-col gap-5">
+  <div>
+    <h2 id="picks-heading" class="text-lg font-semibold text-white">Who's playing</h2>
+    <p class="text-sm text-gray-400 mt-1">Pick a first player, a turn order or teams.</p>
+  </div>
+
+  <!-- Line-up -->
+  <div class="flex flex-col gap-2">
+    @if (lineup.choices().length === 0) {
+      <p class="text-xs text-gray-500">No players yet. <a routerLink="/players" class="text-amber-400 hover:text-amber-300">Add some</a>, or add guests below.</p>
+    } @else {
+      <div class="flex items-center justify-between gap-3">
+        <span class="text-sm font-medium text-gray-300">At the table</span>
+        @if (count() > 0) {
+          <button type="button" (click)="lineup.clear()" class="text-xs text-gray-500 hover:text-amber-400 transition-colors cursor-pointer">
+            Clear
+          </button>
+        }
+      </div>
+      <div class="flex flex-wrap gap-2" role="group" aria-label="Who's playing">
+        @for (p of lineup.choices(); track p.id) {
+          <button
+            type="button"
+            (click)="lineup.toggle(p.id)"
+            [attr.aria-pressed]="lineup.isSelected(p.id)"
+            class="px-3 py-1.5 rounded-full border text-sm font-medium transition-colors cursor-pointer"
+            [class]="lineup.isSelected(p.id)
+              ? 'bg-amber-500 border-amber-400 text-white'
+              : 'bg-gray-800 border-gray-700 text-gray-300 hover:border-amber-500'"
+          >
+            {{ p.name }}
+          </button>
+        }
+      </div>
+      @if (lineup.carriedOver()) {
+        <p class="text-xs text-gray-500">Carried over from your last play. Change it if tonight's group is different.</p>
+      }
+    }
+
+    @if (lineup.guests().length > 0) {
+      <ul class="flex flex-wrap gap-2" aria-label="Guests">
+        @for (g of lineup.guests(); track g) {
+          <li class="flex items-center gap-1 pl-3 pr-1 py-1 rounded-full bg-amber-500 border border-amber-400 text-white text-sm font-medium">
+            {{ g }} <span class="text-amber-100 text-xs font-normal">guest</span>
+            <button type="button" (click)="lineup.removeGuest(g)" [attr.aria-label]="'Remove ' + g"
+              class="w-6 h-6 rounded-full hover:bg-amber-600 cursor-pointer">×</button>
+          </li>
+        }
+      </ul>
+    }
+
+    <form (submit)="$event.preventDefault(); addGuest()" class="flex flex-wrap items-center gap-2">
+      <label for="guest-name" class="sr-only">Guest name</label>
+      <input
+        id="guest-name"
+        type="text"
+        placeholder="Someone not in your list"
+        autocomplete="off"
+        [value]="guestName()"
+        (input)="onGuestName($event)"
+        class="flex-1 min-w-0 px-3 py-1.5 rounded-lg bg-gray-800 border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:border-amber-500"
+      />
+      <button type="submit" [disabled]="guestName().trim() === ''"
+        class="px-4 py-1.5 bg-gray-800 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed text-gray-300 font-semibold rounded-lg transition-colors cursor-pointer">
+        Add guest
+      </button>
+    </form>
+    @if (guestError(); as message) {
+      <p class="text-red-400 text-xs">{{ message }}</p>
+    }
+  </div>
+
+  <!-- Actions -->
+  <div class="flex flex-wrap items-center gap-3">
+    <button type="button" (click)="pickFirst()" [disabled]="count() < 2"
+      class="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 active:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl shadow transition-colors cursor-pointer">
+      Pick first player
+    </button>
+    <button type="button" (click)="shuffleOrder()" [disabled]="count() < 2"
+      class="px-4 py-2.5 bg-gray-800 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-colors cursor-pointer">
+      Shuffle turn order
+    </button>
+    <div class="flex items-center gap-2">
+      <div class="flex items-center rounded-lg border border-gray-700 overflow-hidden">
+        <button type="button" (click)="changeTeams(-1)" [disabled]="teams() <= 2" aria-label="Fewer teams"
+          class="px-3 py-2 bg-gray-800 text-white hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">−</button>
+        <span class="px-3 py-2 bg-gray-950 text-white font-semibold tabular-nums min-w-[3ch] text-center" aria-live="polite" data-testid="team-count">{{ teams() }}</span>
+        <button type="button" (click)="changeTeams(1)" [disabled]="teams() >= maxTeams()" aria-label="More teams"
+          class="px-3 py-2 bg-gray-800 text-white hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">+</button>
+      </div>
+      <button type="button" (click)="split()" [disabled]="count() < 2"
+        class="px-4 py-2.5 bg-gray-800 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-colors cursor-pointer">
+        Split into {{ teams() }} teams
+      </button>
+    </div>
+  </div>
+  @if (count() < 2) {
+    <p class="text-xs text-gray-500 -mt-2">Choose at least two people.</p>
+  }
+
+  <!-- Result -->
+  <div aria-live="polite" data-testid="pick-result">
+    @if (shown(); as r) {
+      <div class="rounded-xl bg-gray-950 border border-gray-800 p-5">
+        @switch (r.kind) {
+          @case ('first') {
+            <p class="text-xs uppercase tracking-widest text-gray-500 mb-1 text-center">Going first</p>
+            <p class="text-4xl font-bold text-amber-400 text-center">{{ r.name }}</p>
+          }
+          @case ('order') {
+            <p class="text-xs uppercase tracking-widest text-gray-500 mb-3">Turn order</p>
+            <ol class="flex flex-col gap-1.5">
+              @for (name of r.names; track name; let i = $index) {
+                <li class="flex items-center gap-3 text-white">
+                  <span class="w-7 h-7 flex items-center justify-center rounded-full bg-gray-800 text-amber-400 text-sm font-bold tabular-nums">{{ i + 1 }}</span>
+                  {{ name }}
+                </li>
+              }
+            </ol>
+          }
+          @case ('teams') {
+            <div class="grid gap-3 sm:grid-cols-2">
+              @for (team of r.teams; track $index; let i = $index) {
+                <div class="rounded-lg bg-gray-900 border border-gray-800 p-3" data-testid="team">
+                  <p class="text-xs uppercase tracking-widest text-gray-500 mb-2">Team {{ i + 1 }}</p>
+                  <ul class="flex flex-col gap-1 text-white">
+                    @for (name of team; track name) {
+                      <li>{{ name }}</li>
+                    }
+                  </ul>
+                </div>
+              }
+            </div>
+          }
+        }
+      </div>
+    }
+  </div>
+</section>

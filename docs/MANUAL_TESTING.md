@@ -192,15 +192,24 @@ Collections saved before player counts were split hold text like `"3-4"`.
 
 ### Table Tools
 
-- [ ] Home → **🎲 Table tools** → three cards: Dice, Countdown, Stopwatch.
+- [ ] Home → **🎲 Table tools** → four cards: Dice, Countdown, Stopwatch, Who's playing.
 - [ ] **Dice:** d6 is highlighted; button reads **Roll 1d6**. Click **Roll** several times → a large number 1–6, no individual dice shown; *Recent rolls* appears after the second roll and never exceeds five entries.
 - [ ] Click **d20**, then **+** twice → **Roll 3d20**. Roll → total plus three individual dice, each 1–20, summing to the total. **−** at 1 and **+** at 10 are disabled.
+- [ ] **Or type a roll:** `3d6+3` → **Roll it** (or Enter) → label `3d6+3`, three dice and *+ 3*, and the total is their sum plus 3. `d20 - 2` → label `1d20-2`, one die and *− 2*. `2d6-1d4` → the dice grouped under *2d6* and *1d4* with a minus between. `3x6` → *Couldn't read "3x6". Try something like 3d6+3.* and nothing rolls; typing again clears the message.
+- [ ] *Recent rolls* mixes button and typed rolls. Tap `3d6+3` there → it rolls again and goes to the top.
+- [ ] On a phone, the box doesn't autocorrect or capitalise what you type.
 - [ ] **Countdown:** display `0:00`, **Start** and **Reset** disabled. Click **1 min** → `1:00`, preset highlighted. **Start** → counts down; presets and the Custom box are disabled; button reads **Pause**. **Pause** → stops; **Resume** → continues.
 - [ ] Let it reach `0:00` → display turns red and pulses, *Time's up!* appears, and on a device that supports it you get a short beep / vibration. **Reset** → back to `1:00`, message gone.
 - [ ] Type `0.5` in **Custom** → `0:30`, preset highlight cleared.
 - [ ] Start a **2 min** countdown, navigate to **View collection**, wait ~10 s, come back → the countdown has kept going and shows the correct remaining time.
 - [ ] **Stopwatch:** **Start** → counts up; **Pause** holds; **Resume** continues; **Reset** (only enabled when stopped with time on it) → `0:00`.
 - [ ] **Keep the screen on** (Chrome or Edge): the checkbox under the heading is ticked. Start the stopwatch → a *Screen on* tag appears beside it. Pause → the tag goes. Start again, untick the box → the tag goes; reload the page → the box is still unticked. Tick it again before moving on. The real test is on a phone; see [Part 4](#screen-stays-on).
+- [ ] **Who's playing:** the people from your most recent play (check History) are already selected, with *Carried over from your last play.* Tap another chip → it turns amber and the note goes.
+- [ ] Type `Pat` → **Add guest** → an amber *Pat guest* chip with ×. Type the name of a saved player who isn't selected → that player's chip is selected instead of a guest appearing. Type `pat` → *Pat is already at the table.*
+- [ ] **Pick first player** a few times → *Going first* with a name each time; Pat comes up sometimes. **Shuffle turn order** → a numbered list with everyone once.
+- [ ] With 4 or more at the table, **+** to 3 → **Split into 3 teams** → three teams whose sizes differ by at most one. **+** stops at the number of people.
+- [ ] Tap a chip → the result disappears. **Clear** → every action is disabled with *Choose at least two people.*
+- [ ] Select two people and add a guest, go to **View collection** and back → the same three are still at the table. Close the app fully and reopen → the guest is gone and the line-up is the carried-over one again.
 
 ### Manage: export
 

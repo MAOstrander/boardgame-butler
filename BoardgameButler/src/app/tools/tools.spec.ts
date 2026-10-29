@@ -1,4 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
 import { Tools } from './tools';
 import { KEEP_AWAKE_KEY, TimerService } from '../timer-service';
@@ -13,7 +15,7 @@ describe('Tools', () => {
     vi.useFakeTimers();
     await TestBed.configureTestingModule({
       imports: [Tools],
-      providers: [provideRouter([])],
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
     }).compileComponents();
 
     timers = TestBed.inject(TimerService);
@@ -87,7 +89,7 @@ describe('Tools', () => {
       await settle(fixture);
 
       expect(text(fixture)).toContain('2d6');
-      const dice = queryAll(fixture, '[aria-label="Individual dice"] span').map(s => s.textContent?.trim());
+      const dice = queryAll(fixture, '[data-testid="die"]').map(s => s.textContent?.trim());
       expect(dice).toEqual(['1', '6']);
       expect(query(fixture, '.text-6xl').textContent?.trim()).toBe('7');
     });
@@ -111,6 +113,95 @@ describe('Tools', () => {
       const history = queryAll(fixture, 'ul li');
       expect(history.length).toBe(5);
       expect(history[0].textContent).toContain('1d6 → 1');
+    });
+
+    describe('typed notation', () => {
+      const notation = () => query<HTMLInputElement>(fixture, '#dice-notation');
+      const total = () => query(fixture, '[data-testid="roll-total"]').textContent?.trim();
+      const label = () => query(fixture, '[data-testid="roll-notation"]').textContent?.trim();
+      const dice = () => queryAll(fixture, '[data-testid="die"]').map(s => s.textContent?.trim());
+
+      async function type(value: string) {
+        setInputValue(notation(), value);
+        await settle(fixture);
+      }
+
+      async function submit() {
+        notation().closest('form')!.dispatchEvent(new Event('submit'));
+        await settle(fixture);
+      }
+
+      it('disables Roll it until something is typed', async () => {
+        expect(button('Roll it').disabled).toBe(true);
+        await type('3d6+3');
+        expect(button('Roll it').disabled).toBe(false);
+      });
+
+      it('rolls 3d6+3, showing each die and the added number', async () => {
+        const values = [0, 0.5, 0.999];
+        let i = 0;
+        vi.spyOn(Math, 'random').mockImplementation(() => values[i++ % values.length]);
+        await type('3d6+3');
+        await submit();
+
+        expect(label()).toBe('3d6+3');
+        expect(total()).toBe('14');
+        expect(dice()).toEqual(['1', '4', '6']);
+        expect(query(fixture, '[data-testid="modifier"]').textContent?.replace(/\s+/g, ' ').trim()).toBe('+ 3');
+        expect(notation().value).toBe('3d6+3');
+      });
+
+      it('shows the breakdown for one die when a number is added', async () => {
+        vi.spyOn(Math, 'random').mockReturnValue(0.999);
+        await type('d20 - 2');
+        await submit();
+
+        expect(label()).toBe('1d20-2');
+        expect(total()).toBe('18');
+        expect(dice()).toEqual(['20']);
+        expect(query(fixture, '[data-testid="modifier"]').textContent?.replace(/\s+/g, ' ').trim()).toBe('− 2');
+      });
+
+      it('labels each group when dice are mixed, and subtracts', async () => {
+        vi.spyOn(Math, 'random').mockReturnValue(0.999);
+        await type('2d6-1d4');
+        await submit();
+
+        expect(total()).toBe('8');
+        const parts = queryAll(fixture, '[aria-label="Individual dice"] span').map(s => s.textContent?.trim());
+        expect(parts).toEqual(['2d6', '6', '6', '−', '1d4', '4']);
+      });
+
+      it('explains what it could not read, and rolls nothing', async () => {
+        await type('3x6');
+        await submit();
+
+        expect(query(fixture, '[role="alert"]').textContent).toContain('Couldn\'t read "3x6". Try something like 3d6+3.');
+        expect(fixture.nativeElement.querySelector('[data-testid="roll-total"]')).toBeNull();
+      });
+
+      it('clears the message once you type again', async () => {
+        await type('3x6');
+        await submit();
+        await type('3d6');
+        expect(fixture.nativeElement.querySelector('[role="alert"]')).toBeNull();
+      });
+
+      it('shares the recent rolls with the buttons, and re-rolls from them', async () => {
+        vi.spyOn(Math, 'random').mockReturnValue(0);
+        await type('3d6+3');
+        await submit();
+        button('Roll 1d6').click();
+        await settle(fixture);
+
+        const history = queryAll(fixture, 'ul li').map(li => li.textContent?.trim());
+        expect(history).toEqual(['1d6 → 1', '3d6+3 → 6']);
+
+        query<HTMLButtonElement>(fixture, '[aria-label="Roll 3d6+3 again"]').click();
+        await settle(fixture);
+        expect(label()).toBe('3d6+3');
+        expect(queryAll(fixture, 'ul li').length).toBe(3);
+      });
     });
   });
 
@@ -240,6 +331,10 @@ describe('Tools', () => {
     expect(hrefs).toEqual(expect.arrayContaining(['/', '/collection']));
   });
 
+  it("includes the Who's playing card", () => {
+    expect(query(fixture, '#picks-heading').textContent?.trim()).toBe("Who's playing");
+  });
+
   it('offers no screen setting where the browser cannot keep the screen on', () => {
     expect(fixture.nativeElement.querySelector('#keep-awake')).toBeNull();
   });
@@ -253,7 +348,7 @@ describe('Tools: keeping the screen on', () => {
   async function open() {
     await TestBed.configureTestingModule({
       imports: [Tools],
-      providers: [provideRouter([])],
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
     }).compileComponents();
     timers = TestBed.inject(TimerService);
     vi.spyOn(timers, 'alert').mockImplementation(() => {});

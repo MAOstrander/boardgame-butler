@@ -11,7 +11,7 @@
         </a>
       </div>
       <h1 class="mt-4 text-3xl font-bold text-white tracking-tight">Table Tools</h1>
-      <p class="mt-1 text-gray-400">Dice and timers for the game in front of you.</p>
+      <p class="mt-1 text-gray-400">Dice, timers and who goes first, for the game in front of you.</p>
       @if (wakeLock.supported) {
         <label class="mt-4 flex items-center gap-3 text-sm text-gray-300 cursor-pointer">
           <input
@@ -69,14 +69,49 @@
           </button>
         </div>
 
+        <form (submit)="$event.preventDefault(); rollTyped()" class="flex flex-wrap items-center gap-3">
+          <label for="dice-notation" class="text-sm text-gray-400">Or type a roll</label>
+          <input
+            id="dice-notation"
+            type="text"
+            autocomplete="off"
+            autocapitalize="off"
+            spellcheck="false"
+            placeholder="3d6+3"
+            [value]="notationInput()"
+            (input)="onNotation($event)"
+            class="flex-1 min-w-0 px-3 py-1.5 rounded-lg bg-gray-800 border border-gray-700 text-white placeholder-gray-500 font-mono focus:outline-none focus:border-amber-500"
+          />
+          <button type="submit" [disabled]="notationInput().trim() === ''"
+            class="px-4 py-1.5 bg-gray-800 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors cursor-pointer">
+            Roll it
+          </button>
+        </form>
+        @if (notationError(); as message) {
+          <p class="text-red-400 text-xs -mt-3" role="alert">{{ message }}</p>
+        }
+
         @if (roll(); as r) {
           <div class="rounded-xl bg-gray-950 border border-gray-800 p-5 text-center" aria-live="polite">
-            <p class="text-xs uppercase tracking-widest text-gray-500 mb-1">{{ formatRoll(r) }}</p>
-            <p class="text-6xl font-bold text-amber-400 tabular-nums">{{ r.total }}</p>
-            @if (r.count > 1) {
-              <div class="mt-4 flex flex-wrap justify-center gap-2" aria-label="Individual dice">
-                @for (value of r.results; track $index) {
-                  <span class="w-10 h-10 flex items-center justify-center rounded-lg bg-gray-800 border border-gray-700 text-white font-semibold tabular-nums">{{ value }}</span>
+            <p class="text-xs uppercase tracking-widest text-gray-500 mb-1" data-testid="roll-notation">{{ r.notation }}</p>
+            <p class="text-6xl font-bold text-amber-400 tabular-nums" data-testid="roll-total">{{ r.total }}</p>
+            @if (showBreakdown(r)) {
+              <div class="mt-4 flex flex-wrap justify-center items-center gap-2" aria-label="Individual dice">
+                @for (g of r.groups; track $index; let gi = $index) {
+                  @if (gi > 0 || g.sign < 0) {
+                    <span class="text-gray-500 font-semibold" aria-hidden="true">{{ g.sign < 0 ? '−' : '+' }}</span>
+                  }
+                  @if (r.groups.length > 1) {
+                    <span class="text-xs text-gray-500">{{ g.count }}d{{ g.sides }}</span>
+                  }
+                  @for (value of g.results; track $index) {
+                    <span data-testid="die" class="w-10 h-10 flex items-center justify-center rounded-lg bg-gray-800 border border-gray-700 text-white font-semibold tabular-nums">{{ value }}</span>
+                  }
+                }
+                @if (r.modifier !== 0) {
+                  <span data-testid="modifier" class="px-2 h-10 flex items-center justify-center text-amber-300 font-semibold tabular-nums">
+                    {{ r.modifier < 0 ? '−' : '+' }} {{ r.modifier < 0 ? -r.modifier : r.modifier }}
+                  </span>
                 }
               </div>
             }
@@ -85,11 +120,14 @@
 
         @if (history().length > 1) {
           <div>
-            <p class="text-xs uppercase tracking-widest text-gray-500 mb-2">Recent rolls</p>
+            <p class="text-xs uppercase tracking-widest text-gray-500 mb-2">Recent rolls <span class="normal-case tracking-normal">· tap to roll again</span></p>
             <ul class="flex flex-wrap gap-2 text-sm">
               @for (h of history(); track $index) {
-                <li class="px-3 py-1 rounded-full bg-gray-800 text-gray-300" [class.opacity-50]="$index === 0">
-                  {{ formatRoll(h) }} → <span class="text-white font-semibold">{{ h.total }}</span>
+                <li [class.opacity-50]="$index === 0">
+                  <button type="button" (click)="reroll(h.notation)" [attr.aria-label]="'Roll ' + h.notation + ' again'"
+                    class="px-3 py-1 rounded-full bg-gray-800 hover:bg-gray-700 text-gray-300 cursor-pointer transition-colors">
+                    {{ h.notation }} → <span class="text-white font-semibold">{{ h.total }}</span>
+                  </button>
                 </li>
               }
             </ul>
@@ -195,6 +233,8 @@
           </button>
         </div>
       </section>
+
+      <app-player-picks class="md:col-span-2" />
 
     </div>
   </div>
